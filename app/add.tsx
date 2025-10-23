@@ -3,8 +3,8 @@ import React, { useState } from "react";
 import { FlatList, Modal, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-const accounts = ["Cash", "Bank", "Credit Card"];
-const categories = ["Food", "Transport", "Entertainment", "Others"];
+const accounts = ["💵  Cash", "🏦  Bank", "🪪  Credit Card"];
+const categories = ["🍽️  Food", "🚌  Transport", "📻  Entertainment", "💹  Others"];
 
 export default function AddExpenseScreen() {
   const router = useRouter();
@@ -23,8 +23,8 @@ export default function AddExpenseScreen() {
       setAmount((prev) => (prev.length > 1 ? prev.slice(0, -1) : "0"));
     } else if (value === "=") {
       try {
-        const result = eval(amount); // eval returns number
-        setAmount(result.toString()); // convert back to string
+        const result = eval(amount); 
+        setAmount(result.toString());
       } catch {
         setAmount("Error");
       }
@@ -74,7 +74,7 @@ export default function AddExpenseScreen() {
         onChangeText={setDesc}
       />
       <View className="bg-[#1E1E1E] p-4 h-24 rounded-lg items-end mb-3">
-        <Text className="text-white  text-6xl font-bold">{amount || "0"}</Text>
+        <Text className="text-white text-6xl font-bold">{amount || "0"}</Text>
       </View>
       <View className="mb-6">
         {calculatorButtons.map((row, rowIndex) => (
@@ -90,7 +90,7 @@ export default function AddExpenseScreen() {
                   className={`${bgColor} flex-1 mx-1 py-4 rounded-lg items-center justify-center`}
                   onPress={() => handlePress(btn)}
                 >
-                  <Text className="text-white text-lg font-bold">{btn}</Text>
+                  <Text className="text-white text-3xl font-medium">{btn}</Text>
                 </TouchableOpacity>
               );
             })}
@@ -102,7 +102,7 @@ export default function AddExpenseScreen() {
       </View>
       <Modal visible={accountModalVisible} transparent animationType="slide">
         <View className="flex-1 justify-end bg-black/50">
-          <View className="bg-[#1E1E1E] p-4 rounded-t-xl max-h-[40%]">
+          <View className="bg-[#020a20] p-6 rounded-t-xl max-h-[40%]">
             <FlatList
               data={accounts}
               keyExtractor={(item) => item}
@@ -114,7 +114,7 @@ export default function AddExpenseScreen() {
                     setAccountModalVisible(false);
                   }}
                 >
-                  <Text className="text-white text-base">{item}</Text>
+                  <Text className="text-white text-xl">{item}</Text>
                 </TouchableOpacity>
               )}
             />
@@ -123,7 +123,7 @@ export default function AddExpenseScreen() {
       </Modal>
       <Modal visible={categoryModalVisible} transparent animationType="slide">
         <View className="flex-1 justify-end bg-black/50">
-          <View className="bg-[#1E1E1E] p-4 rounded-t-xl max-h-[40%]">
+          <View className="bg-[#020a20] p-6 rounded-t-xl max-h-[40%]">
             <FlatList
               data={categories}
               keyExtractor={(item) => item}
@@ -135,7 +135,7 @@ export default function AddExpenseScreen() {
                     setCategoryModalVisible(false);
                   }}
                 >
-                  <Text className="text-white text-base">{item}</Text>
+                  <Text className="text-white text-xl">{item}</Text>
                 </TouchableOpacity>
               )}
             />
