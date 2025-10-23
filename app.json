@@ -1,10 +1,10 @@
 {
   "expo": {
-    "name": "myProject",
-    "slug": "myProject",
+    "name": "expense-manager",
+    "slug": "expense-manager",
     "version": "1.0.0",
 
-    "scheme": "myProject",
+    "scheme": "e",
     "platforms": ["ios", "android"],
     "web": {
       "bundler": "metro",
