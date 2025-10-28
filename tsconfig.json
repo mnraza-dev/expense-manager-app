@@ -1,6 +1,7 @@
 {
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
+    "jsxImportSource": "react-native-css-interop",
     "strict": true,
     "baseUrl": ".",
     "paths": {
@@ -11,8 +12,7 @@
     "**/*.ts",
     "**/*.tsx",
     ".expo/types/**/*.ts",
-
     "expo-env.d.ts",
     "nativewind-env.d.ts"
-, "app/context/ExpenseContext.jsx", "app/_layout.jsx", "app/+not-found.jsx", "app/add.jsx", "app/index.jsx"  ]
+  ]
 }
