@@ -1,32 +1,30 @@
-import { forwardRef } from "react";
-import {
-  Text,
-  TouchableOpacity,
-  TouchableOpacityProps,
-  View,
-} from "react-native";
+import React from 'react'
+import { View, Text, TouchableOpacity, TouchableOpacityProps, ViewStyle, ActivityIndicator } from 'react-native'
 
-type ButtonProps = {
-  title: string;
-} & TouchableOpacityProps;
+interface CustomButtonProps extends TouchableOpacityProps {
+  children?: React.ReactNode
+  onPress?: () => void
+  loading?: boolean
+  style?: ViewStyle
+}
 
-export const Button = forwardRef<View, ButtonProps>(
-  ({ title, ...touchableProps }, ref) => {
+export default function Button({ children, onPress, loading = false, style }: CustomButtonProps) {
+  if (loading) {
     return (
-      <TouchableOpacity
-        ref={ref}
-        {...touchableProps}
-        className={`${styles.button} ${touchableProps.className}`}
-      >
-        <Text className={styles.buttonText}>{title}</Text>
-      </TouchableOpacity>
-    );
-  },
-);
+      <View className="w-full justify-center items-center py-4">
+        <ActivityIndicator size="large" color="white" />
+      </View>
+    )
+  }
 
-Button.displayName = "Button";
-
-const styles = {
-  button: "items-center bg-indigo-500 rounded-[28px] shadow-md p-4",
-  buttonText: "text-white text-lg font-semibold text-center",
-};
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      className="bg-purple-600 w-full justify-center items-center py-4 rounded-xl"
+      style={style}
+      activeOpacity={0.8}
+    >
+      {children}
+    </TouchableOpacity>
+  )
+}
