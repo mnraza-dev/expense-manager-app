@@ -1,15 +1,17 @@
-import { Image, TouchableOpacity, View } from 'react-native'
+import { Image, View } from 'react-native'
 import { ScreenWrapper } from '@/components/ScreenWrapper'
 import Typography from '@/components/Typography'
 import Button from '@/components/Button'
+import Animated, { FadeIn, FadeInDown, FadeInUp } from 'react-native-reanimated'
 
 export default function Welcome() {
   return (
     <ScreenWrapper>
+      {/* Sign In Button */}
       <View className="items-end px-8 pt-1">
         <Button
           style={{
-            // backgroundColor: 'green',
+            backgroundColor: 'green',
             width: 100,
             paddingVertical: 6,
             paddingHorizontal: 12,
@@ -24,16 +26,18 @@ export default function Welcome() {
           />
         </Button>
       </View>
-
-
-      <View className=" justify-center items-center ">
-        <Image
+      <View className="justify-center items-center">
+        <Animated.Image
+          entering={FadeInUp.duration(1800)}
           source={require('../../assets/banner-01.png')}
-          className="w-full  px-12"
+          className="w-full px-12"
           resizeMode="contain"
         />
       </View>
-      <View
+
+      {/* Bottom Panel */}
+      <Animated.View
+        entering={FadeInDown.duration(800).delay(200)}
         className="bg-neutral-900/90 py-8 px-8 w-full absolute bottom-0 rounded-t-3xl"
         style={{
           justifyContent: 'center',
@@ -45,24 +49,32 @@ export default function Welcome() {
           elevation: 10,
         }}
       >
-        <Typography children="Always take care" color="white" fontWeight="600" size={28} />
-        <Typography children="of your finances" color="white" fontWeight="600" size={28} />
-        <Typography
-          children="Finances must be arranged to set a better"
-          color="#999"
-          fontWeight="400"
-          size={18}
-          style={{ marginTop: 16, textAlign: 'center' }}
-        />
-        <Typography
-          children="lifestyle in future"
-          color="#999"
-          fontWeight="400"
-          size={18}
-          style={{ textAlign: 'center' }}
-        />
+        {/* Headline */}
+        <Animated.View entering={FadeInDown.duration(900).delay(300)}>
+          <Typography children="Always take care" color="white" fontWeight="600" size={28} />
+          <Typography children="of your finances" color="white" fontWeight="600" size={28} />
+        </Animated.View>
 
-        <View className="mt-8 w-full">
+        {/* Description */}
+        <Animated.View entering={FadeInDown.duration(900).delay(500)}>
+          <Typography
+            children="Finances must be arranged to set a better"
+            color="#999"
+            fontWeight="400"
+            size={18}
+            style={{ marginTop: 16, textAlign: 'center' }}
+          />
+          <Typography
+            children="lifestyle in future"
+            color="#999"
+            fontWeight="400"
+            size={18}
+            style={{ textAlign: 'center' }}
+          />
+        </Animated.View>
+
+        {/* Button */}
+        <Animated.View entering={FadeInDown.duration(900).delay(700)} className="mt-8 w-full">
           <Button style={{ alignItems: 'center', justifyContent: 'center' }}>
             <Typography
               children="Get Started"
@@ -72,8 +84,8 @@ export default function Welcome() {
               style={{ textAlign: 'center' }}
             />
           </Button>
-        </View>
-      </View>
+        </Animated.View>
+      </Animated.View>
     </ScreenWrapper>
   )
 }
