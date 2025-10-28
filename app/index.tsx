@@ -1,3 +1,4 @@
+import Typography from '@/components/Typography'
 import { useRouter } from 'expo-router'
 import { useEffect } from 'react'
 import { View, Text, Image } from 'react-native'
@@ -22,9 +23,9 @@ export default function index() {
       entering={FadeInDown.duration(900)}
       source={require('../assets/logo.png')} resizeMode='contain' className='w-96' />
       <View>
-        <Text className='text-4xl text-white font-bold'>
-          All
-        </Text>
+        <Typography color='white' fontWeight={600} size={34}>
+          Expense Manager
+        </Typography>
       </View>
     </View>
   )
