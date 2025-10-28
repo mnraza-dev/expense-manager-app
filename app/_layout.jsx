@@ -1,7 +1,7 @@
 import { Stack } from "expo-router";
 import "../global.css";
 import { ExpenseProvider } from "./context/ExpenseContext";
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({ children } ) {
   return (
     <ExpenseProvider>
       <Stack screenOptions={{ headerShown: false }}>

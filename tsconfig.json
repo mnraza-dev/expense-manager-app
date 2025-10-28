@@ -14,5 +14,5 @@
 
     "expo-env.d.ts",
     "nativewind-env.d.ts"
-  ]
+, "app/context/ExpenseContext.jsx", "app/_layout.jsx", "app/+not-found.jsx", "app/add.jsx", "app/index.jsx"  ]
 }

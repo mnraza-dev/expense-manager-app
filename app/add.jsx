@@ -1,5 +1,5 @@
 import { useRouter } from "expo-router";
-import React, { useState, useContext } from "react";
+import  { useState, useContext } from "react";
 import { FlatList, Modal, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ExpenseContext } from "./context/ExpenseContext";
@@ -18,7 +18,7 @@ export default function AddExpenseScreen() {
   const [categoryModalVisible, setCategoryModalVisible] = useState(false);
   const currentDate = new Date().toLocaleString();
 
-  const handlePress = (value: string) => {
+  const handlePress = (value) => {
     if (value === "Clear") {
       setAmount("0");
     } else if (value === "⌫") {
