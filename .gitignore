@@ -12,7 +12,7 @@ web-build/
 # expo router
 expo-env.d.ts
 
-
+.install-tmp
 
 ios
 android
@@ -22,3 +22,5 @@ android
 
 # Temporary files created by Metro to check the health of the file watcher
 .metro-health-check*
+.test-build/
+.install-tmp/cache/7a90cdb7bde7a8d6.npm
