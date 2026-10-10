@@ -46,48 +46,64 @@ export function Screen({
   subtitle,
   back = false,
   action,
+  scroll = true,
 }: {
   children: React.ReactNode;
   title: string;
   subtitle?: string;
   back?: boolean;
   action?: () => void;
+  scroll?: boolean;
 }) {
   const c = useTheme();
   const router = useRouter();
-  const refreshError = useFinance(s=>s.refreshError);
-  const refresh = useFinance(s=>s.refresh);
+  const refreshError = useFinance((s) => s.refreshError),
+    refresh = useFinance((s) => s.refresh);
+  const content = (
+    <>
+      <View style={styles.header}>
+        {back && (
+          <Pressable
+            accessibilityLabel="Go back"
+            onPress={() => router.back()}
+            style={styles.touch}>
+            <ArrowLeft color={c.text} />
+          </Pressable>
+        )}
+        <View style={{ flex: 1 }}>
+          <Text style={{ color: c.text, fontSize: 28, fontWeight: '800' }}>{title}</Text>
+          {subtitle && <Text style={{ color: c.muted, marginTop: 5 }}>{subtitle}</Text>}
+        </View>
+        {action && (
+          <Pressable
+            accessibilityLabel="Add new"
+            onPress={action}
+            style={[styles.touch, { backgroundColor: c.accent, borderRadius: 16 }]}>
+            <Plus color={c.card} />
+          </Pressable>
+        )}
+      </View>
+      {refreshError && (
+        <Card>
+          <Label>{refreshError}</Label>
+          <Button title="Retry refresh" onPress={() => void refresh().catch(showError)} />
+        </Card>
+      )}
+      {children}
+    </>
+  );
   return (
     <SafeAreaView edges={['top', 'left', 'right']} style={{ flex: 1, backgroundColor: c.bg }}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.page}>
-          <View style={styles.header}>
-            {back && (
-              <Pressable
-                accessibilityLabel="Go back"
-                onPress={() => router.back()}
-                style={styles.touch}>
-                <ArrowLeft color={c.text} />
-              </Pressable>
-            )}
-            <View style={{ flex: 1 }}>
-              <Text style={{ color: c.text, fontSize: 28, fontWeight: '800' }}>{title}</Text>
-              {subtitle && <Text style={{ color: c.muted, marginTop: 5 }}>{subtitle}</Text>}
-            </View>
-            {action && (
-              <Pressable
-                accessibilityLabel="Add new"
-                onPress={action}
-                style={[styles.touch, { backgroundColor: c.accent, borderRadius: 16 }]}>
-                <Plus color={c.card} />
-              </Pressable>
-            )}
-          </View>
-          {refreshError && <Card><Label>{refreshError}</Label><Button title="Retry refresh" onPress={()=>void refresh().catch(showError)}/></Card>}
-          {children}
-        </ScrollView>
+        {scroll ? (
+          <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.page}>
+            {content}
+          </ScrollView>
+        ) : (
+          <View style={[styles.page, { flex: 1, paddingBottom: 0 }]}>{content}</View>
+        )}
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

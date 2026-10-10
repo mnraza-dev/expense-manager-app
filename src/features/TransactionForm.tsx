@@ -161,6 +161,12 @@ export function TransactionForm({
               />
             )}
           />
+          {type === 'income' && (
+            <Label small>
+              Refunds are not supported in this version. An income entry does not reduce reported
+              spending.
+            </Label>
+          )}
           <Controller
             control={control}
             name="amount"

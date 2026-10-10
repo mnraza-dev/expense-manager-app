@@ -109,6 +109,11 @@ export default function Home() {
           </Card>
         </>
       )}
+      <Button
+        secondary
+        title="Monthly budgets & spending progress →"
+        onPress={() => router.push({ pathname: '/budget', params: { month } })}
+      />
       <Breakdown rows={totals.rows} />
     </Screen>
   );

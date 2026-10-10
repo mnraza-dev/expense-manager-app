@@ -6,6 +6,7 @@ interface State extends Snapshot {
   budgetRevision: number;
   refreshError: string | null;
   mutateBudget: (task: () => Promise<unknown>) => Promise<void>;
+  mutatePreference: (task: () => Promise<unknown>) => Promise<void>;
   ready: boolean;
   error: string | null;
   initialize: () => Promise<void>;
@@ -35,12 +36,31 @@ export const useFinance = create<State>((set, get) => ({
       });
     }
   },
-  refresh: async () => set({ ...await repo().snapshot(), refreshError: null }),
+  refresh: async () => set({ ...(await repo().snapshot()), refreshError: null }),
   mutate: async (task) => {
     await task();
-    set(s => ({revision: s.revision + 1}));
-    try { await get().refresh(); }
-    catch { set({refreshError: 'Your change was saved locally, but this view could not refresh. Retry to show the latest records.'}); }
+    set((s) => ({ revision: s.revision + 1 }));
+    try {
+      await get().refresh();
+    } catch {
+      set({
+        refreshError:
+          'Your change was saved locally, but this view could not refresh. Retry to show the latest records.',
+      });
+    }
   },
-  mutateBudget: async task => { await task(); set(s => ({budgetRevision: s.budgetRevision + 1})); },
+  mutatePreference: async (task) => {
+    await task();
+    try {
+      set({ settings: await repo().settingsSnapshot() });
+    } catch {
+      set({
+        refreshError: 'Your preference was saved locally, but could not refresh. Please retry.',
+      });
+    }
+  },
+  mutateBudget: async (task) => {
+    await task();
+    set((s) => ({ budgetRevision: s.budgetRevision + 1 }));
+  },
 }));

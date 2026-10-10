@@ -5,17 +5,16 @@ import { AnalyticsRepository } from './analyticsRepository';
 export type { DB } from './adapter';
 export class Repositories extends AnalyticsRepository {
   private async checkPrecision(kind: 'account' | 'transaction', amount: number, id?: number) {
-    const accounts = await this.db.getAllAsync<{ id: number; opening_balance: number }>(
-      'SELECT id,opening_balance FROM accounts'
+    const opening = await this.db.getFirstAsync<{ total: number }>(
+      'SELECT COALESCE(SUM(ABS(opening_balance)),0) total FROM accounts WHERE id<>?',
+      kind === 'account' ? (id ?? 0) : 0
     );
-    const transactions = await this.db.getAllAsync<{ id: number; amount: number }>(
-      'SELECT id,amount FROM transactions'
+    const ledger = await this.db.getFirstAsync<{ total: number }>(
+      'SELECT COALESCE(SUM(amount),0) total FROM transactions WHERE id<>?',
+      kind === 'transaction' ? (id ?? 0) : 0
     );
-    let total = BigInt(Math.abs(amount));
-    for (const a of accounts)
-      if (kind !== 'account' || a.id !== id) total += BigInt(Math.abs(a.opening_balance));
-    for (const t of transactions)
-      if (kind !== 'transaction' || t.id !== id) total += BigInt(t.amount);
+    const total =
+      BigInt(Math.abs(amount)) + BigInt(opening?.total ?? 0) + BigInt(ledger?.total ?? 0);
     if (total > BigInt(Number.MAX_SAFE_INTEGER))
       throw new Error('This entry exceeds the supported total ledger precision.');
   }
@@ -59,22 +58,23 @@ export class Repositories extends AnalyticsRepository {
     });
   }
   async snapshot(): Promise<Snapshot> {
-    await this.queue;
-    const accounts = await this.db.getAllAsync<Account>(
-      'SELECT * FROM accounts ORDER BY archived,name'
-    );
-    const categories = await this.db.getAllAsync<Category>(
-      'SELECT * FROM categories ORDER BY type,name'
-    );
-    const transactions = await this.db.getAllAsync<Transaction>(
-      'SELECT * FROM transactions ORDER BY date DESC,id DESC'
-    );
-    const settings = Object.fromEntries(
-      (await this.db.getAllAsync<{ key: string; value: string }>('SELECT * FROM app_settings')).map(
-        (r) => [r.key, r.value]
-      )
-    );
-    return { accounts, categories, transactions, settings };
+    return this.read(async () => {
+      const accounts = await this.db.getAllAsync<Account>(
+        'SELECT * FROM accounts ORDER BY archived,name'
+      );
+      const categories = await this.db.getAllAsync<Category>(
+        'SELECT * FROM categories ORDER BY type,name'
+      );
+      const transactions = await this.db.getAllAsync<Transaction>(
+        'SELECT * FROM transactions ORDER BY date DESC,id DESC'
+      );
+      const settings = Object.fromEntries(
+        (
+          await this.db.getAllAsync<{ key: string; value: string }>('SELECT * FROM app_settings')
+        ).map((r) => [r.key, r.value])
+      );
+      return { accounts, categories, transactions, settings };
+    });
   }
   saveAccount(
     input: Pick<Account, 'name' | 'type' | 'opening_balance' | 'description'>,
@@ -262,6 +262,15 @@ export class Repositories extends AnalyticsRepository {
   }
   deleteTransaction(id: number) {
     return this.write(() => this.db.runAsync('DELETE FROM transactions WHERE id=?', id));
+  }
+  settingsSnapshot() {
+    return this.read(async () =>
+      Object.fromEntries(
+        (
+          await this.db.getAllAsync<{ key: string; value: string }>('SELECT * FROM app_settings')
+        ).map((row) => [row.key, row.value])
+      )
+    );
   }
   setting(key: string, value: string) {
     return this.write(() =>

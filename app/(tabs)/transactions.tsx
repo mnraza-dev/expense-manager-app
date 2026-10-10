@@ -1,124 +1,173 @@
-import { useState } from 'react';
-import { useRouter } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
+import { ActivityIndicator, FlatList, View } from 'react-native';
+import { useFocusEffect, useRouter } from 'expo-router';
+import type { Transaction, TransactionFilters } from '../../src/types';
 import { useFinance } from '../../src/store/useFinance';
-import { Choices, Empty, Field, Label, Screen, Button } from '../../src/components/ui';
+import { Button, Empty, Field, Label, Screen, useTheme } from '../../src/components/ui';
 import { TransactionItem } from '../../src/components/TransactionItem';
-import { validDate } from '../../src/utils/finance';
+import {
+  ActiveFilterChips,
+  TransactionFilterSheet,
+} from '../../src/components/TransactionFilterSheet';
+import { repo } from '../../src/db/database';
 export default function Transactions() {
   const router = useRouter();
-  const { transactions, accounts, categories } = useFinance();
-  const [search, setSearch] = useState('');
-  const [type, setType] = useState('all');
-  const [account, setAccount] = useState(0);
-  const [category, setCategory] = useState(0);
-  const [from, setFrom] = useState('');
-  const [to, setTo] = useState('');
-  const [filters, setFilters] = useState(false);
-  const invalid = Boolean(
-    (from && !validDate(from)) || (to && !validDate(to)) || (from && to && from > to)
+  const c = useTheme();
+  const revision = useFinance((s) => s.revision);
+  const [search, setSearch] = useState(''),
+    [debounced, setDebounced] = useState('');
+  const [filters, setFilters] = useState<TransactionFilters>({ sort: 'newest' });
+  const [sheet, setSheet] = useState(false),
+    [page, setPage] = useState(0),
+    [retry, setRetry] = useState(0);
+  const [rows, setRows] = useState<Transaction[]>([]),
+    [count, setCount] = useState(0),
+    [loading, setLoading] = useState(true),
+    [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebounced(search);
+      setPage(0);
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [search]);
+  useFocusEffect(
+    useCallback(() => {
+      setPage(0);
+    }, [])
   );
-  const rows = transactions.filter(
-    (t) =>
-      t.description.toLowerCase().includes(search.toLowerCase()) &&
-      (type === 'all' || t.type === type) &&
-      (!account || t.account_id === account || t.destination_account_id === account) &&
-      (!category || t.category_id === category) &&
-      (!from || t.date >= from) &&
-      (!to || t.date <= to)
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      setLoading(true);
+      setError(null);
+      if (page === 0) {
+        setRows([]);
+        setCount(0);
+      }
+      repo()
+        .searchTransactions({ ...filters, query: debounced }, page * 50, 50)
+        .then((result) => {
+          if (!active) return;
+          setCount(result.count);
+          setRows((previous) =>
+            page === 0
+              ? result.rows
+              : [
+                  ...previous.filter((t) => !result.rows.some((next) => next.id === t.id)),
+                  ...result.rows,
+                ]
+          );
+          setLoading(false);
+        })
+        .catch(() => {
+          if (active) {
+            setError('Unable to load matching transactions. Please retry.');
+            setLoading(false);
+          }
+        });
+      return () => {
+        active = false;
+      };
+      // Ledger mutations and retry requests must invalidate the query even when filters are unchanged.
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [filters, debounced, page, revision, retry])
   );
-  let previous = '';
+  const apply = (value: TransactionFilters) => {
+    setFilters(value);
+    setPage(0);
+  };
+  const clear = () => {
+    setSearch('');
+    setDebounced('');
+    setFilters({ sort: 'newest' });
+    setPage(0);
+  };
   return (
     <Screen
       title="Transactions"
-      subtitle="The details behind your balance"
+      subtitle="Search the story behind every entry"
+      scroll={false}
       action={() => router.push('/transaction/add')}>
       <Field
-        label="Search description"
-        placeholder="Coffee, salary, groceries…"
+        label="Search description, notes, category or account"
+        placeholder="Search your transactions…"
         value={search}
         onChangeText={setSearch}
       />
-      <Choices
-        label="Transaction type"
-        value={type}
-        onChange={setType}
-        options={['all', 'expense', 'income', 'transfer'].map((v) => ({
-          value: v,
-          label: v[0].toUpperCase() + v.slice(1),
-        }))}
+      <Button secondary title="Filter & sort" onPress={() => setSheet(true)} />
+      {(search ||
+        Object.entries(filters).some(([key, value]) =>
+          key !== 'sort' ? value !== undefined : value !== 'newest'
+        )) && <Button secondary title="Clear all filters & search" onPress={clear} />}
+      <ActiveFilterChips
+        filters={filters}
+        onRemove={(key) => {
+          setFilters((v) => ({ ...v, [key]: undefined }));
+          setPage(0);
+        }}
       />
-      <Button
-        secondary
-        title={filters ? 'Hide filters' : 'Account, category & date filters'}
-        onPress={() => setFilters(!filters)}
+      <Label small>
+        {loading ? 'Searching…' : `${count} matching transactions`}
+        {filters.sort && filters.sort !== 'newest' ? ` · ${filters.sort} first` : ''}
+      </Label>
+      <FlatList
+        style={{ flex: 1 }}
+        keyboardShouldPersistTaps="handled"
+        data={rows}
+        keyExtractor={(item) => String(item.id)}
+        renderItem={({ item, index }) => (
+          <View>
+            {(index === 0 || rows[index - 1]?.date !== item.date) && <Label>{item.date}</Label>}
+            <TransactionItem item={item} />
+          </View>
+        )}
+        ListEmptyComponent={
+          loading ? (
+            <ActivityIndicator color={c.accent} />
+          ) : error ? (
+            <>
+              <Label>{error}</Label>
+              <Button title="Retry search" onPress={() => setRetry((n) => n + 1)} />
+            </>
+          ) : (
+            <Empty
+              title="No transactions found"
+              detail="Adjust your search or clear the filters to explore other entries."
+            />
+          )
+        }
+        ListFooterComponent={
+          rows.length > 0 ? (
+            <View style={{ paddingBottom: 30 }}>
+              {error && (
+                <>
+                  <Label>{error}</Label>
+                  <Button title="Retry loading" onPress={() => setRetry((n) => n + 1)} />
+                </>
+              )}
+              {loading ? (
+                <ActivityIndicator color={c.accent} />
+              ) : rows.length < count ? (
+                <Button
+                  secondary
+                  title={`Load more (${rows.length} of ${count})`}
+                  onPress={() => setPage((p) => p + 1)}
+                />
+              ) : null}
+            </View>
+          ) : null
+        }
       />
-      {filters && (
-        <>
-          <Choices
-            label="Account"
-            value={account}
-            onChange={setAccount}
-            options={[
-              { value: 0, label: 'All accounts' },
-              ...accounts.map((a) => ({ value: a.id, label: a.name })),
-            ]}
-          />
-          <Choices
-            label="Category"
-            value={category}
-            onChange={setCategory}
-            options={[
-              { value: 0, label: 'All categories' },
-              ...categories.map((a) => ({ value: a.id, label: a.name })),
-            ]}
-          />
-          <Field label="From date (YYYY-MM-DD)" value={from} onChangeText={setFrom} />
-          <Field label="To date (YYYY-MM-DD)" value={to} onChangeText={setTo} />
-          <Button
-            secondary
-            title="Clear filters"
-            onPress={() => {
-              setAccount(0);
-              setCategory(0);
-              setFrom('');
-              setTo('');
-              setType('all');
-              setSearch('');
-            }}
-          />
-        </>
-      )}
-      {invalid ? (
-        <Empty
-          title="Check the date range"
-          detail="Use valid YYYY-MM-DD dates, with the start before the end."
-        />
-      ) : rows.length ? (
-        rows.map((t) => {
-          const heading = previous !== t.date;
-          previous = t.date;
-          return <Labelled key={t.id} heading={heading ? t.date : undefined} item={t} />;
-        })
-      ) : (
-        <Empty
-          title="No transactions found"
-          detail="Add a transaction or adjust your search and filters."
+      {sheet && (
+        <TransactionFilterSheet
+          visible={sheet}
+          initial={filters}
+          onApply={apply}
+          onClose={() => setSheet(false)}
+          onClear={clear}
         />
       )}
     </Screen>
-  );
-}
-function Labelled({
-  heading,
-  item,
-}: {
-  heading?: string;
-  item: Parameters<typeof TransactionItem>[0]['item'];
-}) {
-  return (
-    <>
-      {heading && <Label>{heading}</Label>}
-      <TransactionItem item={item} />
-    </>
   );
 }

@@ -5,7 +5,7 @@ import { repo } from '../../src/db/database';
 import { migrations } from '../../src/db/migrations';
 export default function Settings() {
   const router = useRouter();
-  const { settings, accounts, transactions, mutate } = useFinance();
+  const { settings, accounts, transactions, mutatePreference } = useFinance();
   return (
     <Screen title="Settings" subtitle="Make Pocketbook your own">
       <Choices
@@ -16,13 +16,23 @@ export default function Settings() {
           label: v[0].toUpperCase() + v.slice(1),
         }))}
         onChange={(v) => {
-          void mutate(() => repo().setting('theme', v)).catch(showError);
+          void mutatePreference(() => repo().setting('theme', v)).catch(showError);
+        }}
+      />
+      <Choices
+        label="Budget warning threshold"
+        value={settings.budget_warning_percent ?? '80'}
+        options={['70', '80', '90'].map((value) => ({ value, label: `${value}% used` }))}
+        onChange={(value) => {
+          void mutatePreference(() => repo().setting('budget_warning_percent', value)).catch(
+            showError
+          );
         }}
       />
       <Card>
         <Label>Currency</Label>
         <Label small>INR · Indian rupee · 2 decimal places</Label>
-        <Label small>All accounts use INR in Phase 1. Currency conversion is not included.</Label>
+        <Label small>All accounts use INR. Currency conversion is not included.</Label>
       </Card>
       <Button
         secondary

@@ -31,7 +31,7 @@ CREATE TRIGGER category_type_preserve BEFORE UPDATE OF type ON categories WHEN E
   `CREATE TABLE budgets (
  id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL CHECK(length(trim(name))>0),
  period_type TEXT NOT NULL DEFAULT 'monthly' CHECK(period_type='monthly'),
- period_start TEXT NOT NULL UNIQUE CHECK(length(period_start)=10 AND substr(period_start,9,2)='01' AND date(period_start)=period_start),
+ period_start TEXT NOT NULL UNIQUE CHECK(length(period_start)=10 AND substr(period_start,9,2)='01' AND date(period_start) IS NOT NULL AND date(period_start)=period_start),
  period_end TEXT NOT NULL CHECK(period_end=date(period_start,'+1 month','-1 day')),
  total_limit_minor INTEGER NOT NULL CHECK(typeof(total_limit_minor)='integer' AND total_limit_minor>0 AND total_limit_minor<=1000000000000),
  currency_code TEXT NOT NULL DEFAULT 'INR' CHECK(currency_code='INR'), created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
@@ -47,7 +47,6 @@ CREATE TRIGGER budget_expense_insert BEFORE INSERT ON budget_categories WHEN (SE
 CREATE TRIGGER budget_expense_update BEFORE UPDATE OF category_id ON budget_categories WHEN (SELECT type FROM categories WHERE id=NEW.category_id)<>'expense' BEGIN SELECT RAISE(ABORT,'Budgets require expense categories'); END;
 CREATE TRIGGER budget_category_type_preserve BEFORE UPDATE OF type ON categories WHEN NEW.type<>'expense' AND EXISTS(SELECT 1 FROM budget_categories WHERE category_id=OLD.id) BEGIN SELECT RAISE(ABORT,'Category is used by a budget'); END;
 INSERT OR IGNORE INTO app_settings VALUES ('budget_warning_percent','80');`,
-
 ];
 export const defaults = {
   expense: [

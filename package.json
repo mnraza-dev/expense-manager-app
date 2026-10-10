@@ -50,6 +50,6 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint app src tests *.js",
     "format": "prettier app src tests *.js *.json --write",
-    "test": "tsc src/types.ts src/utils/finance.ts src/utils/periods.ts src/utils/budgets.ts src/db/adapter.ts src/db/migrations.ts src/db/analyticsRepository.ts src/db/repositories.ts --outDir .test-build --module commonjs --target es2022 --strict --skipLibCheck --ignoreConfig && node --test tests/*.test.cjs"
+    "test": "tsc src/types.ts src/utils/finance.ts src/utils/periods.ts src/utils/budgets.ts src/utils/reports.ts src/db/adapter.ts src/db/migrations.ts src/db/analyticsRepository.ts src/db/repositories.ts --outDir .test-build --module commonjs --target es2022 --strict --skipLibCheck --ignoreConfig && node --test tests/*.test.cjs"
   }
 }

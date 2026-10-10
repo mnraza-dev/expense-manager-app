@@ -1,6 +1,6 @@
 # Pocketbook
 
-An Android/iOS personal finance MVP built with Expo SDK 57, React Native, strict TypeScript and Expo Router. SQLite is the source of truth; Zustand holds a refreshed view of the database. No financial records are sent to a server.
+An Android/iOS personal finance app with Phase 1 and Phase 2 functionality, built with Expo SDK 57, React Native, strict TypeScript and Expo Router. SQLite is the source of truth; Zustand holds a refreshed view of the database. No financial records are sent to a server.
 
 ## Install and run
 
@@ -37,7 +37,7 @@ Use `npm ci` to reproduce the checked-in versions. Legacy Bun lockfiles are not 
 - Monthly dashboard with active-account total balance, income, expenses, net cash flow, transaction count, recent activity and expense category breakdown.
 - Account creation and editing, opening balances, account transaction history, archive/restore and guarded deletion. Accounts with any transaction history cannot be deleted.
 - Expense, income and transfer creation/editing/deletion, calendar picker, local calendar dates, notes, compatible category selection and duplicate submission guards.
-- Newest-first transaction history grouped by date, description search, type/account/category filters and inclusive date ranges. Transfers appear under both associated accounts.
+- Virtualized, paginated transaction history with description/notes/category/account search, combined type/account/category/date/amount filters, and four stable sort orders. Transfers appear under both associated accounts.
 - Seeded income/expense categories, custom categories, editable name/icon/color, archive and restore. Renaming a default category does not recreate it after a restart.
 - Light, dark and device appearance preferences stored in SQLite; INR currency formatting.
 - Initialization loading state and retry, empty states, validated forms, keyboard handling, safe areas and destructive-action confirmations.
@@ -81,7 +81,7 @@ tests/repositories.test.cjs
 
 The persistent file is `pocketbook.db` in Expo SQLite's application database directory. Foreign keys are enabled at startup. Migration changes, category seeding and settings initialization run atomically. `schema_migrations` tracks applied versions; failed migration changes roll back and can be retried.
 
-Schema version 1 lives in `src/db/migrations.ts`:
+Schema versions 1 and 2 live in `src/db/migrations.ts`:
 
 | Table | Fields and constraints |
 | --- | --- |
@@ -116,9 +116,9 @@ npx expo install --check
 npx expo export --platform ios --platform android --output-dir /private/tmp/pocketbook-export
 ```
 
-The test suite executes the actual repository and migration SQL against SQLite through a Node adapter, rather than mocking query results. Seven tests cover money precision and local dates; empty initialization and seed idempotence; account creation/editing, income, expenses, transfers and transaction edits/deletes; validation and archives; file-backed restart persistence; migration rollback/retry; and database constraints. The restart test closes and reopens a real database file and verifies balances, renamed seed categories and preferences.
+The test suite executes the actual repository and migration SQL against SQLite through a Node adapter, rather than mocking query results. The Phase 1 tests cover money precision and local dates; empty initialization and seed idempotence; account creation/editing, income, expenses, transfers and transaction edits/deletes; validation and archives; file-backed restart persistence; migration rollback/retry; and database constraints. The restart test closes and reopens a real database file and verifies balances, renamed seed categories and preferences.
 
-TypeScript, ESLint and all seven tests pass. Both iOS and Android development bundles and production Hermes exports were successfully generated. Native device UI, keyboard, accessibility and actual Expo SQLite restart behavior require the device smoke test below: this machine has no connected Android device or usable Xcode simulator. Node SQLite verifies repository behavior but does not substitute for testing the native driver.
+TypeScript, ESLint and all 18 tests pass. Both iOS and Android development bundles and production Hermes exports were successfully generated. Native device UI, keyboard, accessibility and actual Expo SQLite restart behavior require the device smoke test below: this machine has no connected Android device or usable Xcode simulator. Node SQLite verifies repository behavior but does not substitute for testing the native driver.
 
 ### Device smoke test
 
@@ -132,8 +132,89 @@ TypeScript, ESLint and all seven tests pass. Both iOS and Android development bu
 
 ## Remaining limitations
 
-- No authentication, cloud sync, bank connections, subscriptions, advanced budgets, lock screen, export or backup. Uninstalling may delete the local database. Local storage does not protect against device compromise.
+- No authentication, cloud sync, bank connections, subscriptions, lock screen, export or backup. Uninstalling may delete the local database. Local storage does not protect against device compromise.
 - Native device smoke testing remains outstanding. Production bundles do not prove native runtime correctness.
-- History currently loads into memory and renders through a ScrollView. Large ledgers should add repository pagination and virtualized lists before scaling beyond personal MVP use.
+- Phase 2 history is paginated and virtualized; report/budget data uses SQL aggregation. The retained Phase 1 dashboard/account state still loads a full ledger snapshot and should be optimized before scaling to very large ledgers.
 - Compatible dependency security fixes removed the initial critical finding. The final npm audit still reports 31 advisories (21 high, 10 moderate) in the Expo/React Native tooling tree (including advisories without a compatible patched upstream version). Review these before release; forced downgrades or an untested SDK migration were not applied.
 - Biometric/passcode protection and a future double-entry ledger are extension points, not implemented features.
+
+
+## Phase 2: budgets, reports and advanced search
+
+Phase 2 reuses the existing database connection, repositories, themes, components and transaction editors. The five tabs remain Home, Transactions, Accounts, Reports and Settings. Open **Monthly budgets & spending progress** from Home, or **Monthly budgets & progress** from Reports. The budget pages use stack routes rather than adding a crowded sixth tab.
+
+### Budget policy and migration
+
+Migration 2 is appended to `src/db/migrations.ts`; it never resets Phase 1 tables or records.
+
+- `budgets`: ID, name, monthly period type, unique period start, month-end period end, positive integer total limit, INR currency and timestamps.
+- `budget_categories`: ID, budget/category foreign keys, positive integer category limit and timestamps; unique `(budget_id, category_id)`. Budget deletion cascades to allocations only.
+- Triggers reject income category allocations and preserve the type of expense categories used by budgets. Category deletion is restricted by foreign keys.
+- New transaction indexes cover `(type, date, category_id)` and `(amount, date, id)`.
+- A persisted `budget_warning_percent` preference defaults to 80%; Settings offers 70%, 80% and 90%.
+
+Exactly **one monthly budget per month** is allowed, enforced by a database uniqueness constraint. Budgets may have no category allocations. Allocations are portions of the total monthly limit, and their combined value must not exceed that limit. Expenses in unallocated categories still consume the total limit. Income and transfers never change expense spending.
+
+Budget cards show total/category spending, percentage, remaining funds or excess, capped progress bars, and textual status. Warning starts at the configured threshold; exactly 100% is near the limit, and spending greater than 100% is exceeded. Unbudgeted spending is shown explicitly. Archived categories remain visible in existing allocations; new allocations require active expense categories. Budget history supports viewing and editing past months.
+
+### Reports and charts
+
+Report presets include this/previous month, last 3/6 months including the current month, this/previous year, and inclusive custom ranges of up to 10 years. Presets use full calendar periods, including future dates. Average daily expenses equal expenses divided by **all inclusive calendar days**, with that rule labelled on screen.
+
+SQL calculates income, expenses, transaction counts, category totals, daily/monthly aggregates, highest spending days, category changes across months and the ten most recent transactions in the selected range. Transfers are counted as transactions but excluded from cash flow. Daily chart buckets are used for ranges within one month; multi-month ranges use monthly buckets. Missing periods are filled with zeroes, never fabricated activity.
+
+Charts use [React Native Gifted Charts](https://github.com/Abhinandan-Kushwaha/react-native-gifted-charts) with the existing `react-native-svg` and Expo-compatible `expo-linear-gradient`. Bar, donut and line charts support tapping data and scrolling through periods, readable legends, currency axes, light/dark themes and accessible data tables. Category drilldown shows monthly amount changes. Budget comparison charts pair category allocations with actual expenses.
+
+For reports with partial budget months, comparisons show the **full monthly allocation** against **only spending in the selected report range**. Limits are not prorated; the screen explains this. Report category percentages use the corresponding range's total, and expense category sums equal the expense summary.
+
+Refunds/reversals are not supported. The income editor explicitly explains that income does not reduce expenses. A future implementation should add linked reversal records and update centralized expense aggregation rather than reclassifying refunds as income.
+
+### Search, filters and refresh
+
+Transactions search descriptions, notes, category names, source accounts and transfer destination accounts after a 250 ms debounce. SQL parameters and escaped LIKE wildcards treat quotes, `%`, `_` and backslashes as literal search input. Case-insensitive matching follows SQLite's built-in LIKE behavior (ASCII case folding; full Unicode case folding is not added).
+
+The filter modal supports inclusive amount/date bounds and combined type/account/category filters, Apply, Cancel and Clear all. Active filters have removable indicators. Newest, oldest, highest and lowest sort orders include stable date/ID tie-breakers. Lists load 50 records per page and preserve search/filter state when opening and returning from an editor.
+
+Focused report/budget queries use independent ledger and budget invalidation revisions. Budget mutations refresh derived views without loading the Phase 1 ledger snapshot; preference changes refresh settings only. Late responses are discarded after a query change or navigation. Errors show retry actions rather than charts based on unavailable data. If a committed Phase 1 change cannot refresh its snapshot, a visible retry banner distinguishes a saved change from a failed write.
+
+### Phase 2 file map
+
+| Area | Files |
+| --- | --- |
+| Migration and database interface | `src/db/migrations.ts`, `src/db/adapter.ts` |
+| Aggregation, budget CRUD and search | `src/db/analyticsRepository.ts`, `src/db/repositories.ts` |
+| Calculations and calendar rules | `src/utils/budgets.ts`, `src/utils/periods.ts`, `src/utils/reports.ts`, existing `finance.ts` |
+| Budget routes/form | `app/budget/index.tsx`, `add.tsx`, `[id].tsx`, `src/features/BudgetForm.tsx` |
+| Reports and search screens | `app/(tabs)/reports.tsx`, `transactions.tsx` |
+| Navigation/preferences integration | `app/(tabs)/index.tsx`, `settings.tsx`, `src/features/TransactionForm.tsx` |
+| Reusable UI | `BudgetProgressCard.tsx`, `charts.tsx`, `DateRangeSelector.tsx`, `MonthSelector.tsx`, `QueryState.tsx`, `TransactionFilterSheet.tsx`, shared `ui.tsx` |
+| Refresh and types | `src/hooks/useDatabaseQuery.ts`, `src/store/useFinance.ts`, `src/types.ts` |
+| Tests and dependencies | `tests/phase2.test.cjs`, `tests/repositories.test.cjs`, `package.json`, `package-lock.json` |
+
+### Validation and manual checks
+
+```sh
+npm ci
+npm start
+npm run android
+npm run ios
+npm run typecheck
+npm run lint
+npm test
+npx expo install --npm --check
+npx expo export --platform ios --platform android --output-dir /private/tmp/pocketbook-phase2-export
+```
+
+**18 automated tests pass**, including all Phase 1 regressions and Phase 2 progress thresholds, no budget/no spending cases, multiple allocations, category reassignment, transaction edits/deletion, month boundaries, leap years, income/expense aggregation, transfer exclusion, empty/multi-month reports, daily averages, combined filters, amount bounds, stable sorting/pagination, special-character search, migration from a real Phase 1 file, duplicate budget/reference constraints, atomic rollback after an allocation write failure, and budget restart persistence. TypeScript and ESLint pass. Production Hermes exports compile for both iOS and Android.
+
+Native visual/touch testing remains outstanding: no connected Android device or usable iOS simulator is available in this environment. Production compilation and Node SQLite tests do not prove native driver/UI behavior.
+
+On a device:
+
+1. Create a monthly budget with your own limit and two expense category allocations. Try an allocation sum greater than the total, duplicate month and an income category; each must be rejected.
+2. Add expenses below, exactly at and above an allocation. Add income and transfers; these must leave spending unchanged.
+3. Edit an expense's category/date/amount and delete an expense. Revisit budgets and reports to confirm progress and charts update.
+4. Navigate budget months, edit a past budget, and delete a budget after confirmation. Check that transactions remain.
+5. Select every report preset and a custom range spanning February 29 and a year boundary. Tap chart data and legends, view data tables, and inspect category changes and highest spending days.
+6. Combine transaction filters and amount bounds, exercise each sorting mode, search notes/category/account names and literal special characters, and open an editor then return with filters intact.
+7. Force-close/relaunch to verify budgets, allocations, records and warning preference persist. Check chart gestures, labels, keyboard behavior, safe areas and light/dark appearance on both platforms.
