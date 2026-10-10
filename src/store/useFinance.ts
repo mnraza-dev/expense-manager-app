@@ -2,6 +2,10 @@ import { create } from 'zustand';
 import type { Snapshot } from '../types';
 import { initializeDatabase, repo } from '../db/database';
 interface State extends Snapshot {
+  revision: number;
+  budgetRevision: number;
+  refreshError: string | null;
+  mutateBudget: (task: () => Promise<unknown>) => Promise<void>;
   ready: boolean;
   error: string | null;
   initialize: () => Promise<void>;
@@ -9,6 +13,9 @@ interface State extends Snapshot {
   mutate: (task: () => Promise<unknown>) => Promise<void>;
 }
 export const useFinance = create<State>((set, get) => ({
+  revision: 0,
+  budgetRevision: 0,
+  refreshError: null,
   accounts: [],
   categories: [],
   transactions: [],
@@ -28,9 +35,12 @@ export const useFinance = create<State>((set, get) => ({
       });
     }
   },
-  refresh: async () => set(await repo().snapshot()),
+  refresh: async () => set({ ...await repo().snapshot(), refreshError: null }),
   mutate: async (task) => {
     await task();
-    await get().refresh();
+    set(s => ({revision: s.revision + 1}));
+    try { await get().refresh(); }
+    catch { set({refreshError: 'Your change was saved locally, but this view could not refresh. Retry to show the latest records.'}); }
   },
+  mutateBudget: async task => { await task(); set(s => ({budgetRevision: s.budgetRevision + 1})); },
 }));

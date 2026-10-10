@@ -55,6 +55,8 @@ export function Screen({
 }) {
   const c = useTheme();
   const router = useRouter();
+  const refreshError = useFinance(s=>s.refreshError);
+  const refresh = useFinance(s=>s.refresh);
   return (
     <SafeAreaView edges={['top', 'left', 'right']} style={{ flex: 1, backgroundColor: c.bg }}>
       <KeyboardAvoidingView
@@ -83,6 +85,7 @@ export function Screen({
               </Pressable>
             )}
           </View>
+          {refreshError && <Card><Label>{refreshError}</Label><Button title="Retry refresh" onPress={()=>void refresh().catch(showError)}/></Card>}
           {children}
         </ScrollView>
       </KeyboardAvoidingView>
