@@ -64,7 +64,7 @@ export function LockGate({ children }: { children: ReactNode }) {
   return (
     <View
       style={{ flex: 1, backgroundColor: c.bg, justifyContent: 'center', padding: 30, gap: 16 }}>
-      <Label>Pocketbook</Label>
+      <Label>Settler</Label>
       {error ? (
         <>
           <Label>{error}</Label>

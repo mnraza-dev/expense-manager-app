@@ -12,7 +12,7 @@ export default function Settings() {
     <Screen
       back
       title="Settings"
-      subtitle="Make Pocketbook your own"
+      subtitle="Make Settler your own"
       headerActions={<FinanceArt kind="shield" colors={c} size={48} />}>
       <Choices
         label="Appearance"
@@ -63,7 +63,7 @@ export default function Settings() {
       />
       <Card>
         <Label>Local database</Label>
-        <Label small>SQLite · pocketbook.db · schema v{migrations.length}</Label>
+        <Label small>SQLite · schema v{migrations.length}</Label>
         <Label small>
           {accounts.length} accounts · {transactions.length} transactions
         </Label>
@@ -76,7 +76,7 @@ export default function Settings() {
           device compromise.
         </Label>
       </Card>
-      <Label small>Pocketbook 1.0 · Personal finance, thoughtfully simple.</Label>
+      <Label small>Settler 1.0 · Personal finance, thoughtfully simple.</Label>
     </Screen>
   );
 }

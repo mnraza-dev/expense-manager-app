@@ -1,4 +1,4 @@
-# Pocketbook interface
+# Settler interface
 
 The audit found a five-tab hierarchy, a decorative balance hero, duplicated account and category reports on Home, large bordered cards around individual rows, and required descriptions in transaction entry. Everyday entry, history, budgets and accounts now have four tabs. Reports and settings remain reachable from Home; cards, loans, recurring rules, net worth and ledger tools retain their existing secondary routes. No financial feature or record was removed.
 

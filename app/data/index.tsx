@@ -172,7 +172,7 @@ export default function DataScreen() {
           busy={busy}
           onPress={() =>
             void run(async () => {
-              await shareText(await createBackupFile(password), 'json', 'pocketbook-backup');
+              await shareText(await createBackupFile(password), 'json', 'settler-backup');
             }, 'Creating complete backup…')
           }
         />

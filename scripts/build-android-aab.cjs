@@ -63,7 +63,7 @@ function acquireLock() {
 acquireLock();
 let temp;
 try {
-  temp = fs.mkdtempSync(path.join(os.tmpdir(), 'pocketbook-aab-'));
+  temp = fs.mkdtempSync(path.join(os.tmpdir(), 'settler-aab-'));
   // Credentials are supplied through the process environment, never embedded in this file.
   const init = path.join(temp, 'release-signing.gradle');
   fs.writeFileSync(
@@ -83,7 +83,7 @@ gradle.beforeProject { project ->
     }
     project.pluginManager.withPlugin('com.android.application') {
         project.extensions.getByName('androidComponents').finalizeDsl { android ->
-            def signing = android.signingConfigs.create('pocketbookRelease')
+            def signing = android.signingConfigs.create('settlerRelease')
             signing.storeFile = project.file(System.getenv('ANDROID_KEYSTORE_PATH'))
             signing.storePassword = System.getenv('ANDROID_KEYSTORE_PASSWORD')
             signing.keyAlias = System.getenv('ANDROID_KEY_ALIAS')
@@ -125,7 +125,7 @@ gradle.beforeProject { project ->
   if (!/jar verified/i.test(verified.stdout))
     throw new Error('Release AAB signature was not verified.');
   const version = require('../app.json').expo.version;
-  const output = path.join(root, 'builds', `pocketbook-${version}.aab`);
+  const output = path.join(root, 'builds', `settler-${version}.aab`);
   fs.mkdirSync(path.dirname(output), { recursive: true });
   fs.copyFileSync(bundle, output);
   console.log(`Verified release AAB: ${output}`);

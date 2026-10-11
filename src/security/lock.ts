@@ -15,7 +15,7 @@ export async function configureLock(current: string, biometric: boolean, seconds
     await SecureStore.setItemAsync(biometricKey, 'enabled', {
       requireAuthentication: true,
       keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
-      authenticationPrompt: 'Enable Pocketbook biometric unlock',
+      authenticationPrompt: 'Enable Settler biometric unlock',
     });
   } else await SecureStore.deleteItemAsync(biometricKey);
   await lockCore.configure(current, biometric, seconds);
@@ -81,7 +81,7 @@ export const useLock = create<{
         return (
           (await SecureStore.getItemAsync(biometricKey, {
             requireAuthentication: true,
-            authenticationPrompt: 'Unlock Pocketbook',
+            authenticationPrompt: 'Unlock Settler',
           })) === 'enabled'
         );
       } catch {

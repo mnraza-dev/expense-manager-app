@@ -71,7 +71,7 @@ export function OnboardingGate({ children }: { children: ReactNode }) {
         contentContainerStyle={{ flexGrow: 1, padding: 28, justifyContent: 'center', gap: 16 }}>
         <Image
           source={require('../../assets/icon.png')}
-          accessibilityLabel="Pocketbook app icon"
+          accessibilityLabel="Settler app icon"
           style={{
             width: state === 'loading' ? 112 : 40,
             height: state === 'loading' ? 112 : 40,
@@ -80,7 +80,7 @@ export function OnboardingGate({ children }: { children: ReactNode }) {
           }}
           resizeMode="contain"
         />
-        <Text style={{ color: c.muted, textAlign: 'center', fontSize: 15 }}>Pocketbook</Text>
+        <Text style={{ color: c.muted, textAlign: 'center', fontSize: 15 }}>Settler</Text>
         {state === 'loading' ? (
           <Text style={{ color: c.text, textAlign: 'center' }}>Preparing your welcome…</Text>
         ) : (

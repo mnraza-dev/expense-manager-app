@@ -60,12 +60,12 @@ export default function RootLayout() {
               }}>
               <Image
                 source={require('../assets/icon.png')}
-                accessibilityLabel="Pocketbook"
+                accessibilityLabel="Settler"
                 style={{ width: 120, height: 120, alignSelf: 'center', borderRadius: 24 }}
                 resizeMode="contain"
               />
               <Text style={{ color: c.text, fontSize: 22, fontWeight: '600', textAlign: 'center' }}>
-                Pocketbook
+                Settler
               </Text>
               {error ? (
                 <>

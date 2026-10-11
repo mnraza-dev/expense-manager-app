@@ -3,7 +3,7 @@
   "configVersion": 0,
   "workspaces": {
     "": {
-      "name": "myProject",
+      "name": "settler",
       "dependencies": {
         "@expo/vector-icons": "^15.0.2",
         "@hookform/resolvers": "^5.9.1",

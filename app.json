@@ -1,9 +1,9 @@
 {
   "expo": {
-    "name": "Pocketbook",
-    "slug": "expense-manager",
+    "name": "Settler",
+    "slug": "settler",
     "version": "1.0.0",
-    "scheme": "pocketbook",
+    "scheme": ["settler", "pocketbook"],
     "platforms": ["ios", "android"],
     "web": {
       "bundler": "metro",
@@ -18,7 +18,7 @@
       [
         "expo-local-authentication",
         {
-          "faceIDPermission": "Allow Pocketbook to use Face ID to unlock your financial records."
+          "faceIDPermission": "Allow Settler to use Face ID to unlock your financial records."
         }
       ],
       [
@@ -50,7 +50,7 @@
     "assetBundlePatterns": ["**/*"],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.razatechlabs.pocketbook",
+      "bundleIdentifier": "com.razatechlabs.settler",
       "icon": "./assets/icon.png"
     },
     "android": {
@@ -58,7 +58,7 @@
         "foregroundImage": "./assets/icon.png",
         "backgroundColor": "#063E35"
       },
-      "package": "com.razatechlabs.pocketbook",
+      "package": "com.razatechlabs.settler",
       "icon": "./assets/icon.png"
     }
   }

@@ -1,5 +1,7 @@
 # Optional cloud architecture
 
+The app is now branded Settler. Its cloud Auth callback remains `pocketbook://cloud/callback` to preserve existing Supabase redirect configuration. Both `settler` and `pocketbook` URL schemes are registered in the native app.
+
 Cloud is opt-in. Ordinary local transactions, exports and recovery remain free and offline. The backend defaults cloud backup and sync to free access; a trusted server policy can later require RevenueCat entitlements. No client premium flag grants backend access. No project has been provisioned in this session; migrations/functions must be deployed before using cloud screens.
 
 SQLite schema 4 adds stable UUID mappings, an atomic outbox, remote revision cache and owner binding. Local integer financial IDs are retained. SQL mutation triggers collect dirty rows; a database adapter captures complete changes before the same transaction commits. Canonical remote rows replace local numeric foreign keys with global UUIDs. Each outbox operation has its own idempotency UUID and expected server record revisions. Failed network attempts retain the exact operation for retry.

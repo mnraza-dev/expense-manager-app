@@ -120,7 +120,7 @@ export async function shareLatestRecovery() {
 export async function shareWorkbook(bytes: Uint8Array) {
   if (!(await Sharing.isAvailableAsync()))
     throw new Error('File sharing is unavailable on this device.');
-  const file = new File(exportDirectory(), `pocketbook-${Date.now()}.xlsx`);
+  const file = new File(exportDirectory(), `settler-${Date.now()}.xlsx`);
   try {
     file.create();
     file.write(bytes);
