@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Image, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -28,29 +28,39 @@ export function OnboardingGate({ children }: { children: ReactNode }) {
   const [page, setPage] = useState(0),
     [busy, setBusy] = useState(false),
     [error, setError] = useState<string | null>(null);
-  const load = () =>
-    AsyncStorage.getItem(key)
+  const mounted = useRef(false);
+  const saving = useRef(false);
+  useEffect(() => {
+    mounted.current = true;
+    let cancelled = false;
+    void AsyncStorage.getItem(key)
       .then((value) => {
+        if (cancelled) return;
         setState(value === 'complete' ? 'done' : 'welcome');
         setError(null);
       })
       .catch(() => {
+        if (cancelled) return;
         setState('welcome');
         setError('Could not read setup status. You can retry or complete setup.');
       });
-  useEffect(() => {
-    void load();
+    return () => {
+      cancelled = true;
+      mounted.current = false;
+    };
   }, []);
   const finish = async () => {
-    if (busy) return;
+    if (saving.current || !mounted.current) return;
+    saving.current = true;
     setBusy(true);
     try {
       await AsyncStorage.setItem(key, 'complete');
-      setState('done');
+      if (mounted.current) setState('done');
     } catch {
-      setError('Could not save setup status. Please retry.');
+      if (mounted.current) setError('Could not save setup status. Please retry.');
     } finally {
-      setBusy(false);
+      saving.current = false;
+      if (mounted.current) setBusy(false);
     }
   };
   if (state === 'done') return children;
