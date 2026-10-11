@@ -337,6 +337,8 @@ export default function CloudScreen() {
                         )
                           return;
                         useDataOperation.getState().setMessage('Restoring verified cloud backup…');
+                        if (useCloudAuth.getState().session?.user.id !== b.owner_id)
+                          throw new Error('Cloud account changed; restore cancelled.');
                         await restoreCloudBackup(text);
                         Alert.alert('Backup restored', 'Local data is restored; sync is detached.');
                       })

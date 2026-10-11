@@ -17,7 +17,10 @@ export default function Transactions() {
   const revision = useFinance((s) => s.revision);
   const [search, setSearch] = useState(''),
     [debounced, setDebounced] = useState('');
-  const [filters, setFilters] = useState<TransactionFilters>(() => ({ sort: 'newest', ...monthRange(localDate().slice(0, 7)) }));
+  const [filters, setFilters] = useState<TransactionFilters>(() => ({
+    sort: 'newest',
+    ...monthRange(localDate().slice(0, 7)),
+  }));
   const [month, setMonth] = useState(() => localDate().slice(0, 7));
   const [sheet, setSheet] = useState(false),
     [page, setPage] = useState(0),
@@ -94,7 +97,9 @@ export default function Transactions() {
         value={search}
         onChangeText={setSearch}
       />
-      {!filters.start && !filters.end && <Label small>Showing all dates · select a month to narrow results</Label>}
+      {!filters.start && !filters.end && (
+        <Label small>Showing all dates · select a month to narrow results</Label>
+      )}
       <MonthSelector
         month={month}
         onChange={(m) => {

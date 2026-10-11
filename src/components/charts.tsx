@@ -115,7 +115,6 @@ export function ExpenseBreakdownChart({
   onSelect?: (id: number) => void;
 }) {
   const c = useTheme();
-  const expenseColor = c.negative;
   const { width } = useWindowDimensions();
   const [selected, setSelected] = useState<CategoryTotal | null>(null);
   const total = categories.reduce((s, x) => s + x.amount, 0);
@@ -138,7 +137,9 @@ export function ExpenseBreakdownChart({
           strokeColor={c.bg}
           data={categories.map((cat) => ({
             value: cat.amount,
-            color: ['#167461', '#527E72', '#7F9A8C', '#B2C4B9', '#667273', '#A7AEAA'][categories.indexOf(cat) % 6],
+            color: ['#167461', '#527E72', '#7F9A8C', '#B2C4B9', '#667273', '#A7AEAA'][
+              categories.indexOf(cat) % 6
+            ],
             onPress: () => select(cat),
           }))}
           centerLabelComponent={() => (
@@ -163,7 +164,16 @@ export function ExpenseBreakdownChart({
           onPress={() => select(cat)}
           key={cat.id}
           style={[styles.row, { paddingVertical: 8 }]}>
-          <View style={{ width: 12, height: 12, borderRadius: 4, backgroundColor: ['#167461', '#527E72', '#7F9A8C', '#B2C4B9', '#667273', '#A7AEAA'][categories.indexOf(cat) % 6] }} />
+          <View
+            style={{
+              width: 12,
+              height: 12,
+              borderRadius: 4,
+              backgroundColor: ['#167461', '#527E72', '#7F9A8C', '#B2C4B9', '#667273', '#A7AEAA'][
+                categories.indexOf(cat) % 6
+              ],
+            }}
+          />
           <View style={{ flex: 1 }}>
             <Label small>{cat.name}</Label>
           </View>
@@ -258,7 +268,7 @@ export function BudgetComparisonChart({ rows }: { rows: BudgetComparison[] }) {
     },
     {
       value: r.spent / 100,
-      frontColor: r.spent > r.allocated ? '#CE5265' : expenseColor,
+      frontColor: r.spent > r.allocated ? c.negative : expenseColor,
       spacing: 18,
       onPress: () => setSelected(r),
     },

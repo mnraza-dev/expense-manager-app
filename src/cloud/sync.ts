@@ -149,7 +149,11 @@ export async function adoptCloud() {
     );
   const resolution = await cloudClient().rpc('resolve_cloud_conflicts');
   if (resolution.error) {
-    useSync.setState({ status: 'failed', error: 'Cloud data was restored locally; server conflict history could not be marked resolved. Retry once connected.' });
+    useSync.setState({
+      status: 'failed',
+      error:
+        'Cloud data was restored locally; server conflict history could not be marked resolved. Retry once connected.',
+    });
     useFinance.setState((s) => ({ budgetRevision: s.budgetRevision + 1 }));
     throw new Error('Local cloud restore completed, but server conflict history needs retry.');
   }

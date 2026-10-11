@@ -223,11 +223,11 @@ export function Field({
         {...props}
         style={[
           styles.input,
-          { color: c.text, backgroundColor: c.card, borderColor: error ? '#B53D49' : c.border },
+          { color: c.text, backgroundColor: c.card, borderColor: error ? c.negative : c.border },
           props.style,
         ]}
       />
-      {error && <Text style={{ color: '#B53D49' }}>{error}</Text>}
+      {error && <Text style={{ color: c.negative }}>{error}</Text>}
     </View>
   );
 }

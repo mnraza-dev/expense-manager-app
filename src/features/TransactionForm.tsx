@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { Platform, View } from 'react-native';
+import Animated, { FadeIn, FadeOut, ReduceMotion } from 'react-native-reanimated';
+import { tokens } from '../design/tokens';
+import { Platform } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useRouter } from 'expo-router';
 import { Controller, useForm, useWatch } from 'react-hook-form';
@@ -320,19 +322,10 @@ export function TransactionForm({
               )}
             </>
           ) : null}
-          <Controller
-            control={control}
-            name="date"
-            render={({ field }) => (
-              <Field
-                label="Date (YYYY-MM-DD)"
-                value={field.value}
-                onChangeText={field.onChange}
-                error={errors.date?.message}
-              />
-            )}
-          />
-          <Button secondary title="Choose date from calendar" onPress={() => setPicker(true)} />
+          <Button secondary title={`Date · ${date}`} onPress={() => setPicker(true)} />
+          {errors.date && (
+            <InlineFeedback message={errors.date.message ?? 'Choose a valid date.'} />
+          )}
           {picker && (
             <DateTimePicker
               value={validDate(date) ? new Date(y, m - 1, d) : new Date()}
@@ -350,7 +343,9 @@ export function TransactionForm({
             onPress={() => setDetails(!details)}
           />
           {details && (
-            <View>
+            <Animated.View
+              entering={FadeIn.duration(tokens.motion.feedback).reduceMotion(ReduceMotion.System)}
+              exiting={FadeOut.duration(tokens.motion.feedback).reduceMotion(ReduceMotion.System)}>
               <Controller
                 control={control}
                 name="description"
@@ -377,7 +372,7 @@ export function TransactionForm({
                   />
                 )}
               />
-            </View>
+            </Animated.View>
           )}
           {saveError && <InlineFeedback message={saveError} />}
           <Button title="Save transaction" busy={busy} onPress={() => void save()} />

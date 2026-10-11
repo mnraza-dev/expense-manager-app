@@ -308,35 +308,76 @@ test('public configuration rejects privileged backend secrets without logging th
 });
 
 test('loan payment baselines survive cloud UUID materialization and later payments', async () => {
-  const pg = await backend(), owner = randomUUID(), a = await device(), b = await device();
+  const pg = await backend(),
+    owner = randomUUID(),
+    a = await device(),
+    b = await device();
   try {
     await user(pg, owner);
-    const loan = await a.r.createLoan({ name: 'Loan', direction: 'borrowed', label: 'personal', principal: 60000, start_date: '2026-01-01', annual_rate_bps: 1200, interest_method: 'reducing', frequency: 'monthly', term_months: 6, payment_account_id: a.bank, counterparty: 'Lender', category_id: a.expense, origination_fees: 0 });
-    await a.r.recordLoanPayment(loan, { date: '2026-02-01', principal: 15000, interest: 600, fees: 100, account_id: a.bank });
+    const loan = await a.r.createLoan({
+      name: 'Loan',
+      direction: 'borrowed',
+      label: 'personal',
+      principal: 60000,
+      start_date: '2026-01-01',
+      annual_rate_bps: 1200,
+      interest_method: 'reducing',
+      frequency: 'monthly',
+      term_months: 6,
+      payment_account_id: a.bank,
+      counterparty: 'Lender',
+      category_id: a.expense,
+      origination_fees: 0,
+    });
+    await a.r.recordLoanPayment(loan, {
+      date: '2026-02-01',
+      principal: 15000,
+      interest: 600,
+      fees: 100,
+      account_id: a.bank,
+    });
     await a.r.recalculateLoan(loan, '2026-02-02', 3);
     await a.r.enableSync(owner);
     const remote = await flush(pg, a, owner);
-    assert.ok(remote.records.some((r) => r.entity === 'loan_schedules' && typeof r.data?.payment_id_baseline === 'string'));
+    assert.ok(
+      remote.records.some(
+        (r) => r.entity === 'loan_schedules' && typeof r.data?.payment_id_baseline === 'string'
+      )
+    );
     await b.r.applyRemote(remote.records, remote.revision, owner, true, async () => {});
     const localLoan = b.n.prepare('select id from loans').get().id;
     const localBank = (await b.r.snapshot()).accounts.find((x) => x.name === 'Bank').id;
     let detail = await b.r.loanDetail(localLoan);
     assert.equal(detail.outstanding, 45000);
     assert.equal(detail.needs_recalculation, false);
-    await b.r.recordLoanPayment(localLoan, { date: '2026-03-01', principal: 10000, interest: 450, fees: 0, account_id: localBank });
+    await b.r.recordLoanPayment(localLoan, {
+      date: '2026-03-01',
+      principal: 10000,
+      interest: 450,
+      fees: 0,
+      account_id: localBank,
+    });
     assert.notEqual((await flush(pg, b, owner)).status, 'conflict');
     detail = await b.r.loanDetail(localLoan);
     assert.equal(detail.outstanding, 35000);
-    assert.deepEqual(await b.r.integrityCheck(), []);
-  } finally { a.n.close(); b.n.close(); await pg.close(); }
+    assert.deepEqual(await b.r.integrity(), []);
+  } finally {
+    a.n.close();
+    b.n.close();
+    await pg.close();
+  }
 });
 
 test('sync enable is idempotent and tombstones cannot be resurrected by stale creation', async () => {
-  const pg = await backend(), owner = randomUUID(), d = await device();
+  const pg = await backend(),
+    owner = randomUUID(),
+    d = await device();
   try {
-    await user(pg, owner); await d.r.enableSync(owner);
+    await user(pg, owner);
+    await d.r.enableSync(owner);
     const pending = (await d.r.syncState()).pending;
-    await d.r.enableSync(owner); assert.equal((await d.r.syncState()).pending, pending);
+    await d.r.enableSync(owner);
+    assert.equal((await d.r.syncState()).pending, pending);
     await flush(pg, d, owner);
     await d.r.saveAccount({ name: 'Unused', type: 'cash', opening_balance: 0, description: '' });
     const creation = await d.r.nextOperation(owner);
@@ -348,6 +389,57 @@ test('sync enable is idempotent and tombstones cannot be resurrected by stale cr
     assert.notEqual(deleted.status, 'conflict');
     const stale = { ...creation, id: randomUUID() };
     assert.equal((await apply(pg, stale)).status, 'conflict');
-    assert.ok((await snapshot(pg)).records.some((x) => x.id === creation.changes.find((x) => x.entity === 'accounts').id && x.deleted));
-  } finally { d.n.close(); await pg.close(); }
+    assert.ok(
+      (await snapshot(pg)).records.some(
+        (x) => x.id === creation.changes.find((x) => x.entity === 'accounts').id && x.deleted
+      )
+    );
+  } finally {
+    d.n.close();
+    await pg.close();
+  }
+});
+
+test('two devices confirming one recurring occurrence cannot double-post remotely', async () => {
+  const pg = await backend(),
+    owner = randomUUID(),
+    a = await device(),
+    b = await device();
+  try {
+    await user(pg, owner);
+    await a.r.saveRecurring({
+      type: 'expense',
+      amount: 500,
+      account_id: a.bank,
+      category_id: a.expense,
+      loan_id: null,
+      description: 'Rent',
+      start_date: localDate(),
+      end_date: null,
+      frequency: 'monthly',
+    });
+    const occurrence = (await a.r.recurring()).occurrences[0];
+    await a.r.enableSync(owner);
+    const remote = await flush(pg, a, owner);
+    await b.r.applyRemote(remote.records, remote.revision, owner, true, async () => {});
+    const cloneOccurrence = (await b.r.recurring()).occurrences.find(
+      (x) => x.scheduled_date === occurrence.scheduled_date
+    );
+    await a.r.occurrenceAction(occurrence.id, 'confirm');
+    await b.r.occurrenceAction(cloneOccurrence.id, 'confirm');
+    assert.notEqual((await flush(pg, a, owner)).status, 'conflict');
+    assert.equal((await flush(pg, b, owner)).status, 'conflict');
+    const final = await snapshot(pg);
+    assert.equal(
+      final.records.filter(
+        (x) => x.entity === 'transactions' && !x.deleted && x.data.status === 'posted'
+      ).length,
+      1
+    );
+    assert.equal((await b.r.syncState()).conflicts.length, 1);
+  } finally {
+    a.n.close();
+    b.n.close();
+    await pg.close();
+  }
 });
