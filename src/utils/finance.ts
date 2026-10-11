@@ -20,6 +20,7 @@ export function validDate(value: string): boolean {
   return localDate(new Date(y, m - 1, d)) === value;
 }
 export function balance(account: Account, transactions: Transaction[]): number {
+  if (account.ledger_balance !== undefined) return account.ledger_balance;
   return transactions.reduce(
     (sum, t) =>
       sum +

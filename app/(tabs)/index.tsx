@@ -14,7 +14,7 @@ export default function Home() {
   const [date, setDate] = useState(() => new Date());
   const month = localDate(date).slice(0, 7);
   const totals = summary(transactions, month);
-  const active = accounts.filter((a) => !a.archived);
+  const active = accounts.filter((a) => !a.archived && a.kind !== 'liability');
   const move = (n: number) => setDate(new Date(date.getFullYear(), date.getMonth() + n, 1));
   return (
     <Screen
@@ -113,6 +113,11 @@ export default function Home() {
         secondary
         title="Monthly budgets & spending progress →"
         onPress={() => router.push({ pathname: '/budget', params: { month } })}
+      />
+      <Button
+        secondary
+        title="Credit cards, loans, recurring & net worth →"
+        onPress={() => router.push('/finance')}
       />
       <Breakdown rows={totals.rows} />
     </Screen>

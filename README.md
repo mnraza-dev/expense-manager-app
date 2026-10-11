@@ -218,3 +218,53 @@ On a device:
 5. Select every report preset and a custom range spanning February 29 and a year boundary. Tap chart data and legends, view data tables, and inspect category changes and highest spending days.
 6. Combine transaction filters and amount bounds, exercise each sorting mode, search notes/category/account names and literal special characters, and open an editor then return with filters intact.
 7. Force-close/relaunch to verify budgets, allocations, records and warning preference persist. Check chart gestures, labels, keyboard behavior, safe areas and light/dark appearance on both platforms.
+
+## Phase 3: ledger and advanced finance
+
+Schema migration **3** adds immutable journals/lines and mappings, card statement periods, recurring rules/occurrences, loans, versioned forecasts and actual payments. Existing accounts, transactions, categories and budgets retain their IDs and data. Conversion reconciles existing balances before committing; failures roll back the entire migration. Corrections create reversals and replacements, and deletion voids a transaction while retaining its audit history. See [ACCOUNTING.md](ACCOUNTING.md) for posting, migration and calculation rules.
+
+Open **Finance tools** from Home or Settings for ledger activity, cards/statements, recurring transactions, loans and net worth. The existing five tabs remain. Cards record purchases, explicit interest/fees and asset-account payments; statements derive totals from persisted activity. Loan principal movements stay out of expense reporting. Net worth reconstructs dated asset/liability balances, including receivables and archived accounts, and identifies incomplete historical reconstruction.
+
+Implementation: `src/db/ledgerRepository.ts` handles posting, reversals, conversion and dated balances; `advancedRepository.ts` handles cards, statements, recurrence and loans. `src/utils/schedules.ts` contains anchored calendars and integer interest calculations. Routes live under `app/ledger`, `card`, `statement`, `recurring`, `loan`, `net-worth` and `finance`. Existing transaction/account editors and reports use the new ledger-backed model.
+
+Validation: **28 automated tests** cover the earlier phases plus balanced/immutable journals, duplicate prevention, reversal auditing, conversion reconciliation and rollback, cards/statements, calendar clamping, missed/idempotent occurrences, interest arithmetic, extra repayments/recalculation, borrowed/lent balances, net worth, currency rejection, advanced restart persistence and atomic posting failure. TypeScript, ESLint and iOS/Android production Hermes exports pass. Run `npm test`, `npm run typecheck` and `npm run lint`.
+
+Current limits:
+
+- INR is the supported posting currency. Currency fields and grouped net worth prevent implicit conversion; exchange rates are not implemented.
+- Recurrences require user confirmation. Missed occurrences generate in batches of 120; retry loads more. Pending items take priority in the 500-item view. Loan recurrence posts principal only; record actual interest/fees separately.
+- Loan forecasts use equal-principal installments with explicitly selected none, flat simple or reducing simple interest. Compound interest, annuity schedules and automatic penalties are not provided. Extra payments require explicit forecast recalculation.
+- Statements use one closing day and due day. Minimum payments are supplied, and interest/fees are recorded explicitly. Statements include carried balances and must not be summed as separate debts.
+- Ledger activity shows the latest 200 journals, and card detail shows the latest 100 transactions. All persisted history remains in SQLite.
+- Legacy opening dates are reconstructed assumptions. Corrections restate past reports/statements; accounting periods are not locked.
+- Native device interaction and SQLite-driver smoke testing remain pending. Production exports verify compilation, not runtime behavior.
+
+Device checks: migrate an existing database and reconcile account/report totals; purchase with a card and pay from its linked asset; generate a month-end statement; confirm/skip a missed recurrence and restart; record/reverse an extra loan payment and recalculate; inspect dated net worth and negative chart values. Check keyboard, accessibility labels, safe areas and light/dark appearance on both iOS and Android.
+
+## Phase 4: exports, recovery and app lock
+
+Settings now links to **Export, backup, restore & integrity** and **Passcode & biometric app lock**. Selected transactions export as UTF-8 CSV or a genuine SheetJS `.xlsx` workbook. Amount cells are numeric; transfers remain separate from monthly income/expenses. Workbook sheets include Transactions, referenced Accounts/Categories and Monthly Summary. CSV protects formula-like text. These exports are not complete backups.
+
+Complete format-1 JSON backups preserve every supported financial table, audit history, relationships and preferences. SHA-256 detects accidental corruption. Optional AES-256-GCM encryption uses a supplied password and PBKDF2-HMAC-SHA256 with 600,000 iterations. Passwords and lock credentials are not backed up. Restore supports explicit replacement only, validates a staging database, saves a persistent pre-restore recovery copy, then replaces live data transactionally. Cancellation and failures preserve current data. The private recovery copy can be shared from the data screen.
+
+The app lock uses SecureStore, a salted PBKDF2 passcode verifier, persisted attempt throttling, an enrollment-bound biometric token and a global navigation gate. Cold launches lock; background content is hidden immediately, with configurable relock timing. Forgotten credentials have no destructive reset shortcut: retain an external backup. This does not encrypt the financial SQLite database. Native builds include Face ID permission configuration.
+
+No schema-4 transformation is needed: schema 3 remains the current financial schema. Migration history now rejects unknown/gapped versions, checks references and creates a native SQLite pre-upgrade recovery copy before upgrading existing installations. Initialization failure provides retry and recovery-copy sharing, without resetting the database. Integrity diagnostics report foreign keys, journal balance/currency, transaction-to-ledger consistency, reversal integrity, loan balances/components, recurring duplicates/links, statement references, dates, monetary precision and budget allocations. They never silently repair records.
+
+Validation: **40 automated tests pass**, including all prior phases, selected export, real workbook parsing, backup round trips, corrupted/unsupported files, reference validation, recovery-write failure, interrupted replacement rollback, encryption authentication, passcode verification/throttling/change, unavailable biometrics, relock policy, restore cancellation and read-only diagnostics. TypeScript and ESLint pass; both iOS and Android production Hermes exports compile. These checks do not replace real-device testing.
+
+Limits: backups support the exact current schema, up to 20 MB and 250,000 records; CSV/workbook exports support 50,000 selected transactions. Merge, bank connections, cloud recovery and currency conversion are not implemented. Progress screens prevent navigation during data operations. Shared-file cache older than 24 hours is pruned on later exports; recipient copies and persistent recovery files remain sensitive.
+
+See [SECURITY.md](SECURITY.md) for format, cryptography, credential recovery, storage/privacy assumptions and dependency advisories. The dependency audit currently reports 32 advisories (11 moderate, 21 high); SDK-compatible updates and native regression testing are still needed before release.
+
+Native verification remains pending: this machine has no usable iOS simulator and ADB lists no connected Android devices. On real iOS and Android devices, test CSV/XLSX opening and sharing, encrypted/plain backup round trips, cancellation, low storage and interrupted restore, wrong passwords, SecureStore failures, valid/invalid passcodes, biometric cancellation/enrollment changes, background/resume timing, deep links while locked and privacy snapshots. Face ID requires a development/native build, not Expo Go.
+
+```sh
+npm start
+npm run ios
+npm run android
+npm test
+npm run typecheck
+npm run lint
+npx expo export --platform ios --platform android --output-dir /private/tmp/pocketbook-phase4-export
+```

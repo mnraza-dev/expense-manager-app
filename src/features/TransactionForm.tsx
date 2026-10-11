@@ -9,7 +9,7 @@ import type { TransactionType } from '../types';
 import { Button, Choices, Empty, Field, Label, Screen, confirm, showError } from '../components/ui';
 import { useFinance } from '../store/useFinance';
 import { repo } from '../db/database';
-import { localDate, minor, validDate } from '../utils/finance';
+import { localDate, minor, money, validDate } from '../utils/finance';
 const schema = z
   .object({
     type: z.enum(['expense', 'income', 'transfer']),
@@ -26,6 +26,7 @@ const schema = z
     description: z.string().trim().min(1, 'Description is required.').max(160),
     date: z.string().refine(validDate, 'Choose a valid calendar date.'),
     notes: z.string().max(2000),
+    component: z.enum(['standard', 'interest', 'fee', 'principal']),
   })
   .superRefine((v, ctx) => {
     if (v.type === 'transfer' && (!v.destination || v.destination === v.account))
@@ -41,14 +42,18 @@ type Values = z.infer<typeof schema>;
 export function TransactionForm({
   id,
   initialType = 'expense',
+  initialAccount,
+  initialDestination,
 }: {
   id?: number;
   initialType?: TransactionType;
+  initialAccount?: number;
+  initialDestination?: number;
 }) {
   const router = useRouter();
   const { transactions, accounts, categories, mutate } = useFinance();
   const existing = transactions.find((t) => t.id === id);
-  const active = accounts.filter((a) => !a.archived);
+  const active = accounts.filter((a) => !a.archived && a.subtype === 'standard');
   const [busy, setBusy] = useState(false);
   const saving = useRef(false);
   const [picker, setPicker] = useState(false);
@@ -62,8 +67,8 @@ export function TransactionForm({
     defaultValues: {
       type: existing?.type ?? initialType,
       amount: existing ? (existing.amount / 100).toFixed(2) : '',
-      account: existing?.account_id ?? active[0]?.id ?? 0,
-      destination: existing?.destination_account_id ?? null,
+      account: existing?.account_id ?? initialAccount ?? active[0]?.id ?? 0,
+      destination: existing?.destination_account_id ?? initialDestination ?? null,
       category:
         existing?.category_id ??
         categories.find((c) => !c.archived && c.type === initialType)?.id ??
@@ -71,6 +76,7 @@ export function TransactionForm({
       description: existing?.description ?? '',
       date: existing?.date ?? localDate(),
       notes: existing?.notes ?? '',
+      component: existing?.component ?? 'standard',
     },
   });
   const type = useWatch({ control, name: 'type' });
@@ -86,8 +92,26 @@ export function TransactionForm({
       </Screen>
     );
   const selectable = accounts.filter(
-    (a) => !a.archived || a.id === existing?.account_id || a.id === existing?.destination_account_id
+    (a) =>
+      !a.subtype?.startsWith('loan_') &&
+      (!a.archived || a.id === existing?.account_id || a.id === existing?.destination_account_id)
   );
+  const sourceOptions = selectable.filter((a) => a.kind !== 'liability' || type === 'expense');
+  if (existing?.loan_id)
+    return (
+      <Screen title="Loan transaction" back>
+        <Label>
+          {existing.description} · {money(existing.amount)}
+        </Label>
+        <Label small>
+          Loan components are corrected together to preserve principal, interest and fees.
+        </Label>
+        <Button
+          title="Open loan details"
+          onPress={() => router.push({ pathname: '/loan/[id]', params: { id: existing.loan_id! } })}
+        />
+      </Screen>
+    );
   const available = categories.filter(
     (c) => c.type === type && (!c.archived || c.id === existing?.category_id)
   );
@@ -107,6 +131,7 @@ export function TransactionForm({
             description: v.description,
             date: v.date,
             notes: v.notes,
+            component: v.component,
           },
           id
         )
@@ -151,6 +176,12 @@ export function TransactionForm({
                 onChange={(v) => {
                   field.onChange(v);
                   setValue('destination', null);
+                  setValue('component', 'standard');
+                  if (
+                    v !== 'expense' &&
+                    accounts.find((a) => a.id === selectedAccount)?.kind === 'liability'
+                  )
+                    setValue('account', active[0]?.id ?? 0);
                   setValue(
                     'category',
                     v === 'transfer'
@@ -167,6 +198,25 @@ export function TransactionForm({
               spending.
             </Label>
           )}
+          {type === 'expense' &&
+            accounts.find((a) => a.id === selectedAccount)?.subtype === 'credit_card' && (
+              <Controller
+                control={control}
+                name="component"
+                render={({ field }) => (
+                  <Choices
+                    label="Card charge type"
+                    value={field.value}
+                    onChange={field.onChange}
+                    options={[
+                      { value: 'standard', label: 'Purchase' },
+                      { value: 'interest', label: 'Interest' },
+                      { value: 'fee', label: 'Fee' },
+                    ]}
+                  />
+                )}
+              />
+            )}
           <Controller
             control={control}
             name="amount"
@@ -189,7 +239,7 @@ export function TransactionForm({
               <Choices
                 label={type === 'transfer' ? 'From account' : 'Account'}
                 value={field.value}
-                options={selectable.map((a) => ({
+                options={sourceOptions.map((a) => ({
                   value: a.id,
                   label: a.name + (a.archived ? ' (archived)' : ''),
                 }))}

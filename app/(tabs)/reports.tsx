@@ -43,6 +43,11 @@ export default function Reports() {
         title="Monthly budgets & progress →"
         onPress={() => router.push('/budget')}
       />
+      <Button
+        secondary
+        title="Assets, liabilities & net worth →"
+        onPress={() => router.push('/net-worth')}
+      />
       <DateRangeSelector value={range} onChange={setRange} />
       <QueryState {...query} />
       {report && (

@@ -297,7 +297,7 @@ test('upgrade Phase 1 file preserves data and budgets survive a restart', async 
   await r.initialize();
   assert.equal((await r.getBudget(id)).budget.name, 'Preserved plan');
   assert.equal((await r.budgetProgress('2026-10')).spent, 345);
-  assert.equal(n.prepare('SELECT count(*) n FROM schema_migrations').get().n, 2);
+  assert.equal(n.prepare('SELECT count(*) n FROM schema_migrations').get().n, 3);
   assert.equal((await r.snapshot()).accounts[0].opening_balance, 12345);
   n.close();
   rmSync(dir, { recursive: true });

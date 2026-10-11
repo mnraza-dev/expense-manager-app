@@ -1,6 +1,10 @@
 export type TransactionType = 'expense' | 'income' | 'transfer';
 export type AccountType = 'cash' | 'bank' | 'savings' | 'wallet' | 'other';
 export interface Account {
+  kind?: 'asset' | 'liability';
+  subtype?: string;
+  ledger_balance?: number;
+  history_start?: string;
   id: number;
   name: string;
   type: AccountType;
@@ -22,6 +26,9 @@ export interface Category {
   updated_at: string;
 }
 export interface Transaction {
+  status?: 'posted' | 'void';
+  component?: 'standard' | 'interest' | 'fee' | 'principal';
+  loan_id?: number | null;
   id: number;
   type: TransactionType;
   amount: number;

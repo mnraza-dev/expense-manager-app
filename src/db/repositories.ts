@@ -1,16 +1,16 @@
 import type { Account, Category, Snapshot, Transaction } from '../types';
 import { defaults, migrations } from './migrations';
-import { MAX_MONEY, validDate } from '../utils/finance';
-import { AnalyticsRepository } from './analyticsRepository';
+import { MAX_MONEY, validDate, localDate } from '../utils/finance';
+import { DataRepository } from './dataRepository';
 export type { DB } from './adapter';
-export class Repositories extends AnalyticsRepository {
+export class Repositories extends DataRepository {
   private async checkPrecision(kind: 'account' | 'transaction', amount: number, id?: number) {
     const opening = await this.db.getFirstAsync<{ total: number }>(
       'SELECT COALESCE(SUM(ABS(opening_balance)),0) total FROM accounts WHERE id<>?',
       kind === 'account' ? (id ?? 0) : 0
     );
     const ledger = await this.db.getFirstAsync<{ total: number }>(
-      'SELECT COALESCE(SUM(amount),0) total FROM transactions WHERE id<>?',
+      "SELECT COALESCE(SUM(amount),0) total FROM transactions WHERE status='posted' AND id<>?",
       kind === 'transaction' ? (id ?? 0) : 0
     );
     const total =
@@ -26,6 +26,11 @@ export class Repositories extends AnalyticsRepository {
       const rows = await this.db.getAllAsync<{ version: number }>(
         'SELECT version FROM schema_migrations'
       );
+      if (
+        rows.some((r) => r.version < 1 || r.version > migrations.length) ||
+        rows.some((_, index) => !rows.some((r) => r.version === index + 1))
+      )
+        throw new Error('Unsupported or incomplete migration history. Data has been preserved.');
       for (let i = 0; i < migrations.length; i++)
         if (!rows.some((r) => r.version === i + 1)) {
           await this.db.execAsync(migrations[i]);
@@ -55,18 +60,20 @@ export class Repositories extends AnalyticsRepository {
       }
       await this.db.runAsync("INSERT OR IGNORE INTO app_settings VALUES ('theme','system')");
       await this.db.runAsync("INSERT OR IGNORE INTO app_settings VALUES ('currency','INR')");
+      await this.convertLedger();
+      const foreign = await this.db.getAllAsync('PRAGMA foreign_key_check');
+      if (foreign.length)
+        throw new Error('Database reference validation failed. Data has been preserved.');
     });
   }
   async snapshot(): Promise<Snapshot> {
     return this.read(async () => {
-      const accounts = await this.db.getAllAsync<Account>(
-        'SELECT * FROM accounts ORDER BY archived,name'
-      );
+      const accounts = await this.accountSnapshotCore();
       const categories = await this.db.getAllAsync<Category>(
         'SELECT * FROM categories ORDER BY type,name'
       );
       const transactions = await this.db.getAllAsync<Transaction>(
-        'SELECT * FROM transactions ORDER BY date DESC,id DESC'
+        'SELECT * FROM active_transactions ORDER BY date DESC,id DESC'
       );
       const settings = Object.fromEntries(
         (
@@ -80,40 +87,65 @@ export class Repositories extends AnalyticsRepository {
     input: Pick<Account, 'name' | 'type' | 'opening_balance' | 'description'>,
     id?: number
   ) {
-    return this.write(async () => {
-      if (
-        !input.name.trim() ||
-        !['cash', 'bank', 'savings', 'wallet', 'other'].includes(input.type)
-      )
-        throw new Error('Enter a name and valid account type.');
-      if (
-        !Number.isSafeInteger(input.opening_balance) ||
-        Math.abs(input.opening_balance) > MAX_MONEY
-      )
-        throw new Error('Invalid opening balance.');
-      await this.checkPrecision('account', input.opening_balance, id);
-      const now = new Date().toISOString();
-      if (id)
-        await this.db.runAsync(
-          'UPDATE accounts SET name=?,type=?,opening_balance=?,description=?,updated_at=? WHERE id=?',
-          input.name.trim(),
-          input.type,
-          input.opening_balance,
-          input.description,
-          now,
-          id
-        );
-      else
-        await this.db.runAsync(
-          'INSERT INTO accounts(name,type,opening_balance,description,created_at,updated_at) VALUES (?,?,?,?,?,?)',
-          input.name.trim(),
-          input.type,
-          input.opening_balance,
-          input.description,
-          now,
-          now
-        );
-    });
+    return this.write(() =>
+      this.db.withTransactionAsync(async () => {
+        if (
+          !input.name.trim() ||
+          !['cash', 'bank', 'savings', 'wallet', 'other'].includes(input.type)
+        )
+          throw new Error('Enter a name and valid account type.');
+        if (
+          !Number.isSafeInteger(input.opening_balance) ||
+          Math.abs(input.opening_balance) > MAX_MONEY
+        )
+          throw new Error('Invalid opening balance.');
+        await this.checkPrecision('account', input.opening_balance, id);
+        const now = new Date().toISOString();
+        let accountId = id ?? 0;
+        let date = localDate();
+        if (id) {
+          const role = await this.db.getFirstAsync<{ subtype: string; history_start: string }>(
+            'SELECT * FROM account_roles WHERE account_id=?',
+            id
+          );
+          if (!role || role.subtype !== 'standard')
+            throw new Error('Manage this account through its card or loan screen.');
+          date = role.history_start;
+          const old = await this.db.getFirstAsync<Account>('SELECT * FROM accounts WHERE id=?', id);
+          await this.db.runAsync(
+            'UPDATE accounts SET name=?,type=?,opening_balance=?,description=?,updated_at=? WHERE id=?',
+            input.name.trim(),
+            input.type,
+            input.opening_balance,
+            input.description,
+            now,
+            id
+          );
+          if (old!.opening_balance !== input.opening_balance)
+            await this.openingCore(id, input.opening_balance, date);
+        } else {
+          await this.db.runAsync(
+            'INSERT INTO accounts(name,type,opening_balance,description,created_at,updated_at) VALUES (?,?,?,?,?,?)',
+            input.name.trim(),
+            input.type,
+            input.opening_balance,
+            input.description,
+            now,
+            now
+          );
+          accountId = (await this.db.getFirstAsync<{ id: number }>(
+            'SELECT last_insert_rowid() id'
+          ))!.id;
+          await this.db.runAsync(
+            "INSERT INTO account_roles(account_id,kind,history_start) VALUES (?,'asset',?)",
+            accountId,
+            date
+          );
+          await this.accountLedger(accountId);
+          await this.openingCore(accountId, input.opening_balance, date);
+        }
+      })
+    );
   }
   archiveAccount(id: number, archived: boolean) {
     return this.write(() =>
@@ -134,7 +166,10 @@ export class Repositories extends AnalyticsRepository {
       );
       if (row?.count)
         throw new Error('This account has transactions. Archive it to preserve your history.');
-      await this.db.runAsync('DELETE FROM accounts WHERE id=?', id);
+      await this.db.withTransactionAsync(async () => {
+        await this.openingCore(id, 0, localDate());
+        await this.db.runAsync('DELETE FROM accounts WHERE id=?', id);
+      });
     });
   }
   saveCategory(input: Pick<Category, 'name' | 'type' | 'icon' | 'color'>, id?: number) {
@@ -199,7 +234,20 @@ export class Repositories extends AnalyticsRepository {
         const previous = id
           ? await this.db.getFirstAsync<Transaction>('SELECT * FROM transactions WHERE id=?', id)
           : null;
-        if (id && !previous) throw new Error('Transaction no longer exists.');
+        if (id && (!previous || previous.status === 'void'))
+          throw new Error('Transaction no longer exists.');
+        if (previous?.loan_id || input.loan_id)
+          throw new Error('Manage loan events from the loan details screen.');
+        const role = await this.db.getFirstAsync<{ kind: string; subtype: string }>(
+          'SELECT * FROM account_roles WHERE account_id=?',
+          input.account_id
+        );
+        if (
+          !role ||
+          role.subtype.startsWith('loan_') ||
+          (role.kind === 'liability' && input.type !== 'expense')
+        )
+          throw new Error('Use an asset account, or a credit card for purchases.');
         const account = await this.db.getFirstAsync<Account>(
           'SELECT * FROM accounts WHERE id=?',
           input.account_id
@@ -211,6 +259,12 @@ export class Repositories extends AnalyticsRepository {
             'SELECT * FROM accounts WHERE id=?',
             input.destination_account_id
           );
+          const destRole = await this.db.getFirstAsync<{ subtype: string }>(
+            'SELECT subtype FROM account_roles WHERE account_id=?',
+            input.destination_account_id
+          );
+          if (destRole?.subtype.startsWith('loan_'))
+            throw new Error('Manage loan principal through the loan screen.');
           if (
             !dest ||
             dest.id === account.id ||
@@ -244,24 +298,44 @@ export class Repositories extends AnalyticsRepository {
           input.date,
           input.notes,
           now,
+          input.component ?? previous?.component ?? 'standard',
         ];
+        if (id) await this.reverseTransactionCore(id, 'Transaction edit');
         if (id)
           await this.db.runAsync(
-            'UPDATE transactions SET type=?,amount=?,account_id=?,destination_account_id=?,category_id=?,description=?,date=?,notes=?,updated_at=? WHERE id=?',
+            'UPDATE transactions SET type=?,amount=?,account_id=?,destination_account_id=?,category_id=?,description=?,date=?,notes=?,updated_at=?,component=? WHERE id=?',
             ...args,
             id
           );
         else
           await this.db.runAsync(
-            'INSERT INTO transactions(type,amount,account_id,destination_account_id,category_id,description,date,notes,updated_at,created_at) VALUES (?,?,?,?,?,?,?,?,?,?)',
+            'INSERT INTO transactions(type,amount,account_id,destination_account_id,category_id,description,date,notes,updated_at,component,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)',
             ...args,
             now
           );
+        const transactionId =
+          id ?? (await this.db.getFirstAsync<{ id: number }>('SELECT last_insert_rowid() id'))!.id;
+        await this.postTransactionCore(transactionId);
       });
     });
   }
   deleteTransaction(id: number) {
-    return this.write(() => this.db.runAsync('DELETE FROM transactions WHERE id=?', id));
+    return this.write(() =>
+      this.db.withTransactionAsync(async () => {
+        const t = await this.db.getFirstAsync<Transaction>(
+          "SELECT * FROM transactions WHERE id=? AND status='posted'",
+          id
+        );
+        if (!t) throw new Error('Transaction no longer exists.');
+        if (t.loan_id) throw new Error('Reverse loan payments from the loan details screen.');
+        await this.reverseTransactionCore(id, 'Transaction deleted');
+        await this.db.runAsync(
+          "UPDATE transactions SET status='void',updated_at=? WHERE id=?",
+          new Date().toISOString(),
+          id
+        );
+      })
+    );
   }
   settingsSnapshot() {
     return this.read(async () =>

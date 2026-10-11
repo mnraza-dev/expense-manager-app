@@ -146,7 +146,7 @@ export class AnalyticsRepository {
   }
   private categoryTotals(range: DateRange): Promise<CategoryTotal[]> {
     return this.db.getAllAsync<CategoryTotal>(
-      `SELECT c.id,c.name,c.color,c.type,SUM(t.amount) amount FROM transactions t JOIN categories c ON c.id=t.category_id WHERE t.date BETWEEN ? AND ? AND t.type IN ('income','expense') GROUP BY c.id ORDER BY amount DESC,c.id`,
+      `SELECT c.id,c.name,c.color,c.type,SUM(t.amount) amount FROM active_transactions t JOIN categories c ON c.id=t.category_id WHERE t.date BETWEEN ? AND ? AND t.type IN ('income','expense') GROUP BY c.id ORDER BY amount DESC,c.id`,
       range.start,
       range.end
     );
@@ -159,7 +159,7 @@ export class AnalyticsRepository {
   }
   private comparisons(range: DateRange) {
     return this.db.getAllAsync<BudgetComparison>(
-      `SELECT b.id budget_id,substr(b.period_start,1,7) month,c.id category_id,c.name,c.color,bc.limit_minor allocated,COALESCE(SUM(t.amount),0) spent FROM budgets b JOIN budget_categories bc ON bc.budget_id=b.id JOIN categories c ON c.id=bc.category_id LEFT JOIN transactions t ON t.category_id=c.id AND t.type='expense' AND t.date BETWEEN b.period_start AND b.period_end AND t.date BETWEEN ? AND ? WHERE b.period_start<=? AND b.period_end>=? GROUP BY bc.id ORDER BY b.period_start,c.name,c.id`,
+      `SELECT b.id budget_id,substr(b.period_start,1,7) month,c.id category_id,c.name,c.color,bc.limit_minor allocated,COALESCE(SUM(t.amount),0) spent FROM budgets b JOIN budget_categories bc ON bc.budget_id=b.id JOIN categories c ON c.id=bc.category_id LEFT JOIN active_transactions t ON t.category_id=c.id AND t.type='expense' AND t.date BETWEEN b.period_start AND b.period_end AND t.date BETWEEN ? AND ? WHERE b.period_start<=? AND b.period_end>=? GROUP BY bc.id ORDER BY b.period_start,c.name,c.id`,
       range.start,
       range.end,
       range.end,
@@ -176,7 +176,7 @@ export class AnalyticsRepository {
       const spending = (await this.categoryTotals(range)).filter((c) => c.type === 'expense');
       const categories = budget
         ? await this.db.getAllAsync<BudgetComparison & { archived: number }>(
-            `SELECT b.id budget_id,substr(b.period_start,1,7) month,c.id category_id,c.name,c.color,c.archived,bc.limit_minor allocated,COALESCE(SUM(t.amount),0) spent FROM budgets b JOIN budget_categories bc ON bc.budget_id=b.id JOIN categories c ON c.id=bc.category_id LEFT JOIN transactions t ON t.category_id=c.id AND t.type='expense' AND t.date BETWEEN b.period_start AND b.period_end WHERE b.id=? GROUP BY bc.id ORDER BY c.name,c.id`,
+            `SELECT b.id budget_id,substr(b.period_start,1,7) month,c.id category_id,c.name,c.color,c.archived,bc.limit_minor allocated,COALESCE(SUM(t.amount),0) spent FROM budgets b JOIN budget_categories bc ON bc.budget_id=b.id JOIN categories c ON c.id=bc.category_id LEFT JOIN active_transactions t ON t.category_id=c.id AND t.type='expense' AND t.date BETWEEN b.period_start AND b.period_end WHERE b.id=? GROUP BY bc.id ORDER BY c.name,c.id`,
             budget.id
           )
         : [];
@@ -196,30 +196,30 @@ export class AnalyticsRepository {
         expense: number;
         count: number;
       }>(
-        `SELECT COALESCE(SUM(CASE WHEN type='income' THEN amount ELSE 0 END),0) income,COALESCE(SUM(CASE WHEN type='expense' THEN amount ELSE 0 END),0) expense,COUNT(*) count FROM transactions WHERE date BETWEEN ? AND ?`,
+        `SELECT COALESCE(SUM(CASE WHEN type='income' THEN amount ELSE 0 END),0) income,COALESCE(SUM(CASE WHEN type='expense' THEN amount ELSE 0 END),0) expense,COUNT(*) count FROM active_transactions WHERE date BETWEEN ? AND ?`,
         range.start,
         range.end
       );
       const daily = calendarDays(range) <= 31 && range.start.slice(0, 7) === range.end.slice(0, 7);
       const periodExpr = daily ? 'date' : 'substr(date,1,7)';
       const raw = await this.db.getAllAsync<PeriodTotal>(
-        `SELECT ${periodExpr} period,SUM(CASE WHEN type='income' THEN amount ELSE 0 END) income,SUM(CASE WHEN type='expense' THEN amount ELSE 0 END) expense,COUNT(*) count FROM transactions WHERE date BETWEEN ? AND ? GROUP BY period ORDER BY period`,
+        `SELECT ${periodExpr} period,SUM(CASE WHEN type='income' THEN amount ELSE 0 END) income,SUM(CASE WHEN type='expense' THEN amount ELSE 0 END) expense,COUNT(*) count FROM active_transactions WHERE date BETWEEN ? AND ? GROUP BY period ORDER BY period`,
         range.start,
         range.end
       );
       const categories = await this.categoryTotals(range);
       const categoryMonths = await this.db.getAllAsync<CategoryMonth>(
-        `SELECT substr(t.date,1,7) period,c.id category_id,c.name,SUM(t.amount) amount FROM transactions t JOIN categories c ON c.id=t.category_id WHERE t.type='expense' AND t.date BETWEEN ? AND ? GROUP BY period,c.id ORDER BY period,c.id`,
+        `SELECT substr(t.date,1,7) period,c.id category_id,c.name,SUM(t.amount) amount FROM active_transactions t JOIN categories c ON c.id=t.category_id WHERE t.type='expense' AND t.date BETWEEN ? AND ? GROUP BY period,c.id ORDER BY period,c.id`,
         range.start,
         range.end
       );
       const highestDays = await this.db.getAllAsync<{ date: string; amount: number }>(
-        `SELECT date,SUM(amount) amount FROM transactions WHERE type='expense' AND date BETWEEN ? AND ? GROUP BY date ORDER BY amount DESC,date DESC LIMIT 7`,
+        `SELECT date,SUM(amount) amount FROM active_transactions WHERE type='expense' AND date BETWEEN ? AND ? GROUP BY date ORDER BY amount DESC,date DESC LIMIT 7`,
         range.start,
         range.end
       );
       const recent = await this.db.getAllAsync<Transaction>(
-        'SELECT * FROM transactions WHERE date BETWEEN ? AND ? ORDER BY date DESC,id DESC LIMIT 10',
+        'SELECT * FROM active_transactions WHERE date BETWEEN ? AND ? ORDER BY date DESC,id DESC LIMIT 10',
         range.start,
         range.end
       );
@@ -308,7 +308,7 @@ export class AnalyticsRepository {
       params.push(filters.max_amount);
     }
     const join =
-      ' FROM transactions t JOIN accounts a ON a.id=t.account_id LEFT JOIN accounts d ON d.id=t.destination_account_id LEFT JOIN categories c ON c.id=t.category_id';
+      ' FROM active_transactions t JOIN accounts a ON a.id=t.account_id LEFT JOIN accounts d ON d.id=t.destination_account_id LEFT JOIN categories c ON c.id=t.category_id';
     const where = clauses.length ? ` WHERE ${clauses.join(' AND ')}` : '';
     return this.read(async () => {
       const count = await this.db.getFirstAsync<{ count: number }>(

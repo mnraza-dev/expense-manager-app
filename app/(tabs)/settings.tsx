@@ -39,6 +39,17 @@ export default function Settings() {
         title="Manage income & expense categories"
         onPress={() => router.push('/category')}
       />
+      <Button secondary title="Finance tools & ledger" onPress={() => router.push('/finance')} />
+      <Button
+        secondary
+        title="Export, backup, restore & integrity"
+        onPress={() => router.push('/data')}
+      />
+      <Button
+        secondary
+        title="Passcode & biometric app lock"
+        onPress={() => router.push('/security')}
+      />
       <Card>
         <Label>Local database</Label>
         <Label small>SQLite · pocketbook.db · schema v{migrations.length}</Label>

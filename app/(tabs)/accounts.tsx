@@ -3,7 +3,7 @@ import { Pressable, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useFinance } from '../../src/store/useFinance';
 import { balance, money } from '../../src/utils/finance';
-import { Card, Choices, Empty, Label, Screen, styles } from '../../src/components/ui';
+import { Button, Card, Choices, Empty, Label, Screen, styles } from '../../src/components/ui';
 export default function Accounts() {
   const router = useRouter();
   const { accounts, transactions } = useFinance();
@@ -14,6 +14,8 @@ export default function Accounts() {
       title="Accounts"
       subtitle="A home for every rupee"
       action={() => router.push('/account/add')}>
+      <Button secondary title="Credit cards & statements" onPress={() => router.push('/card')} />
+      <Button secondary title="Loans & debts" onPress={() => router.push('/loan')} />
       <Choices
         label="Show accounts"
         value={mode}
@@ -32,7 +34,10 @@ export default function Accounts() {
               <View>
                 <Label>{a.name}</Label>
                 <Label small>
-                  {a.type.toUpperCase()} · {a.currency}
+                  {a.subtype === 'standard'
+                    ? a.type.toUpperCase()
+                    : a.subtype?.replaceAll('_', ' ').toUpperCase()}{' '}
+                  · {a.kind ?? 'asset'} · {a.currency}
                 </Label>
               </View>
               <Label>{money(balance(a, transactions), a.currency)}</Label>

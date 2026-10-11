@@ -47,6 +47,22 @@ export function AccountForm({ id }: { id?: number }) {
         <Label>This account no longer exists.</Label>
       </Screen>
     );
+  if (account && account.subtype !== 'standard')
+    return (
+      <Screen title={account.name} back>
+        <Label>
+          {account.kind} · Balance {money(balance(account, transactions))}
+        </Label>
+        <Button
+          title={account.subtype === 'credit_card' ? 'Open card details' : 'Open loans & debts'}
+          onPress={() =>
+            account.subtype === 'credit_card'
+              ? router.push({ pathname: '/card/[id]', params: { id: account.id } })
+              : router.push('/loan')
+          }
+        />
+      </Screen>
+    );
   const submit = async (v: Values) => {
     if (saving.current) return;
     saving.current = true;
