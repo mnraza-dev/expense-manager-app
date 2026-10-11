@@ -1,9 +1,9 @@
 import type { Account, Category, Snapshot, Transaction } from '../types';
 import { defaults, migrations } from './migrations';
 import { MAX_MONEY, validDate, localDate } from '../utils/finance';
-import { DataRepository } from './dataRepository';
+import { SyncRepository } from './syncRepository';
 export type { DB } from './adapter';
-export class Repositories extends DataRepository {
+export class Repositories extends SyncRepository {
   private async checkPrecision(kind: 'account' | 'transaction', amount: number, id?: number) {
     const opening = await this.db.getFirstAsync<{ total: number }>(
       'SELECT COALESCE(SUM(ABS(opening_balance)),0) total FROM accounts WHERE id<>?',
