@@ -2,27 +2,24 @@ import { useEffect, useState, type ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Image, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Wallet, ListChecks, ShieldCheck } from 'lucide-react-native';
+import { OnboardingScene } from './OnboardingScene';
 import { Button, useTheme } from './ui';
 import { Reveal } from './Motion';
-const key = 'pocketbook.onboarding.v1';
+const key = 'pocketbook.onboarding.v2';
 const pages = [
   {
     title: 'A clearer picture of your money',
     detail: 'Keep your accounts, everyday spending and monthly budgets together.',
-    Icon: Wallet,
   },
   {
     title: 'A small habit. More control.',
     detail:
       'Start with an account and its opening balance. Add expenses as they happen, then see what remains in your budget.',
-    Icon: ListChecks,
   },
   {
     title: 'Your money stays yours',
     detail:
       'Your records work offline on this device. Cloud backup is optional; you choose when to connect it.',
-    Icon: ShieldCheck,
   },
 ];
 export function OnboardingGate({ children }: { children: ReactNode }) {
@@ -61,11 +58,16 @@ export function OnboardingGate({ children }: { children: ReactNode }) {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: c.bg }}>
       <ScrollView
-        contentContainerStyle={{ flexGrow: 1, padding: 28, justifyContent: 'center', gap: 24 }}>
+        contentContainerStyle={{ flexGrow: 1, padding: 28, justifyContent: 'center', gap: 16 }}>
         <Image
           source={require('../../assets/icon.png')}
           accessibilityLabel="Pocketbook app icon"
-          style={{ width: 112, height: 112, borderRadius: 26, alignSelf: 'center' }}
+          style={{
+            width: state === 'loading' ? 112 : 40,
+            height: state === 'loading' ? 112 : 40,
+            borderRadius: 12,
+            alignSelf: 'center',
+          }}
           resizeMode="contain"
         />
         <Text style={{ color: c.muted, textAlign: 'center', fontSize: 15 }}>Pocketbook</Text>
@@ -73,8 +75,8 @@ export function OnboardingGate({ children }: { children: ReactNode }) {
           <Text style={{ color: c.text, textAlign: 'center' }}>Preparing your welcome…</Text>
         ) : (
           <>
+            <OnboardingScene key={page} page={page} />
             <Reveal key={page} style={{ gap: 20, alignItems: 'center' }}>
-              <current.Icon size={30} color={c.accent} />
               <Text
                 accessibilityRole="header"
                 style={{ color: c.text, fontSize: 28, fontWeight: '600', textAlign: 'center' }}>
