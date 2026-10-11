@@ -11,7 +11,15 @@ import { uuidSQL } from '../cloud/localSchema';
 import { serializeBackup, validateBackup } from '../services/backup';
 import { migrations } from './migrations';
 export class SyncRepository extends DataRepository {
-  markSyncSuccess(checkpoint:number){return this.write(()=>this.db.runAsync('UPDATE sync_config SET checkpoint=?,last_success=? WHERE id=1',checkpoint,new Date().toISOString()));}
+  markSyncSuccess(checkpoint: number) {
+    return this.write(() =>
+      this.db.runAsync(
+        'UPDATE sync_config SET checkpoint=?,last_success=? WHERE id=1',
+        checkpoint,
+        new Date().toISOString()
+      )
+    );
+  }
   syncState() {
     return this.read(async () => ({
       config: await this.db.getFirstAsync<{
@@ -33,13 +41,14 @@ export class SyncRepository extends DataRepository {
   enableSync(owner: string) {
     return this.write(() =>
       this.db.withTransactionAsync(async () => {
-        const config = await this.db.getFirstAsync<{ owner: string | null }>(
-          'SELECT owner FROM sync_config WHERE id=1'
+        const config = await this.db.getFirstAsync<{ owner: string | null; enabled: number }>(
+          'SELECT owner,enabled FROM sync_config WHERE id=1'
         );
         if (config?.owner && config.owner !== owner)
           throw new Error(
             'This local dataset belongs to another cloud account. Sign into that account or explicitly restore the new account cloud data.'
           );
+        if (config?.owner === owner && config.enabled) return;
         if ((await this.integrityCore()).length)
           throw new Error('Resolve local integrity issues before synchronization.');
         const dataset = await readDataset(this.db),

@@ -1,3 +1,4 @@
+import { notify } from '../store/useFeedback';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'expo-router';
 import { Controller, useFieldArray, useForm, useWatch } from 'react-hook-form';
@@ -115,6 +116,7 @@ export function BudgetForm({ id, initialMonth }: { id?: number; initialMonth?: s
           id
         )
       );
+      notify('Budget saved');
       router.back();
     } catch (e) {
       showError(e);

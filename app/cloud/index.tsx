@@ -41,7 +41,7 @@ export default function CloudScreen() {
     [conflicts, setConflicts] = useState<{ id: string; proposal: string }[]>([]);
   const active = useRef(false);
   const reload = async () => {
-    if (session) {
+    if (useCloudAuth.getState().session) {
       setBackups(await listCloudBackups());
       const state = await refreshSyncState();
       setConflicts(state.conflicts);
@@ -60,7 +60,6 @@ export default function CloudScreen() {
     // Async server query refreshes this screen after an external auth-session change.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void reload().catch(() => {}); // Focused screen refresh is safe; authenticated server checks every action.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session?.user.id]);
   const run = async (task: () => Promise<void>, blocking = false) => {
     if (active.current) return;

@@ -5,10 +5,11 @@ import type { Transaction, TransactionFilters } from '../../src/types';
 import { useFinance } from '../../src/store/useFinance';
 import { Button, Empty, Field, Label, Screen, useTheme } from '../../src/components/ui';
 import { TransactionItem } from '../../src/components/TransactionItem';
-import {
-  ActiveFilterChips,
-  TransactionFilterSheet,
-} from '../../src/components/TransactionFilterSheet';
+import { TransactionFilterSheet } from '../../src/components/TransactionFilterSheet';
+import { MonthSelector } from '../../src/components/MonthSelector';
+import { localDate } from '../../src/utils/finance';
+import { monthRange } from '../../src/utils/periods';
+import { notify } from '../../src/store/useFeedback';
 import { repo } from '../../src/db/database';
 export default function Transactions() {
   const router = useRouter();
@@ -16,7 +17,8 @@ export default function Transactions() {
   const revision = useFinance((s) => s.revision);
   const [search, setSearch] = useState(''),
     [debounced, setDebounced] = useState('');
-  const [filters, setFilters] = useState<TransactionFilters>({ sort: 'newest' });
+  const [filters, setFilters] = useState<TransactionFilters>(() => ({ sort: 'newest', ...monthRange(localDate().slice(0, 7)) }));
+  const [month, setMonth] = useState(() => localDate().slice(0, 7));
   const [sheet, setSheet] = useState(false),
     [page, setPage] = useState(0),
     [retry, setRetry] = useState(0);
@@ -75,6 +77,7 @@ export default function Transactions() {
   );
   const apply = (value: TransactionFilters) => {
     setFilters(value);
+    notify('Filters applied');
     setPage(0);
   };
   const clear = () => {
@@ -84,29 +87,26 @@ export default function Transactions() {
     setPage(0);
   };
   return (
-    <Screen
-      title="Transactions"
-      subtitle="Search the story behind every entry"
-      scroll={false}
-      action={() => router.push('/transaction/add')}>
+    <Screen title="Transactions" scroll={false} action={() => router.push('/transaction/add')}>
       <Field
-        label="Search description, notes, category or account"
+        label="Search"
         placeholder="Search your transactions…"
         value={search}
         onChangeText={setSearch}
+      />
+      {!filters.start && !filters.end && <Label small>Showing all dates · select a month to narrow results</Label>}
+      <MonthSelector
+        month={month}
+        onChange={(m) => {
+          setMonth(m);
+          apply({ ...filters, ...monthRange(m) });
+        }}
       />
       <Button secondary title="Filter & sort" onPress={() => setSheet(true)} />
       {(search ||
         Object.entries(filters).some(([key, value]) =>
           key !== 'sort' ? value !== undefined : value !== 'newest'
         )) && <Button secondary title="Clear all filters & search" onPress={clear} />}
-      <ActiveFilterChips
-        filters={filters}
-        onRemove={(key) => {
-          setFilters((v) => ({ ...v, [key]: undefined }));
-          setPage(0);
-        }}
-      />
       <Label small>
         {loading ? 'Searching…' : `${count} matching transactions`}
         {filters.sort && filters.sort !== 'newest' ? ` · ${filters.sort} first` : ''}

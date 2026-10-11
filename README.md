@@ -268,3 +268,9 @@ npm run typecheck
 npm run lint
 npx expo export --platform ios --platform android --output-dir /private/tmp/pocketbook-phase4-export
 ```
+
+## Optional cloud and interface redesign
+
+Cloud backup/authentication/sync implementation and deployment instructions are in [CLOUD.md](CLOUD.md). No remote project has been provisioned; cloud access defaults to free once configured. SQLite schema 4 adds sync metadata without changing financial tables. Local backups and exports remain available offline.
+
+The four-tab interface, design decisions, preserved secondary workflows and device QA checklist are in [DESIGN.md](DESIGN.md). Native visual/performance verification remains outstanding without a usable simulator or attached device.

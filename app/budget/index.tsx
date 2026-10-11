@@ -34,9 +34,7 @@ export default function Budgets() {
   const p = query.data?.progress;
   return (
     <Screen
-      title="Monthly budgets"
-      subtitle="Room for the things that matter"
-      back
+      title="Budgets"
       action={() => router.push({ pathname: '/budget/add', params: { month } })}>
       <MonthSelector month={month} onChange={setMonth} />
       <QueryState {...query} />

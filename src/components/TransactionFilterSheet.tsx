@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { KeyboardAvoidingView, Modal, Platform, ScrollView } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { BottomSheet } from './BottomSheet';
 import type { TransactionFilters, TransactionSort, TransactionType } from '../types';
 import { useFinance } from '../store/useFinance';
 import { minor, money, validDate } from '../utils/finance';
-import { Button, Choices, Field, Label, styles, useTheme } from './ui';
+import { Button, Choices, Field, Label, styles } from './ui';
 export function TransactionFilterSheet({
   visible,
   initial,
@@ -18,7 +18,6 @@ export function TransactionFilterSheet({
   onClose: () => void;
   onClear: () => void;
 }) {
-  const c = useTheme();
   const accounts = useFinance((s) => s.accounts),
     categories = useFinance((s) => s.categories);
   const [draft, setDraft] = useState<TransactionFilters>(initial);
@@ -48,110 +47,104 @@ export function TransactionFilterSheet({
     }
   };
   return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      presentationStyle="pageSheet"
-      onRequestClose={onClose}>
-      <SafeAreaView style={{ flex: 1, backgroundColor: c.bg }}>
-        <KeyboardAvoidingView
-          style={{ flex: 1 }}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.page}>
-            <Label>Filter & sort transactions</Label>
-            <Label small>Combine any filters. Amount and date boundaries are inclusive.</Label>
-            <Choices
-              label="Transaction type"
-              value={draft.type ?? 'all'}
-              onChange={(value) =>
-                setDraft((v) => ({
-                  ...v,
-                  type: value === 'all' ? undefined : (value as TransactionType),
-                }))
-              }
-              options={['all', 'expense', 'income', 'transfer'].map((value) => ({
-                value,
-                label: value[0].toUpperCase() + value.slice(1),
-              }))}
-            />
-            <Choices
-              label="Account (includes transfer destinations)"
-              value={draft.account_id ?? 0}
-              onChange={(account_id) =>
-                setDraft((v) => ({ ...v, account_id: account_id || undefined }))
-              }
-              options={[
-                { value: 0, label: 'All accounts' },
-                ...accounts.map((a) => ({
-                  value: a.id,
-                  label: a.name + (a.archived ? ' (archived)' : ''),
-                })),
-              ]}
-            />
-            <Choices
-              label="Category"
-              value={draft.category_id ?? 0}
-              onChange={(category_id) =>
-                setDraft((v) => ({ ...v, category_id: category_id || undefined }))
-              }
-              options={[
-                { value: 0, label: 'All categories' },
-                ...categories.map((a) => ({
-                  value: a.id,
-                  label: a.name + (a.archived ? ' (archived)' : ''),
-                })),
-              ]}
-            />
-            <Field
-              label="Start date (YYYY-MM-DD)"
-              value={draft.start ?? ''}
-              onChangeText={(start) => setDraft((v) => ({ ...v, start: start || undefined }))}
-            />
-            <Field
-              label="End date (YYYY-MM-DD)"
-              value={draft.end ?? ''}
-              onChangeText={(end) => setDraft((v) => ({ ...v, end: end || undefined }))}
-            />
-            <Field
-              label="Minimum amount (₹)"
-              value={min}
-              onChangeText={setMin}
-              keyboardType="decimal-pad"
-            />
-            <Field
-              label="Maximum amount (₹)"
-              value={max}
-              onChangeText={setMax}
-              keyboardType="decimal-pad"
-            />
-            <Choices
-              label="Sort order"
-              value={draft.sort ?? 'newest'}
-              onChange={(sort) => setDraft((v) => ({ ...v, sort }))}
-              options={
-                [
-                  { value: 'newest', label: 'Newest first' },
-                  { value: 'oldest', label: 'Oldest first' },
-                  { value: 'highest', label: 'Highest amount' },
-                  { value: 'lowest', label: 'Lowest amount' },
-                ] as { value: TransactionSort; label: string }[]
-              }
-            />
-            {error && <Label>{error}</Label>}
-            <Button title="Apply filters" onPress={apply} />
-            <Button
-              secondary
-              title="Clear all filters & search"
-              onPress={() => {
-                onClear();
-                onClose();
-              }}
-            />
-            <Button secondary title="Cancel" onPress={onClose} />
-          </ScrollView>
-        </KeyboardAvoidingView>
-      </SafeAreaView>
-    </Modal>
+    <BottomSheet visible={visible} onClose={onClose}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.page}>
+          <Label>Filter & sort transactions</Label>
+          <Label small>Combine any filters. Amount and date boundaries are inclusive.</Label>
+          <Choices
+            label="Transaction type"
+            value={draft.type ?? 'all'}
+            onChange={(value) =>
+              setDraft((v) => ({
+                ...v,
+                type: value === 'all' ? undefined : (value as TransactionType),
+              }))
+            }
+            options={['all', 'expense', 'income', 'transfer'].map((value) => ({
+              value,
+              label: value[0].toUpperCase() + value.slice(1),
+            }))}
+          />
+          <Choices
+            label="Account (includes transfer destinations)"
+            value={draft.account_id ?? 0}
+            onChange={(account_id) =>
+              setDraft((v) => ({ ...v, account_id: account_id || undefined }))
+            }
+            options={[
+              { value: 0, label: 'All accounts' },
+              ...accounts.map((a) => ({
+                value: a.id,
+                label: a.name + (a.archived ? ' (archived)' : ''),
+              })),
+            ]}
+          />
+          <Choices
+            label="Category"
+            value={draft.category_id ?? 0}
+            onChange={(category_id) =>
+              setDraft((v) => ({ ...v, category_id: category_id || undefined }))
+            }
+            options={[
+              { value: 0, label: 'All categories' },
+              ...categories.map((a) => ({
+                value: a.id,
+                label: a.name + (a.archived ? ' (archived)' : ''),
+              })),
+            ]}
+          />
+          <Field
+            label="Start date (YYYY-MM-DD)"
+            value={draft.start ?? ''}
+            onChangeText={(start) => setDraft((v) => ({ ...v, start: start || undefined }))}
+          />
+          <Field
+            label="End date (YYYY-MM-DD)"
+            value={draft.end ?? ''}
+            onChangeText={(end) => setDraft((v) => ({ ...v, end: end || undefined }))}
+          />
+          <Field
+            label="Minimum amount (₹)"
+            value={min}
+            onChangeText={setMin}
+            keyboardType="decimal-pad"
+          />
+          <Field
+            label="Maximum amount (₹)"
+            value={max}
+            onChangeText={setMax}
+            keyboardType="decimal-pad"
+          />
+          <Choices
+            label="Sort order"
+            value={draft.sort ?? 'newest'}
+            onChange={(sort) => setDraft((v) => ({ ...v, sort }))}
+            options={
+              [
+                { value: 'newest', label: 'Newest first' },
+                { value: 'oldest', label: 'Oldest first' },
+                { value: 'highest', label: 'Highest amount' },
+                { value: 'lowest', label: 'Lowest amount' },
+              ] as { value: TransactionSort; label: string }[]
+            }
+          />
+          {error && <Label>{error}</Label>}
+          <Button title="Apply filters" onPress={apply} />
+          <Button
+            secondary
+            title="Clear all filters & search"
+            onPress={() => {
+              onClear();
+              onClose();
+            }}
+          />
+          <Button secondary title="Cancel" onPress={onClose} />
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </BottomSheet>
   );
 }
 export function ActiveFilterChips({

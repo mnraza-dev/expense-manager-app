@@ -101,8 +101,11 @@ async function syncRun() {
     const snapshot = await remoteSnapshot(after.config?.checkpoint ?? 0);
     if (useCloudAuth.getState().session?.user.id !== owner)
       throw new Error('Cloud account changed; download was not applied.');
-    if(!snapshot.records.length && snapshot.revision===(after.config?.checkpoint??0)) {
-      await repo().markSyncSuccess(snapshot.revision);useSync.setState({status:'synced',error:null});await refreshSyncState();return;
+    if (!snapshot.records.length && snapshot.revision === (after.config?.checkpoint ?? 0)) {
+      await repo().markSyncSuccess(snapshot.revision);
+      useSync.setState({ status: 'synced', error: null });
+      await refreshSyncState();
+      return;
     }
     await useFinance
       .getState()
@@ -122,6 +125,11 @@ async function syncRun() {
 export async function enableInitialSync() {
   const owner = await verifiedOwner();
   await requireFeature('multi_device_sync');
+  const local = await repo().syncState();
+  if (local.config?.enabled && local.config.owner === owner) {
+    await synchronize();
+    return;
+  }
   const remote = await remoteSnapshot();
   if (remote.record_count)
     throw new Error(
@@ -139,7 +147,12 @@ export async function adoptCloud() {
     .mutate(() =>
       repo().applyRemote(snapshot.records, snapshot.revision, owner, true, saveCloudRecovery)
     );
-  await cloudClient().rpc('resolve_cloud_conflicts');
+  const resolution = await cloudClient().rpc('resolve_cloud_conflicts');
+  if (resolution.error) {
+    useSync.setState({ status: 'failed', error: 'Cloud data was restored locally; server conflict history could not be marked resolved. Retry once connected.' });
+    useFinance.setState((s) => ({ budgetRevision: s.budgetRevision + 1 }));
+    throw new Error('Local cloud restore completed, but server conflict history needs retry.');
+  }
   useFinance.setState((s) => ({ budgetRevision: s.budgetRevision + 1 }));
   await refreshSyncState();
   useSync.setState({ status: 'synced' });
@@ -152,7 +165,8 @@ export function startSyncObservers() {
       if (AppState.currentState === 'active' && useCloudAuth.getState().session)
         void refreshSyncState()
           .then((s) => {
-            if (s.config?.enabled) void synchronize();
+            if (s.config?.enabled && s.config.owner === useCloudAuth.getState().session?.user.id)
+              void synchronize();
           })
           .catch(() => {});
     }, 2000);
@@ -167,7 +181,11 @@ export function startSyncObservers() {
   const app = AppState.addEventListener('change', (state) => {
     if (state === 'active') schedule();
   });
+  const interval = setInterval(schedule, 30000);
+  const offAuth = useCloudAuth.subscribe(schedule);
   return () => {
+    clearInterval(interval);
+    offAuth();
     offNetwork();
     offFinance();
     app.remove();

@@ -1,125 +1,97 @@
-import { useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { View, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
-import { ChevronLeft, ChevronRight } from 'lucide-react-native';
+import { useCallback, useState } from 'react';
 import { useFinance } from '../../src/store/useFinance';
 import { balance, localDate, money, summary } from '../../src/utils/finance';
-import { Button, Card, Empty, Label, Screen, styles, useTheme } from '../../src/components/ui';
+import { AmountText, Button, Empty, Label, Screen, styles } from '../../src/components/ui';
 import { TransactionItem } from '../../src/components/TransactionItem';
-import { Breakdown } from '../../src/features/Breakdown';
+import { BudgetProgressCard } from '../../src/components/BudgetProgressCard';
+import { useDatabaseQuery } from '../../src/hooks/useDatabaseQuery';
+import { repo } from '../../src/db/database';
 export default function Home() {
   const router = useRouter();
-  const c = useTheme();
   const { accounts, transactions } = useFinance();
-  const [date, setDate] = useState(() => new Date());
-  const month = localDate(date).slice(0, 7);
+  const [month] = useState(() => localDate().slice(0, 7));
   const totals = summary(transactions, month);
   const active = accounts.filter((a) => !a.archived && a.kind !== 'liability');
-  const move = (n: number) => setDate(new Date(date.getFullYear(), date.getMonth() + n, 1));
+  const loadBudget = useCallback(() => repo().budgetProgress(month), [month]);
+  const budget = useDatabaseQuery(loadBudget);
   return (
-    <Screen
-      title="Pocketbook"
-      subtitle="A little clarity. Every day."
-      action={() => router.push('/transaction/add')}>
+    <Screen title="Pocketbook">
       <View style={styles.row}>
         <Pressable
-          accessibilityLabel="Previous month"
-          onPress={() => move(-1)}
-          style={styles.touch}>
-          <ChevronLeft color={c.text} />
+          accessibilityRole="button"
+          onPress={() => router.push('/(tabs)/reports')}
+          style={{ minHeight: 44, justifyContent: 'center' }}>
+          <Label small>Reports</Label>
         </Pressable>
-        <Text style={{ color: c.text, fontWeight: '600' }}>
-          {date.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}
-        </Text>
-        <Pressable accessibilityLabel="Next month" onPress={() => move(1)} style={styles.touch}>
-          <ChevronRight color={c.text} />
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => router.push('/(tabs)/settings')}
+          style={{ minHeight: 44, justifyContent: 'center' }}>
+          <Label small>Settings</Label>
         </Pressable>
       </View>
-      <View style={{ backgroundColor: '#173F3B', borderRadius: 26, padding: 24, gap: 12 }}>
-        <Text style={{ color: '#B9D8CF', fontSize: 13 }}>TOTAL BALANCE · ACTIVE ACCOUNTS</Text>
-        <Text style={{ color: '#FFFFFF', fontWeight: '800', fontSize: 34 }}>
-          {money(active.reduce((s, a) => s + balance(a, transactions), 0))}
-        </Text>
-        <Text style={{ color: '#B9D8CF' }}>Your balances, all in one place</Text>
-      </View>
-      <View style={[styles.row, { alignItems: 'stretch' }]}>
-        <View style={{ flex: 1 }}>
-          <Card>
-            <Label small>↙ Income</Label>
-            <Label>{money(totals.income)}</Label>
-          </Card>
-        </View>
-        <View style={{ flex: 1 }}>
-          <Card>
-            <Label small>↗ Expenses</Label>
-            <Label>{money(totals.expense)}</Label>
-          </Card>
-        </View>
-      </View>
+      <Label small>Available balance · active assets</Label>
+      <AmountText large>
+        {money(active.reduce((s, a) => s + balance(a, transactions), 0))}
+      </AmountText>
+      <Pressable
+        accessibilityRole="button"
+        onPress={() => router.push('/(tabs)/accounts')}
+        style={{ minHeight: 44, justifyContent: 'center' }}>
+        <Label small>View accounts</Label>
+      </Pressable>
+      <Label small>
+        {new Date().toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}
+      </Label>
       <View style={styles.row}>
-        <Label small>Net cash flow {money(totals.net)}</Label>
-        <Label small>{totals.count} transactions</Label>
+        <View style={{ flex: 1 }}>
+          <Label small>Income</Label>
+          <AmountText>{money(totals.income)}</AmountText>
+        </View>
+        <View style={{ flex: 1 }}>
+          <Label small>Spent this month</Label>
+          <AmountText>{money(totals.expense)}</AmountText>
+        </View>
       </View>
-      <View style={styles.wrap}>
-        {(['expense', 'income', 'transfer'] as const).map((type) => (
-          <View key={type} style={{ flex: 1 }}>
-            <Button
-              secondary
-              title={
-                type === 'transfer' ? '↔ Transfer' : type === 'income' ? '+ Income' : '− Expense'
-              }
-              onPress={() => router.push({ pathname: '/transaction/add', params: { type } })}
-            />
-          </View>
-        ))}
-      </View>
+      <Button title="Add transaction" onPress={() => router.push('/transaction/add')} />
       {!active.length && (
         <>
           <Empty
             title="Start with an account"
-            detail="Add your cash, bank or wallet and its opening balance. Your financial story starts here."
+            detail="Add cash, a bank account or a wallet with its opening balance."
           />
-          <Button title="Create your first account" onPress={() => router.push('/account/add')} />
+          <Button secondary title="Add account" onPress={() => router.push('/account/add')} />
         </>
       )}
-      <Label>Recent activity</Label>
-      <Card>
-        {totals.rows.length ? (
-          totals.rows.slice(0, 5).map((t) => <TransactionItem key={t.id} item={t} />)
-        ) : (
-          <Label small>No transactions this month. Add your first income or expense.</Label>
-        )}
-      </Card>
-      {active.length > 0 && (
-        <>
-          <Label>Your accounts</Label>
-          <Card>
-            {active.map((a) => (
-              <Pressable
-                key={a.id}
-                onPress={() => router.push({ pathname: '/account/[id]', params: { id: a.id } })}
-                style={[styles.row, { paddingVertical: 10 }]}>
-                <View>
-                  <Label>{a.name}</Label>
-                  <Label small>{a.type}</Label>
-                </View>
-                <Label>{money(balance(a, transactions), a.currency)}</Label>
-              </Pressable>
-            ))}
-          </Card>
-        </>
+      {budget.data?.budget && (
+        <Pressable accessibilityRole="button" onPress={() => router.push('/(tabs)/budgets')}>
+          <BudgetProgressCard
+            name={budget.data.budget.name}
+            limit={budget.data.budget.total_limit_minor}
+            spent={budget.data.spent}
+          />
+        </Pressable>
       )}
-      <Button
-        secondary
-        title="Monthly budgets & spending progress →"
-        onPress={() => router.push({ pathname: '/budget', params: { month } })}
-      />
-      <Button
-        secondary
-        title="Credit cards, loans, recurring & net worth →"
-        onPress={() => router.push('/finance')}
-      />
-      <Breakdown rows={totals.rows} />
+      <View style={styles.row}>
+        <Label>Recent activity</Label>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => router.push('/(tabs)/transactions')}
+          style={styles.touch}>
+          <Label small>All</Label>
+        </Pressable>
+      </View>
+      {transactions.slice(0, 5).map((t) => (
+        <TransactionItem key={t.id} item={t} />
+      ))}
+      {!transactions.length && (
+        <Empty
+          title="No transactions yet"
+          detail="Record your first expense or income using Add transaction."
+        />
+      )}
     </Screen>
   );
 }

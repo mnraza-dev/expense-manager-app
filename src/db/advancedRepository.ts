@@ -449,17 +449,19 @@ export class AdvancedRepository extends LedgerRepository {
       needs_recalculation:
         originalSchedulesTotal > 0 &&
         (schedulePrincipal !== outstanding ||
-          actual
-            .filter((p) => p.id > (all[0]?.payment_id_baseline ?? 0))
-            .some(
-              (p) =>
-                !all.some(
-                  (s) =>
-                    s.due_date === p.date &&
-                    s.principal === p.principal &&
-                    s.interest === p.interest
-                )
-            )),
+          ((actual.reduce((sum, p) => sum + p.principal, 0) > principalBaseline ||
+            actual.reduce((sum, p) => sum + p.interest, 0) > interestBaseline) &&
+            actual
+              .filter((p) => p.id > (all[0]?.payment_id_baseline ?? 0))
+              .some(
+                (p) =>
+                  !all.some(
+                    (s) =>
+                      s.due_date === p.date &&
+                      s.principal === p.principal &&
+                      s.interest === p.interest
+                  )
+              ))),
     };
   }
   loanDetail(id: number) {

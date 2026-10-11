@@ -1,3 +1,4 @@
+const { Buffer } = require('node:buffer');
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { DatabaseSync } = require('node:sqlite');
@@ -176,7 +177,8 @@ test('RLS isolates records, references, operations, entitlements and private sto
     await user(pg, owner);
     await a.r.enableSync(owner);
     const op = await a.r.nextOperation(owner);
-    assert.equal((await apply(pg, op)).status, 'applied');
+    const receipt = await apply(pg, op);
+    assert.equal(receipt.status, 'applied', JSON.stringify(receipt));
     const before = await snapshot(pg);
     const backupId = randomUUID();
     const path = (
@@ -258,4 +260,94 @@ test('server entitlements reject client premium flags and preserve recovery read
   } finally {
     await pg.close();
   }
+});
+
+test('large auth sessions use authenticated ciphertext with SecureStore-sized keys', async () => {
+  const { secureSessionStorage } = require('../.test-build/cloud/sessionStorage.js');
+  const { randomBytes } = require('node:crypto');
+  const values = new Map(),
+    secrets = new Map();
+  const kv = (map) => ({
+    getItem: async (k) => map.get(k) ?? null,
+    setItem: async (k, v) => {
+      map.set(k, v);
+    },
+    removeItem: async (k) => {
+      map.delete(k);
+    },
+  });
+  const storage = secureSessionStorage(kv(values), kv(secrets), randomBytes),
+    token = 'synthetic-auth-token-' + 'x'.repeat(3000);
+  await storage.setItem('auth', token);
+  assert.equal(await storage.getItem('auth'), token);
+  assert.equal(values.get('auth').includes(token), false);
+  assert.equal([...secrets.values()][0].length, 64);
+  const first = values.get('auth');
+  await storage.setItem('auth', token);
+  assert.notEqual(values.get('auth'), first);
+  const corrupted = JSON.parse(values.get('auth'));
+  corrupted.ciphertext =
+    (corrupted.ciphertext[0] === '0' ? '1' : '0') + corrupted.ciphertext.slice(1);
+  values.set('auth', JSON.stringify(corrupted));
+  await assert.rejects(storage.getItem('auth'));
+  await storage.removeItem('auth');
+  assert.equal(await storage.getItem('auth'), null);
+  assert.equal(secrets.size, 0);
+});
+test('public configuration rejects privileged backend secrets without logging them', () => {
+  const { validatePublicEnvironment } = require('../scripts/check-public-env.cjs');
+  const jwt = (role) => 'x.' + Buffer.from(JSON.stringify({ role })).toString('base64url') + '.x';
+  assert.throws(() =>
+    validatePublicEnvironment({ EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: 'sb_secret_synthetic' })
+  );
+  assert.throws(() =>
+    validatePublicEnvironment({ EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: jwt('service_role') })
+  );
+  validatePublicEnvironment({ EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: jwt('anon') });
+  validatePublicEnvironment({ EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: 'sb_publishable_synthetic' });
+});
+
+test('loan payment baselines survive cloud UUID materialization and later payments', async () => {
+  const pg = await backend(), owner = randomUUID(), a = await device(), b = await device();
+  try {
+    await user(pg, owner);
+    const loan = await a.r.createLoan({ name: 'Loan', direction: 'borrowed', label: 'personal', principal: 60000, start_date: '2026-01-01', annual_rate_bps: 1200, interest_method: 'reducing', frequency: 'monthly', term_months: 6, payment_account_id: a.bank, counterparty: 'Lender', category_id: a.expense, origination_fees: 0 });
+    await a.r.recordLoanPayment(loan, { date: '2026-02-01', principal: 15000, interest: 600, fees: 100, account_id: a.bank });
+    await a.r.recalculateLoan(loan, '2026-02-02', 3);
+    await a.r.enableSync(owner);
+    const remote = await flush(pg, a, owner);
+    assert.ok(remote.records.some((r) => r.entity === 'loan_schedules' && typeof r.data?.payment_id_baseline === 'string'));
+    await b.r.applyRemote(remote.records, remote.revision, owner, true, async () => {});
+    const localLoan = b.n.prepare('select id from loans').get().id;
+    const localBank = (await b.r.snapshot()).accounts.find((x) => x.name === 'Bank').id;
+    let detail = await b.r.loanDetail(localLoan);
+    assert.equal(detail.outstanding, 45000);
+    assert.equal(detail.needs_recalculation, false);
+    await b.r.recordLoanPayment(localLoan, { date: '2026-03-01', principal: 10000, interest: 450, fees: 0, account_id: localBank });
+    assert.notEqual((await flush(pg, b, owner)).status, 'conflict');
+    detail = await b.r.loanDetail(localLoan);
+    assert.equal(detail.outstanding, 35000);
+    assert.deepEqual(await b.r.integrityCheck(), []);
+  } finally { a.n.close(); b.n.close(); await pg.close(); }
+});
+
+test('sync enable is idempotent and tombstones cannot be resurrected by stale creation', async () => {
+  const pg = await backend(), owner = randomUUID(), d = await device();
+  try {
+    await user(pg, owner); await d.r.enableSync(owner);
+    const pending = (await d.r.syncState()).pending;
+    await d.r.enableSync(owner); assert.equal((await d.r.syncState()).pending, pending);
+    await flush(pg, d, owner);
+    await d.r.saveAccount({ name: 'Unused', type: 'cash', opening_balance: 0, description: '' });
+    const creation = await d.r.nextOperation(owner);
+    assert.equal((await apply(pg, creation)).status, 'applied');
+    await d.r.acknowledge(creation, (await snapshot(pg)).revision);
+    const account = (await d.r.snapshot()).accounts.find((x) => x.name === 'Unused');
+    await d.r.deleteAccount(account.id);
+    const deleted = await flush(pg, d, owner);
+    assert.notEqual(deleted.status, 'conflict');
+    const stale = { ...creation, id: randomUUID() };
+    assert.equal((await apply(pg, stale)).status, 'conflict');
+    assert.ok((await snapshot(pg)).records.some((x) => x.id === creation.changes.find((x) => x.entity === 'accounts').id && x.deleted));
+  } finally { d.n.close(); await pg.close(); }
 });

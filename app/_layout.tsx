@@ -31,7 +31,7 @@ export default function RootLayout() {
   }, [cloudOwner]);
   return (
     <SafeAreaProvider>
-      <StatusBar style={c.bg === '#101B20' ? 'light' : 'dark'} />
+      <StatusBar style={c.bg === '#172020' ? 'light' : 'dark'} />
       <LockGate>
         <DataOperationGate>
           {ready ? (
@@ -47,7 +47,7 @@ export default function RootLayout() {
                 padding: 30,
                 gap: 20,
               }}>
-              <Text style={{ color: c.text, fontSize: 30, fontWeight: '800', textAlign: 'center' }}>
+              <Text style={{ color: c.text, fontSize: 22, fontWeight: '600', textAlign: 'center' }}>
                 Pocketbook
               </Text>
               {error ? (

@@ -1,5 +1,5 @@
 import { Pressable, Text, View } from 'react-native';
-import { ArrowDownLeft, ArrowUpRight, ArrowRightLeft } from 'lucide-react-native';
+import { CategoryIcon } from './CategoryIcon';
 import { useRouter } from 'expo-router';
 import type { Transaction } from '../types';
 import { useFinance } from '../store/useFinance';
@@ -9,22 +9,15 @@ export function TransactionItem({ item }: { item: Transaction }) {
   const c = useTheme();
   const router = useRouter();
   const { accounts, categories } = useFinance();
-  const icon =
-    item.type === 'income'
-      ? ArrowDownLeft
-      : item.type === 'expense'
-        ? ArrowUpRight
-        : ArrowRightLeft;
-  const Icon = icon;
   return (
     <Pressable
       accessibilityRole="button"
       onPress={() => router.push({ pathname: '/transaction/[id]', params: { id: item.id } })}
-      style={[styles.row, { paddingVertical: 15, borderBottomWidth: 1, borderColor: c.border }]}>
-      <View style={{ backgroundColor: c.bg, padding: 12, borderRadius: 14 }}>
-        <Icon
-          color={item.type === 'income' ? c.accent : item.type === 'expense' ? '#CE7651' : c.muted}
-          size={20}
+      style={[styles.row, { paddingVertical: 12, borderBottomWidth: 1, borderColor: c.border }]}>
+      <View style={{ padding: 8 }}>
+        <CategoryIcon
+          name={categories.find((x) => x.id === item.category_id)?.name ?? ''}
+          transfer={item.type === 'transfer'}
         />
       </View>
       <View style={{ flex: 1 }}>
@@ -38,7 +31,7 @@ export function TransactionItem({ item }: { item: Transaction }) {
         </Text>
         <Text style={{ color: c.muted, fontSize: 12, marginTop: 3 }}>{item.date}</Text>
       </View>
-      <Text style={{ color: c.text, fontWeight: '700' }}>
+      <Text style={{ color: c.text, fontWeight: '600', fontVariant: ['tabular-nums'] }}>
         {item.type === 'income' ? '+' : item.type === 'expense' ? '−' : '↔'}
         {money(item.amount)}
       </Text>

@@ -37,7 +37,7 @@ export default function Reports() {
       : [];
   const chartKey = `${range.start}-${range.end}`;
   return (
-    <Screen title="Reports" subtitle="Find the patterns behind your money">
+    <Screen title="Reports" back>
       <Button
         secondary
         title="Monthly budgets & progress →"
@@ -82,7 +82,7 @@ export default function Reports() {
                   setDetails(true);
                 }}
               />
-              <SpendingTrendChart key={`trend-${chartKey}`} periods={report.periods} />
+
               <Button
                 secondary
                 title={
@@ -92,6 +92,7 @@ export default function Reports() {
               />
               {details && (
                 <>
+                  <SpendingTrendChart key={`trend-${chartKey}`} periods={report.periods} />
                   <ExpenseBreakdownChart
                     key={`income-${chartKey}`}
                     title="Income by category"

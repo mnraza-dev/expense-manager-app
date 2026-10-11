@@ -1,12 +1,11 @@
 import { Tabs } from 'expo-router';
-import { House, List, Wallet, ChartPie, Settings } from 'lucide-react-native';
+import { House, List, Wallet, ChartPie } from 'lucide-react-native';
 import { useTheme } from '../../src/components/ui';
 const tabs = [
   { name: 'index', title: 'Home', Icon: House },
   { name: 'transactions', title: 'Transactions', Icon: List },
+  { name: 'budgets', title: 'Budgets', Icon: ChartPie },
   { name: 'accounts', title: 'Accounts', Icon: Wallet },
-  { name: 'reports', title: 'Reports', Icon: ChartPie },
-  { name: 'settings', title: 'Settings', Icon: Settings },
 ];
 export default function TabLayout() {
   const c = useTheme();
@@ -19,12 +18,12 @@ export default function TabLayout() {
         tabBarStyle: {
           backgroundColor: c.card,
           borderTopColor: c.border,
-          height: 84,
-          paddingTop: 10,
-          paddingBottom: 22,
+          paddingTop: 6,
         },
         tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
       }}>
+      <Tabs.Screen name="reports" options={{ href: null }} />
+      <Tabs.Screen name="settings" options={{ href: null }} />
       {tabs.map(({ name, title, Icon }) => (
         <Tabs.Screen
           key={name}

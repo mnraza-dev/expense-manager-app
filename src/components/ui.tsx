@@ -1,4 +1,12 @@
 import React from 'react';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  ReduceMotion,
+} from 'react-native-reanimated';
+import { useFeedback } from '../store/useFeedback';
+import { tokens } from '../design/tokens';
 import {
   ActivityIndicator,
   Alert,
@@ -19,20 +27,28 @@ import { useRouter } from 'expo-router';
 import { ArrowLeft, Plus } from 'lucide-react-native';
 export const palette = {
   light: {
-    bg: '#F5F6F8',
+    bg: '#FAF9F6',
     card: '#FFFFFF',
-    text: '#192A30',
-    muted: '#728087',
+    text: '#202B2B',
+    muted: '#606D6D',
     border: '#E3E8EA',
-    accent: '#167C68',
+    accent: '#167461',
+    onAccent: '#FFFFFF',
+    positive: '#216B50',
+    negative: '#A33943',
+    warning: '#855B13',
   },
   dark: {
-    bg: '#101B20',
-    card: '#1B2B32',
+    bg: '#172020',
+    card: '#202B2B',
     text: '#EFF6F5',
     muted: '#A3B5BC',
     border: '#30434B',
-    accent: '#63D5B7',
+    accent: '#83CDBA',
+    onAccent: '#172020',
+    positive: '#83CDBA',
+    negative: '#FFABB2',
+    warning: '#EAC37D',
   },
 };
 export function useTheme() {
@@ -57,6 +73,7 @@ export function Screen({
 }) {
   const c = useTheme();
   const router = useRouter();
+  const message = useFeedback((s) => s.message);
   const refreshError = useFinance((s) => s.refreshError),
     refresh = useFinance((s) => s.refresh);
   const content = (
@@ -71,15 +88,20 @@ export function Screen({
           </Pressable>
         )}
         <View style={{ flex: 1 }}>
-          <Text style={{ color: c.text, fontSize: 28, fontWeight: '800' }}>{title}</Text>
+          <Text style={{ color: c.text, fontSize: tokens.typography.title, fontWeight: '600' }}>
+            {title}
+          </Text>
           {subtitle && <Text style={{ color: c.muted, marginTop: 5 }}>{subtitle}</Text>}
         </View>
         {action && (
           <Pressable
             accessibilityLabel="Add new"
             onPress={action}
-            style={[styles.touch, { backgroundColor: c.accent, borderRadius: 16 }]}>
-            <Plus color={c.card} />
+            style={[
+              styles.touch,
+              { backgroundColor: c.accent, borderRadius: tokens.radius.control },
+            ]}>
+            <Plus color={c.onAccent} />
           </Pressable>
         )}
       </View>
@@ -89,6 +111,7 @@ export function Screen({
           <Button title="Retry refresh" onPress={() => void refresh().catch(showError)} />
         </Card>
       )}
+      {message && <InlineFeedback message={message} />}
       {children}
     </>
   );
@@ -114,7 +137,7 @@ export function Label({ children, small = false }: { children: React.ReactNode; 
     <Text
       style={{
         color: small ? c.muted : c.text,
-        fontSize: small ? 13 : 17,
+        fontSize: small ? tokens.typography.metadata : tokens.typography.section,
         fontWeight: small ? '400' : '600',
         marginVertical: 5,
       }}>
@@ -125,9 +148,7 @@ export function Label({ children, small = false }: { children: React.ReactNode; 
 export function Card({ children }: { children: React.ReactNode }) {
   const c = useTheme();
   return (
-    <View style={[styles.card, { backgroundColor: c.card, borderColor: c.border }]}>
-      {children}
-    </View>
+    <View style={[styles.card, { backgroundColor: c.bg, borderColor: c.border }]}>{children}</View>
   );
 }
 export function Button({
@@ -144,28 +165,47 @@ export function Button({
   danger?: boolean;
 }) {
   const c = useTheme();
+  const scale = useSharedValue(1);
+  const motion = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
   return (
-    <Pressable
-      accessibilityRole="button"
-      disabled={busy}
-      onPress={onPress}
-      style={[
-        styles.button,
-        {
-          backgroundColor: danger ? '#B53D49' : secondary ? c.card : c.accent,
-          borderColor: c.border,
-          opacity: busy ? 0.6 : 1,
-        },
-      ]}>
-      {busy ? (
-        <ActivityIndicator color="white" />
-      ) : (
-        <Text
-          style={{ fontWeight: '700', color: secondary ? c.text : '#FFFFFF', textAlign: 'center' }}>
-          {title}
-        </Text>
-      )}
-    </Pressable>
+    <Animated.View style={motion}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityState={{ disabled: busy, busy }}
+        onPressIn={() => {
+          scale.set(
+            withTiming(0.985, { duration: tokens.motion.press, reduceMotion: ReduceMotion.System })
+          );
+        }}
+        onPressOut={() => {
+          scale.set(
+            withTiming(1, { duration: tokens.motion.press, reduceMotion: ReduceMotion.System })
+          );
+        }}
+        disabled={busy}
+        onPress={onPress}
+        style={[
+          styles.button,
+          {
+            backgroundColor: danger ? c.negative : secondary ? c.card : c.accent,
+            borderColor: c.border,
+            opacity: busy ? 0.6 : 1,
+          },
+        ]}>
+        {busy ? (
+          <ActivityIndicator color={secondary ? c.text : c.onAccent} />
+        ) : (
+          <Text
+            style={{
+              fontWeight: '700',
+              color: secondary ? c.text : danger ? c.bg : c.onAccent,
+              textAlign: 'center',
+            }}>
+            {title}
+          </Text>
+        )}
+      </Pressable>
+    </Animated.View>
   );
 }
 export function Field({
@@ -217,7 +257,7 @@ export function Choices<T extends string | number>({
               styles.chip,
               { backgroundColor: o.value === value ? c.accent : c.card, borderColor: c.border },
             ]}>
-            <Text style={{ color: o.value === value ? 'white' : c.text, fontWeight: '600' }}>
+            <Text style={{ color: o.value === value ? c.onAccent : c.text, fontWeight: '600' }}>
               {o.label}
             </Text>
           </Pressable>
@@ -250,13 +290,70 @@ export function showError(error: unknown) {
   Alert.alert('Unable to save', error instanceof Error ? error.message : 'Please try again.');
 }
 export const styles = StyleSheet.create({
-  page: { padding: 20, paddingBottom: 40, gap: 14 },
+  page: { padding: tokens.spacing.xl, paddingBottom: 40, gap: tokens.spacing.md },
   header: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
   touch: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center' },
-  card: { padding: 20, borderRadius: 22, borderWidth: 1, gap: 6 },
-  button: { padding: 17, minHeight: 50, borderRadius: 14, borderWidth: 1, marginVertical: 5 },
-  input: { padding: 15, borderRadius: 14, borderWidth: 1, minHeight: 50, fontSize: 16 },
+  card: {
+    paddingVertical: tokens.spacing.lg,
+    borderRadius: 0,
+    borderBottomWidth: tokens.border,
+    gap: 6,
+  },
+  button: {
+    padding: 17,
+    minHeight: 50,
+    borderRadius: tokens.radius.control,
+    borderWidth: 1,
+    marginVertical: 5,
+  },
+  input: {
+    padding: 15,
+    borderRadius: tokens.radius.control,
+    borderWidth: 1,
+    minHeight: 50,
+    fontSize: 16,
+  },
   wrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: { paddingHorizontal: 14, paddingVertical: 13, borderRadius: 12, borderWidth: 1 },
+  chip: {
+    paddingHorizontal: 14,
+    paddingVertical: 13,
+    borderRadius: tokens.radius.control,
+    borderWidth: 1,
+  },
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
 });
+
+export function AmountText({
+  children,
+  large = false,
+}: {
+  children: React.ReactNode;
+  large?: boolean;
+}) {
+  const c = useTheme();
+  return (
+    <Text
+      style={{
+        color: c.text,
+        fontSize: large ? tokens.typography.amount : tokens.typography.body,
+        fontWeight: '600',
+        fontVariant: ['tabular-nums'],
+      }}>
+      {children}
+    </Text>
+  );
+}
+export function InlineFeedback({ message }: { message: string }) {
+  const c = useTheme();
+  return (
+    <Text
+      accessibilityLiveRegion="polite"
+      style={{
+        color: c.text,
+        fontSize: tokens.typography.metadata,
+        paddingVertical: tokens.spacing.sm,
+      }}>
+      {message}
+    </Text>
+  );
+}

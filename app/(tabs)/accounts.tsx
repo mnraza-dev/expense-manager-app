@@ -1,23 +1,18 @@
-import { useState } from 'react';
-import { Pressable, View } from 'react-native';
+import React, { useState } from 'react';
 import { useRouter } from 'expo-router';
 import { useFinance } from '../../src/store/useFinance';
-import { balance, money } from '../../src/utils/finance';
-import { Button, Card, Choices, Empty, Label, Screen, styles } from '../../src/components/ui';
+import { balance } from '../../src/utils/finance';
+import { Button, Choices, Empty, Label, Screen } from '../../src/components/ui';
+import { AccountRow } from '../../src/components/AccountRow';
 export default function Accounts() {
   const router = useRouter();
   const { accounts, transactions } = useFinance();
   const [mode, setMode] = useState('active');
   const rows = accounts.filter((a) => Boolean(a.archived) === (mode === 'archived'));
   return (
-    <Screen
-      title="Accounts"
-      subtitle="A home for every rupee"
-      action={() => router.push('/account/add')}>
-      <Button secondary title="Credit cards & statements" onPress={() => router.push('/card')} />
-      <Button secondary title="Loans & debts" onPress={() => router.push('/loan')} />
+    <Screen title="Accounts" action={() => router.push('/account/add')}>
       <Choices
-        label="Show accounts"
+        label="Show"
         value={mode}
         onChange={setMode}
         options={[
@@ -25,33 +20,29 @@ export default function Accounts() {
           { value: 'archived', label: 'Archived' },
         ]}
       />
-      {rows.map((a) => (
-        <Pressable
-          key={a.id}
-          onPress={() => router.push({ pathname: '/account/[id]', params: { id: a.id } })}>
-          <Card>
-            <View style={styles.row}>
-              <View>
-                <Label>{a.name}</Label>
-                <Label small>
-                  {a.subtype === 'standard'
-                    ? a.type.toUpperCase()
-                    : a.subtype?.replaceAll('_', ' ').toUpperCase()}{' '}
-                  · {a.kind ?? 'asset'} · {a.currency}
-                </Label>
-              </View>
-              <Label>{money(balance(a, transactions), a.currency)}</Label>
-            </View>
-            {!!a.description && <Label small>{a.description}</Label>}
-          </Card>
-        </Pressable>
-      ))}
+      {(['asset', 'liability'] as const).map((kind) => {
+        const group = rows.filter((a) => (a.kind ?? 'asset') === kind);
+        return group.length ? (
+          <React.Fragment key={kind}>
+            <Label>{kind === 'asset' ? 'Assets' : 'Liabilities'}</Label>
+            {group.map((a) => (
+              <AccountRow key={a.id} account={a} balance={balance(a, transactions)} />
+            ))}
+          </React.Fragment>
+        ) : null;
+      })}
       {!rows.length && (
         <Empty
           title={mode === 'active' ? 'No accounts yet' : 'No archived accounts'}
-          detail="Use the + button to add an account with its opening balance."
+          detail="Use + to add an account and its opening balance."
         />
       )}
+      <Button secondary title="Net worth" onPress={() => router.push('/net-worth')} />
+      <Button
+        secondary
+        title="Cards, loans & recurring transactions"
+        onPress={() => router.push('/finance')}
+      />
     </Screen>
   );
 }

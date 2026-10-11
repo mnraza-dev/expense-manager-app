@@ -5,7 +5,7 @@ import type { BudgetComparison, CategoryTotal, PeriodTotal } from '../types';
 import { money } from '../utils/finance';
 import { percentage } from '../utils/budgets';
 import { Button, Card, Empty, Label, styles, useTheme } from './ui';
-const expenseColor = '#CE7651';
+
 const compact = (v: string) =>
   new Intl.NumberFormat('en-IN', {
     style: 'currency',
@@ -56,6 +56,7 @@ function DataTable({ rows }: { rows: { label: string; detail: string; onPress?: 
 }
 export function IncomeExpenseChart({ periods }: { periods: PeriodTotal[] }) {
   const c = useTheme();
+  const expenseColor = c.negative;
   const common = useChartStyle();
   const [selection, setSelection] = useState<PeriodTotal | null>(null);
   if (!periods.some((p) => p.income || p.expense))
@@ -79,7 +80,7 @@ export function IncomeExpenseChart({ periods }: { periods: PeriodTotal[] }) {
   return (
     <Card>
       <Label>Income vs expenses</Label>
-      <Label small>Green: income · Orange: expenses · Tap a bar; swipe to explore.</Label>
+      <Label small>Teal: income · Red: expenses · Tap a bar; swipe to explore.</Label>
       <BarChart
         {...common}
         data={data}
@@ -114,6 +115,7 @@ export function ExpenseBreakdownChart({
   onSelect?: (id: number) => void;
 }) {
   const c = useTheme();
+  const expenseColor = c.negative;
   const { width } = useWindowDimensions();
   const [selected, setSelected] = useState<CategoryTotal | null>(null);
   const total = categories.reduce((s, x) => s + x.amount, 0);
@@ -131,12 +133,12 @@ export function ExpenseBreakdownChart({
           donut
           radius={radius}
           innerRadius={radius * 0.68}
-          innerCircleColor={c.card}
+          innerCircleColor={c.bg}
           strokeWidth={2}
-          strokeColor={c.card}
+          strokeColor={c.bg}
           data={categories.map((cat) => ({
             value: cat.amount,
-            color: cat.color,
+            color: ['#167461', '#527E72', '#7F9A8C', '#B2C4B9', '#667273', '#A7AEAA'][categories.indexOf(cat) % 6],
             onPress: () => select(cat),
           }))}
           centerLabelComponent={() => (
@@ -161,7 +163,7 @@ export function ExpenseBreakdownChart({
           onPress={() => select(cat)}
           key={cat.id}
           style={[styles.row, { paddingVertical: 8 }]}>
-          <View style={{ width: 12, height: 12, borderRadius: 4, backgroundColor: cat.color }} />
+          <View style={{ width: 12, height: 12, borderRadius: 4, backgroundColor: ['#167461', '#527E72', '#7F9A8C', '#B2C4B9', '#667273', '#A7AEAA'][categories.indexOf(cat) % 6] }} />
           <View style={{ flex: 1 }}>
             <Label small>{cat.name}</Label>
           </View>
@@ -183,6 +185,7 @@ export function SpendingTrendChart({
   expensesOnly?: boolean;
 }) {
   const c = useTheme();
+  const expenseColor = c.negative;
   const common = useChartStyle();
   const [selected, setSelected] = useState<PeriodTotal | null>(null);
   if (!periods.some((p) => p.expense || (!expensesOnly && p.income)))
@@ -198,7 +201,7 @@ export function SpendingTrendChart({
     <Card>
       <Label>{title}</Label>
       <Label small>
-        {expensesOnly ? 'Expenses' : 'Orange: expenses · Green: income'} · Tap a point; swipe to
+        {expensesOnly ? 'Expenses' : 'Red: expenses · Teal: income'} · Tap a point; swipe to
         explore.
       </Label>
       <LineChart
@@ -235,6 +238,7 @@ export function SpendingTrendChart({
 }
 export function BudgetComparisonChart({ rows }: { rows: BudgetComparison[] }) {
   const c = useTheme();
+  const expenseColor = c.negative;
   const common = useChartStyle();
   const [selected, setSelected] = useState<BudgetComparison | null>(null);
   if (!rows.length)

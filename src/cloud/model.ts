@@ -31,7 +31,7 @@ export const references: Partial<Record<Table, Record<string, Table>>> = {
   ledger_journals: { transaction_id: 'transactions', reversal_of: 'ledger_journals' },
   ledger_lines: { journal_id: 'ledger_journals', ledger_account_id: 'ledger_accounts' },
   transaction_journals: { transaction_id: 'transactions', journal_id: 'ledger_journals' },
-  loan_schedules: { loan_id: 'loans' },
+  loan_schedules: { loan_id: 'loans', payment_id_baseline: 'loan_payments' },
   loan_payments: {
     loan_id: 'loans',
     principal_transaction_id: 'transactions',
@@ -65,7 +65,9 @@ export function canonicalize(entity: Table, row: Row, mappings: Mapping[]): Row 
   };
   if (Object.hasOwn(result, 'id')) result.id = find(entity, localKey(entity, row));
   for (const [column, target] of Object.entries(references[entity] ?? {}))
-    if (result[column] !== null) result[column] = find(target, String(row[column]));
+    if (entity === 'loan_schedules' && column === 'payment_id_baseline' && row[column] === 0)
+      result[column] = null;
+    else if (result[column] !== null) result[column] = find(target, String(row[column]));
   if (entity === 'ledger_journals') {
     const key = String(row.posting_key);
     const match = /^(transaction|opening|reverse):(\d+)(.*)$/.exec(key);
@@ -108,7 +110,13 @@ export function materialize(
     const row = { ...record.data! };
     if (Object.hasOwn(row, 'id')) row.id = find(record.entity, record.id);
     for (const [column, target] of Object.entries(references[record.entity] ?? {}))
-      if (row[column] !== null) row[column] = find(target, String(row[column]));
+      if (
+        record.entity === 'loan_schedules' &&
+        column === 'payment_id_baseline' &&
+        row[column] === null
+      )
+        row[column] = 0;
+      else if (row[column] !== null) row[column] = find(target, String(row[column]));
     if (record.entity === 'ledger_journals') {
       const key = String(row.posting_key);
       const match = /^(transaction|opening|reverse):([a-f0-9-]{36})(.*)$/.exec(key);

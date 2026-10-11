@@ -7,7 +7,7 @@ export default function Settings() {
   const router = useRouter();
   const { settings, accounts, transactions, mutatePreference } = useFinance();
   return (
-    <Screen title="Settings" subtitle="Make Pocketbook your own">
+    <Screen back title="Settings" subtitle="Make Pocketbook your own">
       <Choices
         label="Appearance"
         value={settings.theme ?? 'system'}

@@ -1,12 +1,24 @@
 import { useEffect, useRef, useState } from 'react';
-import { Platform } from 'react-native';
+import { Platform, View } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useRouter } from 'expo-router';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { notify } from '../store/useFeedback';
+import { CategoryGrid } from '../components/CategoryGrid';
 import type { TransactionType } from '../types';
-import { Button, Choices, Empty, Field, Label, Screen, confirm, showError } from '../components/ui';
+import {
+  Button,
+  Choices,
+  Empty,
+  Field,
+  Label,
+  Screen,
+  confirm,
+  InlineFeedback,
+  useTheme,
+} from '../components/ui';
 import { useFinance } from '../store/useFinance';
 import { repo } from '../db/database';
 import { localDate, minor, money, validDate } from '../utils/finance';
@@ -23,7 +35,7 @@ const schema = z
     account: z.number().positive('Choose an account.'),
     destination: z.number().nullable(),
     category: z.number().nullable(),
-    description: z.string().trim().min(1, 'Description is required.').max(160),
+    description: z.string().trim().max(160),
     date: z.string().refine(validDate, 'Choose a valid calendar date.'),
     notes: z.string().max(2000),
     component: z.enum(['standard', 'interest', 'fee', 'principal']),
@@ -51,6 +63,9 @@ export function TransactionForm({
   initialDestination?: number;
 }) {
   const router = useRouter();
+  const c = useTheme();
+  const [details, setDetails] = useState(Boolean(id));
+  const [saveError, setSaveError] = useState<string | null>(null);
   const { transactions, accounts, categories, mutate } = useFinance();
   const existing = transactions.find((t) => t.id === id);
   const active = accounts.filter((a) => !a.archived && a.subtype === 'standard');
@@ -67,7 +82,12 @@ export function TransactionForm({
     defaultValues: {
       type: existing?.type ?? initialType,
       amount: existing ? (existing.amount / 100).toFixed(2) : '',
-      account: existing?.account_id ?? initialAccount ?? active[0]?.id ?? 0,
+      account:
+        existing?.account_id ??
+        initialAccount ??
+        active.find((a) => a.id === transactions[0]?.account_id)?.id ??
+        active[0]?.id ??
+        0,
       destination: existing?.destination_account_id ?? initialDestination ?? null,
       category:
         existing?.category_id ??
@@ -119,6 +139,7 @@ export function TransactionForm({
     if (saving.current) return;
     saving.current = true;
     setBusy(true);
+    setSaveError(null);
     try {
       await mutate(() =>
         repo().saveTransaction(
@@ -128,7 +149,8 @@ export function TransactionForm({
             account_id: v.account,
             destination_account_id: v.type === 'transfer' ? v.destination : null,
             category_id: v.type === 'transfer' ? null : v.category,
-            description: v.description,
+            description:
+              v.description || categories.find((c) => c.id === v.category)?.name || 'Transfer',
             date: v.date,
             notes: v.notes,
             component: v.component,
@@ -136,9 +158,10 @@ export function TransactionForm({
           id
         )
       );
+      notify(id ? 'Transaction updated' : 'Transaction saved');
       router.back();
     } catch (e) {
-      showError(e);
+      setSaveError(e instanceof Error ? e.message : 'Unable to save. Please retry.');
     } finally {
       saving.current = false;
       setBusy(false);
@@ -147,10 +170,7 @@ export function TransactionForm({
   const save = () => handleSubmit(submit)();
   const [y, m, d] = date.split('-').map(Number);
   return (
-    <Screen
-      title={id ? 'Edit transaction' : 'New transaction'}
-      subtitle="Every little entry adds clarity"
-      back>
+    <Screen title={id ? 'Edit transaction' : 'New transaction'} back>
       {!selectable.length ? (
         <>
           <Empty
@@ -161,6 +181,30 @@ export function TransactionForm({
         </>
       ) : (
         <>
+          <Controller
+            control={control}
+            name="amount"
+            render={({ field }) => (
+              <Field
+                label="Amount (₹)"
+                placeholder="0.00"
+                keyboardType="decimal-pad"
+                value={field.value}
+                onChangeText={field.onChange}
+                error={errors.amount?.message}
+                autoFocus={!id}
+                style={{
+                  fontSize: 32,
+                  fontWeight: '600',
+                  minHeight: 76,
+                  fontVariant: ['tabular-nums'],
+                  backgroundColor: c.bg,
+                  borderWidth: 0,
+                  borderBottomWidth: 1,
+                }}
+              />
+            )}
+          />
           <Controller
             control={control}
             name="type"
@@ -217,21 +261,27 @@ export function TransactionForm({
                 )}
               />
             )}
-          <Controller
-            control={control}
-            name="amount"
-            render={({ field }) => (
-              <Field
-                label="Amount (₹)"
-                placeholder="0.00"
-                keyboardType="decimal-pad"
-                value={field.value}
-                onChangeText={field.onChange}
-                error={errors.amount?.message}
-                style={{ fontSize: 36, fontWeight: '700', minHeight: 80 }}
+          {type !== 'transfer' && (
+            <>
+              <Controller
+                control={control}
+                name="category"
+                render={({ field }) => (
+                  <CategoryGrid
+                    value={field.value ?? undefined}
+                    options={available.map((a) => ({ value: a.id, label: a.name }))}
+                    onChange={field.onChange}
+                  />
+                )}
               />
-            )}
-          />
+              {errors.category && <Label small>{errors.category.message}</Label>}
+              <Button
+                secondary
+                title="Manage categories"
+                onPress={() => router.push('/category')}
+              />
+            </>
+          )}
           <Controller
             control={control}
             name="account"
@@ -269,28 +319,7 @@ export function TransactionForm({
                 <Label small>Transfers require two different accounts.</Label>
               )}
             </>
-          ) : (
-            <>
-              <Controller
-                control={control}
-                name="category"
-                render={({ field }) => (
-                  <Choices
-                    label="Category"
-                    value={field.value ?? undefined}
-                    options={available.map((a) => ({ value: a.id, label: a.name }))}
-                    onChange={field.onChange}
-                  />
-                )}
-              />
-              {errors.category && <Label small>{errors.category.message}</Label>}
-              <Button
-                secondary
-                title="Manage categories"
-                onPress={() => router.push('/category')}
-              />
-            </>
-          )}
+          ) : null}
           <Controller
             control={control}
             name="date"
@@ -315,32 +344,42 @@ export function TransactionForm({
               }}
             />
           )}
-          <Controller
-            control={control}
-            name="description"
-            render={({ field }) => (
-              <Field
-                label="Description"
-                placeholder="What was it for?"
-                value={field.value}
-                onChangeText={field.onChange}
-                error={errors.description?.message}
-              />
-            )}
+          <Button
+            secondary
+            title={details ? 'Hide description & notes' : 'Add description or notes'}
+            onPress={() => setDetails(!details)}
           />
-          <Controller
-            control={control}
-            name="notes"
-            render={({ field }) => (
-              <Field
-                label="Notes (optional)"
-                value={field.value}
-                onChangeText={field.onChange}
-                multiline
-                error={errors.notes?.message}
+          {details && (
+            <View>
+              <Controller
+                control={control}
+                name="description"
+                render={({ field }) => (
+                  <Field
+                    label="Description"
+                    placeholder="What was it for?"
+                    value={field.value}
+                    onChangeText={field.onChange}
+                    error={errors.description?.message}
+                  />
+                )}
               />
-            )}
-          />
+              <Controller
+                control={control}
+                name="notes"
+                render={({ field }) => (
+                  <Field
+                    label="Notes (optional)"
+                    value={field.value}
+                    onChangeText={field.onChange}
+                    multiline
+                    error={errors.notes?.message}
+                  />
+                )}
+              />
+            </View>
+          )}
+          {saveError && <InlineFeedback message={saveError} />}
           <Button title="Save transaction" busy={busy} onPress={() => void save()} />
           {existing && (
             <Button
@@ -352,6 +391,7 @@ export function TransactionForm({
                   'This removes the entry and recalculates the affected balances.',
                   async () => {
                     await mutate(() => repo().deleteTransaction(existing.id));
+                    notify('Transaction deleted');
                     router.back();
                   }
                 )

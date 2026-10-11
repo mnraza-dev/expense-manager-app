@@ -3,43 +3,19 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 import * as Crypto from 'expo-crypto';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import { bytesToHex, hexToBytes, utf8ToBytes } from '@noble/hashes/utils.js';
-import { gcm } from '@noble/ciphers/aes.js';
-import { digest } from '../security/crypto';
-const sessionStorage = {
-  async getItem(name: string) {
-    const envelope = await AsyncStorage.getItem(name);
-    if (!envelope) return null;
-    const key = await SecureStore.getItemAsync('session.' + digest(name));
-    if (!key) throw new Error('Secure session key is unavailable. Sign in again.');
-    const e = JSON.parse(envelope);
-    return new TextDecoder().decode(
-      gcm(hexToBytes(key), hexToBytes(e.nonce)).decrypt(hexToBytes(e.ciphertext))
-    );
-  },
-  async setItem(name: string, value: string) {
-    const keyName = 'session.' + digest(name);
-    let key = await SecureStore.getItemAsync(keyName);
-    if (!key) {
-      key = bytesToHex(Crypto.getRandomBytes(32));
-      await SecureStore.setItemAsync(keyName, key, {
+import { secureSessionStorage } from './sessionStorage';
+const sessionStorage = secureSessionStorage(
+  AsyncStorage,
+  {
+    getItem: SecureStore.getItemAsync,
+    setItem: (name, value) =>
+      SecureStore.setItemAsync(name, value, {
         keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
-      });
-    }
-    const nonce = Crypto.getRandomBytes(12);
-    await AsyncStorage.setItem(
-      name,
-      JSON.stringify({
-        nonce: bytesToHex(nonce),
-        ciphertext: bytesToHex(gcm(hexToBytes(key), nonce).encrypt(utf8ToBytes(value))),
-      })
-    );
+      }),
+    removeItem: SecureStore.deleteItemAsync,
   },
-  async removeItem(name: string) {
-    await AsyncStorage.removeItem(name);
-    await SecureStore.deleteItemAsync('session.' + digest(name));
-  },
-};
+  Crypto.getRandomBytes
+);
 const url = process.env.EXPO_PUBLIC_SUPABASE_URL,
   key = process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 let client: SupabaseClient | null = null;
@@ -54,6 +30,15 @@ export function cloudClient() {
   if (!url.startsWith('https://')) throw new Error('Cloud requires an HTTPS Supabase URL.');
   if (key.startsWith('sb_secret_'))
     throw new Error('A privileged secret cannot be used in the mobile app.');
+  if (key.split('.').length === 3) {
+    let role;
+    try {
+      role = JSON.parse(atob(key.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))).role;
+    } catch {
+      throw new Error('Invalid public Supabase key.');
+    }
+    if (role !== 'anon') throw new Error('Privileged Supabase keys are not permitted in this app.');
+  }
   if (!client)
     client = createClient(url, key, {
       auth: {

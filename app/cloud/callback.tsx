@@ -21,7 +21,9 @@ export default function AuthCallback() {
   }, [code]);
   return (
     <Screen title="Cloud authentication" back>
-      <Label>{code?message:'This link is missing its authentication code. Request a new email link.'}</Label>
+      <Label>
+        {code ? message : 'This link is missing its authentication code. Request a new email link.'}
+      </Label>
       <Field
         label="New password for password recovery"
         value={password}

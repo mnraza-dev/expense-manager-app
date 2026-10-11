@@ -39,7 +39,16 @@ export const useCloudAuth = create<{
 let cleanup: (() => void) | null = null;
 export function startCloudAuth() {
   if (cleanup || !cloudConfigured()) return () => {};
-  const client = cloudClient();
+  let client;
+  try {
+    client = cloudClient();
+  } catch {
+    useCloudAuth.setState({
+      ready: true,
+      error: 'Cloud configuration is invalid. Local finance remains available.',
+    });
+    return () => {};
+  }
   const { data } = client.auth.onAuthStateChange((_event, session) => {
     useCloudAuth.setState({ session, ready: true });
   });

@@ -1,3 +1,4 @@
+import { notify } from '../store/useFeedback';
 import { useRef, useState } from 'react';
 import { useRouter } from 'expo-router';
 import { Controller, useForm } from 'react-hook-form';
@@ -79,6 +80,7 @@ export function AccountForm({ id }: { id?: number }) {
           id
         )
       );
+      notify('Account saved');
       router.back();
     } catch (e) {
       showError(e);

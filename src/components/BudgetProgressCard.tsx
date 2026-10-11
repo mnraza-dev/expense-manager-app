@@ -1,3 +1,5 @@
+import Animated, { useAnimatedStyle, withTiming, ReduceMotion } from 'react-native-reanimated';
+import { tokens } from '../design/tokens';
 import { Text, View } from 'react-native';
 import { budgetStatus, DEFAULT_WARNING_PERCENT } from '../utils/budgets';
 import { money } from '../utils/finance';
@@ -15,7 +17,13 @@ export function BudgetProgressBar({
   const c = useTheme();
   const state = budgetStatus(limit, spent, warning);
   const color =
-    state.status === 'exceeded' ? '#CE5265' : state.status === 'warning' ? '#B78626' : c.accent;
+    state.status === 'exceeded' ? c.negative : state.status === 'warning' ? c.warning : c.accent;
+  const motion = useAnimatedStyle(() => ({
+    width: withTiming(`${state.bar}%`, {
+      duration: tokens.motion.progress,
+      reduceMotion: ReduceMotion.System,
+    }),
+  }));
   return (
     <View
       accessibilityRole="progressbar"
@@ -28,10 +36,8 @@ export function BudgetProgressBar({
             ? 'No budget configured'
             : `${state.percent.toFixed(1)}% used, ${state.status}`,
       }}
-      style={{ height: 9, borderRadius: 6, backgroundColor: c.border, marginVertical: 10 }}>
-      <View
-        style={{ height: 9, borderRadius: 6, backgroundColor: color, width: `${state.bar}%` }}
-      />
+      style={{ height: 4, borderRadius: 6, backgroundColor: c.border, marginVertical: 10 }}>
+      <Animated.View style={[{ height: 4, borderRadius: 6, backgroundColor: color }, motion]} />
     </View>
   );
 }
@@ -58,13 +64,13 @@ export function BudgetProgressCard({
       <View style={styles.row}>
         <Label>{name}</Label>
         <Text
-          style={{ color: state.status === 'exceeded' ? '#CE5265' : c.accent, fontWeight: '700' }}>
+          style={{ color: state.status === 'exceeded' ? c.negative : c.accent, fontWeight: '700' }}>
           {state.status === 'exceeded'
             ? 'Exceeded'
             : state.status === 'warning'
               ? 'Near limit'
               : state.status === 'normal'
-                ? 'Within budget'
+                ? ''
                 : 'Unbudgeted'}
         </Text>
       </View>
