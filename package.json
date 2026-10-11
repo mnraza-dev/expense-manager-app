@@ -62,12 +62,13 @@
   "scripts": {
     "start": "expo start",
     "android": "expo run:android",
+    "android:aab": "node scripts/build-android-aab.cjs",
     "ios": "expo run:ios",
     "prebuild": "expo prebuild",
     "typecheck": "tsc --noEmit",
     "lint": "eslint app src tests *.js scripts/*.cjs",
     "format": "prettier app src tests *.js *.json --write",
-    "test": "tsc src/types.ts src/typesAdvanced.ts src/utils/finance.ts src/utils/periods.ts src/utils/budgets.ts src/utils/reports.ts src/utils/schedules.ts src/db/adapter.ts src/db/migrations.ts src/db/analyticsRepository.ts src/db/ledgerRepository.ts src/db/advancedRepository.ts src/db/dataRepository.ts src/services/backup.ts src/services/restorePolicy.ts src/utils/export.ts src/utils/workbook.ts src/security/crypto.ts src/security/lockCore.ts src/db/syncRepository.ts src/cloud/sessionStorage.ts src/cloud/model.ts src/cloud/localSchema.ts src/cloud/outbox.ts src/db/repositories.ts --outDir .test-build --module commonjs --target es2022 --strict --skipLibCheck --ignoreConfig && node --test tests/*.test.cjs",
+    "test": "tsc src/types.ts src/typesAdvanced.ts src/utils/finance.ts src/utils/periods.ts src/utils/navigation.ts src/utils/budgets.ts src/utils/reports.ts src/utils/schedules.ts src/db/adapter.ts src/db/migrations.ts src/db/analyticsRepository.ts src/db/ledgerRepository.ts src/db/advancedRepository.ts src/db/dataRepository.ts src/services/backup.ts src/services/restorePolicy.ts src/utils/export.ts src/utils/workbook.ts src/security/crypto.ts src/security/lockCore.ts src/db/syncRepository.ts src/cloud/sessionStorage.ts src/cloud/model.ts src/cloud/localSchema.ts src/cloud/outbox.ts src/db/repositories.ts --outDir .test-build --module commonjs --target es2022 --strict --skipLibCheck --ignoreConfig && node --test tests/*.test.cjs",
     "postinstall": "node scripts/patch-expo-router.cjs"
   }
 }

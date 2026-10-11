@@ -111,10 +111,7 @@ export default function Transactions() {
   };
   const apply = (value: TransactionFilters) => {
     if (view === 'daily') {
-      const date = value.start ?? value.end ?? day;
-      setDay(date);
-      setMonth(date.slice(0, 7));
-      setFilters({ ...value, start: date, end: date });
+      setFilters({ ...value, start: day, end: day });
     } else {
       setFilters(value);
       if (value.start) setMonth(value.start.slice(0, 7));
@@ -248,7 +245,17 @@ export default function Transactions() {
                         : view === 'daily' && (key === 'start' || key === 'end')
                           ? false
                           : value !== undefined
-                    )) && <Button secondary title="Clear all filters & search" onPress={clear} />}
+                    )) && (
+                    <Button
+                      secondary
+                      title={
+                        view === 'daily'
+                          ? 'Clear search & other filters'
+                          : 'Clear all filters & search'
+                      }
+                      onPress={clear}
+                    />
+                  )}
                   <Label small>
                     {loading ? 'Searching…' : `${count} matching transactions`}
                     {view === 'calendar' ? ` · ${selectedDate ?? month}` : ''}
@@ -313,6 +320,7 @@ export default function Transactions() {
           />
           {sheet && (
             <TransactionFilterSheet
+              fixedDate={view === 'daily' ? day : undefined}
               visible={sheet}
               initial={filters}
               onApply={apply}

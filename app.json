@@ -55,7 +55,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/android-icon-foreground.png",
+        "foregroundImage": "./assets/icon.png",
         "backgroundColor": "#063E35"
       },
       "package": "com.razatechlabs.pocketbook",

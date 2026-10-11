@@ -141,21 +141,22 @@ export default function Home() {
           ))}
         </View>
       </View>
-      <MotionPressable
-        depth
-        accessibilityRole="button"
-        accessibilityLabel={hasAccount ? 'Add transaction' : 'Add account'}
-        onPress={() => router.push(hasAccount ? '/transaction/add' : '/account/add')}
-        style={[
-          home.addButton,
-          { marginTop: hasAccount ? 0 : 12 },
-          { backgroundColor: c.accent, borderBottomColor: c.hero, borderBottomWidth: 4 },
-        ]}>
-        <Plus size={20} color={c.onAccent} />
-        <Text style={{ color: c.onAccent, fontSize: 15, fontWeight: '600' }}>
-          {hasAccount ? 'Add transaction' : 'Add account'}
-        </Text>
-      </MotionPressable>
+      <View style={home.addButtonSection}>
+        <MotionPressable
+          depth
+          accessibilityRole="button"
+          accessibilityLabel={hasAccount ? 'Add transaction' : 'Add account'}
+          onPress={() => router.push(hasAccount ? '/transaction/add' : '/account/add')}
+          style={[
+            home.addButton,
+            { backgroundColor: c.accent, borderBottomColor: c.hero, borderBottomWidth: 4 },
+          ]}>
+          <Plus size={20} color={c.onAccent} />
+          <Text style={{ color: c.onAccent, fontSize: 15, fontWeight: '600' }}>
+            {hasAccount ? 'Add transaction' : 'Add account'}
+          </Text>
+        </MotionPressable>
+      </View>
       {!hasAccount && (
         <View style={[home.setupCard, { backgroundColor: c.soft }]}>
           <Text style={{ color: c.text, fontSize: 15, fontWeight: '600' }}>
@@ -263,6 +264,7 @@ const home = StyleSheet.create({
   balanceSpacer: { height: 24 },
   statCard: { minWidth: 0, padding: 16, borderRadius: 18, gap: 8 },
   statAmount: { fontSize: 22, fontWeight: '600', fontVariant: ['tabular-nums'] },
+  addButtonSection: { paddingTop: 24 },
   addButton: {
     minHeight: 54,
     padding: 16,

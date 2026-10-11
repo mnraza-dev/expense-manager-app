@@ -1,3 +1,4 @@
+import { useSafeBack } from '../hooks/useSafeBack';
 import { notify } from '../store/useFeedback';
 import { useRef, useState } from 'react';
 import { useRouter } from 'expo-router';
@@ -25,6 +26,7 @@ const schema = z.object({
 type Values = z.infer<typeof schema>;
 export function AccountForm({ id }: { id?: number }) {
   const router = useRouter();
+  const goBack = useSafeBack('/(tabs)/accounts');
   const { accounts, transactions, mutate } = useFinance();
   const account = accounts.find((a) => a.id === id);
   const [busy, setBusy] = useState(false);
@@ -44,13 +46,13 @@ export function AccountForm({ id }: { id?: number }) {
   });
   if (id && !account)
     return (
-      <Screen title="Account not found" back>
+      <Screen title="Account not found" back backTo="/(tabs)/accounts">
         <Label>This account no longer exists.</Label>
       </Screen>
     );
   if (account && account.subtype !== 'standard')
     return (
-      <Screen title={account.name} back>
+      <Screen title={account.name} back backTo="/(tabs)/accounts">
         <Label>
           {account.kind} · Balance {money(balance(account, transactions))}
         </Label>
@@ -81,7 +83,7 @@ export function AccountForm({ id }: { id?: number }) {
         )
       );
       notify('Account saved');
-      router.back();
+      goBack();
     } catch (e) {
       showError(e);
     } finally {
@@ -94,7 +96,8 @@ export function AccountForm({ id }: { id?: number }) {
     <Screen
       title={id ? 'Account details' : 'New account'}
       subtitle="Start with the balance you have today"
-      back>
+      back
+      backTo="/(tabs)/accounts">
       {account && <Label>Current balance {money(balance(account, transactions))}</Label>}
       <Controller
         control={control}
@@ -166,7 +169,7 @@ export function AccountForm({ id }: { id?: number }) {
                 'Your transaction history will be preserved.',
                 async () => {
                   await mutate(() => repo().archiveAccount(account.id, !account.archived));
-                  router.back();
+                  goBack();
                 }
               )
             }
@@ -180,7 +183,7 @@ export function AccountForm({ id }: { id?: number }) {
                 'Only accounts without transactions can be deleted.',
                 async () => {
                   await mutate(() => repo().deleteAccount(account.id));
-                  router.back();
+                  goBack();
                 }
               )
             }

@@ -11,12 +11,14 @@ export function TransactionFilterSheet({
   onApply,
   onClose,
   onClear,
+  fixedDate,
 }: {
   visible: boolean;
   initial: TransactionFilters;
   onApply: (filters: TransactionFilters) => void;
   onClose: () => void;
   onClear: () => void;
+  fixedDate?: string;
 }) {
   const accounts = useFinance((s) => s.accounts),
     categories = useFinance((s) => s.categories);
@@ -97,16 +99,22 @@ export function TransactionFilterSheet({
                 })),
               ]}
             />
-            <Field
-              label="Start date (YYYY-MM-DD)"
-              value={draft.start ?? ''}
-              onChangeText={(start) => setDraft((v) => ({ ...v, start: start || undefined }))}
-            />
-            <Field
-              label="End date (YYYY-MM-DD)"
-              value={draft.end ?? ''}
-              onChangeText={(end) => setDraft((v) => ({ ...v, end: end || undefined }))}
-            />
+            {fixedDate ? (
+              <Label small>Selected day: {fixedDate} · Change the date in Daily view.</Label>
+            ) : (
+              <>
+                <Field
+                  label="Start date (YYYY-MM-DD)"
+                  value={draft.start ?? ''}
+                  onChangeText={(start) => setDraft((v) => ({ ...v, start: start || undefined }))}
+                />
+                <Field
+                  label="End date (YYYY-MM-DD)"
+                  value={draft.end ?? ''}
+                  onChangeText={(end) => setDraft((v) => ({ ...v, end: end || undefined }))}
+                />
+              </>
+            )}
             <Field
               label="Minimum amount (₹)"
               value={min}
@@ -136,7 +144,7 @@ export function TransactionFilterSheet({
             <Button title="Apply filters" onPress={() => apply(dismiss)} />
             <Button
               secondary
-              title="Clear all filters & search"
+              title={fixedDate ? 'Clear search & other filters' : 'Clear all filters & search'}
               onPress={() => {
                 onClear();
                 dismiss();

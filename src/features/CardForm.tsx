@@ -1,5 +1,5 @@
+import { useSafeBack } from '../hooks/useSafeBack';
 import { useCallback } from 'react';
-import { useRouter } from 'expo-router';
 import { AdvancedForm, type FormField } from '../components/AdvancedForm';
 import { Label, Screen } from '../components/ui';
 import { QueryState } from '../components/QueryState';
@@ -8,7 +8,7 @@ import { useFinance } from '../store/useFinance';
 import { repo } from '../db/database';
 import { minor } from '../utils/finance';
 export function CardForm({ id }: { id?: number }) {
-  const router = useRouter();
+  const goBack = useSafeBack('/card');
   const { accounts, mutate } = useFinance();
   const load = useCallback(() => (id ? repo().cardDetails(id) : Promise.resolve(null)), [id]);
   const query = useDatabaseQuery(load, 'ledger');
@@ -51,7 +51,7 @@ export function CardForm({ id }: { id?: number }) {
     },
   ];
   return (
-    <Screen title={id ? 'Edit credit card' : 'New credit card'} back>
+    <Screen title={id ? 'Edit credit card' : 'New credit card'} back backTo="/card">
       {id && (query.loading || query.error) ? (
         <QueryState {...query} />
       ) : id && !card ? (
@@ -88,9 +88,9 @@ export function CardForm({ id }: { id?: number }) {
                 id
               )
             );
-            router.back();
+            goBack();
           }}
-          cancel={() => router.back()}
+          cancel={() => goBack()}
         />
       )}
     </Screen>

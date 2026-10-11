@@ -276,7 +276,7 @@ export function BudgetComparisonChart({ rows }: { rows: BudgetComparison[] }) {
   return (
     <Card>
       <Label>Category budget vs actual</Label>
-      <Label small>Green: allocation · Orange: actual · Pink: exceeded. Tap a bar.</Label>
+      <Label small>First bar: category limit · Second bar: spending. Tap a bar for details.</Label>
       <BarChart {...common} data={data} barWidth={17} initialSpacing={10} />
       {selected && (
         <Label small>

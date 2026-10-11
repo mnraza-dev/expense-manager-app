@@ -1,4 +1,4 @@
-import { useRouter } from 'expo-router';
+import { useSafeBack } from '../../src/hooks/useSafeBack';
 import { AdvancedForm, type FormField } from '../../src/components/AdvancedForm';
 import { Card, Label, Screen } from '../../src/components/ui';
 import { useFinance } from '../../src/store/useFinance';
@@ -6,7 +6,7 @@ import { repo } from '../../src/db/database';
 import { localDate, minor } from '../../src/utils/finance';
 import type { Loan } from '../../src/typesAdvanced';
 export default function AddLoan() {
-  const router = useRouter();
+  const goBack = useSafeBack('/loan');
   const { accounts, categories, mutate } = useFinance();
   const assets = accounts.filter(
     (a) => !a.archived && a.kind === 'asset' && a.subtype === 'standard'
@@ -81,7 +81,7 @@ export default function AddLoan() {
     },
   ];
   return (
-    <Screen title="New loan" back>
+    <Screen title="New loan" back backTo="/loan">
       <Card>
         <Label>Principal stays on the balance sheet</Label>
         <Label small>
@@ -125,9 +125,9 @@ export default function AddLoan() {
               origination_fees: minor(v.fees),
             })
           );
-          router.back();
+          goBack();
         }}
-        cancel={() => router.back()}
+        cancel={() => goBack()}
       />
     </Screen>
   );

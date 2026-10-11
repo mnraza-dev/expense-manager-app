@@ -1,3 +1,4 @@
+import { useSafeBack } from '../hooks/useSafeBack';
 import { Reveal } from '../components/Motion';
 import { useEffect, useRef, useState } from 'react';
 import Animated, { FadeIn, FadeOut, ReduceMotion } from 'react-native-reanimated';
@@ -66,6 +67,7 @@ export function TransactionForm({
   initialDestination?: number;
 }) {
   const router = useRouter();
+  const goBack = useSafeBack('/(tabs)/transactions');
   const c = useTheme();
   const [details, setDetails] = useState(Boolean(id));
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -116,7 +118,7 @@ export function TransactionForm({
   }, [selectedAccount, active, setValue]);
   if (id && !existing)
     return (
-      <Screen title="Transaction not found" back>
+      <Screen title="Transaction not found" back backTo="/(tabs)/transactions">
         <Label>This transaction no longer exists.</Label>
       </Screen>
     );
@@ -128,7 +130,7 @@ export function TransactionForm({
   const sourceOptions = selectable.filter((a) => a.kind !== 'liability' || type === 'expense');
   if (existing?.loan_id)
     return (
-      <Screen title="Loan transaction" back>
+      <Screen title="Loan transaction" back backTo="/(tabs)/transactions">
         <Label>
           {existing.description} · {money(existing.amount)}
         </Label>
@@ -168,7 +170,7 @@ export function TransactionForm({
         )
       );
       notify(id ? 'Transaction updated' : 'Transaction saved');
-      router.back();
+      goBack();
     } catch (e) {
       setSaveError(e instanceof Error ? e.message : 'Unable to save. Please retry.');
     } finally {
@@ -179,7 +181,7 @@ export function TransactionForm({
   const save = () => handleSubmit(submit)();
   const [y, m, d] = date.split('-').map(Number);
   return (
-    <Screen title={id ? 'Edit transaction' : 'New transaction'} back>
+    <Screen title={id ? 'Edit transaction' : 'New transaction'} back backTo="/(tabs)/transactions">
       {!selectable.length ? (
         <>
           <Empty
@@ -395,7 +397,7 @@ export function TransactionForm({
                   async () => {
                     await mutate(() => repo().deleteTransaction(existing.id));
                     notify('Transaction deleted');
-                    router.back();
+                    goBack();
                   }
                 )
               }

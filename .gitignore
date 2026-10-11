@@ -3,6 +3,9 @@ node_modules/
 dist/
 npm-debug.*
 *.jks
+*.keystore
+builds/
+.android-aab.lock
 *.p8
 *.p12
 *.key

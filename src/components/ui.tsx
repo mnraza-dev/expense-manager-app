@@ -27,7 +27,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFinance } from '../store/useFinance';
-import { useRouter } from 'expo-router';
+import type { Href } from 'expo-router';
+import { useSafeBack } from '../hooks/useSafeBack';
 import { ArrowLeft, Plus } from 'lucide-react-native';
 export { palette } from '../design/tokens';
 export function useTheme() {
@@ -40,6 +41,7 @@ export function Screen({
   title,
   subtitle,
   back = false,
+  backTo = '/(tabs)',
   action,
   headerActions,
   scroll = true,
@@ -50,6 +52,7 @@ export function Screen({
   title: string;
   subtitle?: string;
   back?: boolean;
+  backTo?: Href;
   action?: () => void;
   headerActions?: React.ReactNode;
   scroll?: boolean;
@@ -57,7 +60,7 @@ export function Screen({
   headerStyle?: StyleProp<ViewStyle>;
 }) {
   const c = useTheme();
-  const router = useRouter();
+  const goBack = useSafeBack(backTo);
   const message = useFeedback((s) => s.message);
   const refreshError = useFinance((s) => s.refreshError),
     refresh = useFinance((s) => s.refresh);
@@ -68,7 +71,7 @@ export function Screen({
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Go back"
-            onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)'))}
+            onPress={goBack}
             style={[
               styles.touch,
               {
@@ -127,6 +130,8 @@ export function Screen({
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         {scroll ? (
           <ScrollView
+            showsVerticalScrollIndicator={false}
+            showsHorizontalScrollIndicator={false}
             automaticallyAdjustContentInsets={false}
             contentInsetAdjustmentBehavior="never"
             keyboardShouldPersistTaps="handled"

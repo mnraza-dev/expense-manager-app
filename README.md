@@ -37,7 +37,7 @@ Use `npm ci` to reproduce the checked-in versions. Legacy Bun lockfiles are not 
 - Monthly dashboard with active-account total balance, income, expenses, net cash flow, transaction count, recent activity and expense category breakdown.
 - Account creation and editing, opening balances, account transaction history, archive/restore and guarded deletion. Accounts with any transaction history cannot be deleted.
 - Expense, income and transfer creation/editing/deletion, calendar picker, local calendar dates, notes, compatible category selection and duplicate submission guards.
-- Transactions List/Calendar views with monthly activity markers, filtered income/spending totals and tap-to-view daily entries. Calendar totals include all matching records beyond the first page; transfers stay separate from income and spending.
+- Transactions List/Calendar/Daily views with monthly activity markers, daily date navigation, filtered income/spending/net totals and tap-to-view daily entries. Calendar totals include all matching records beyond the first page; transfers stay separate from income and spending.
 - Virtualized, paginated transaction history with description/notes/category/account search, combined type/account/category/date/amount filters, and four stable sort orders. Transfers appear under both associated accounts.
 - Seeded income/expense categories, custom categories, editable name/icon/color, archive and restore. Renaming a default category does not recreate it after a restart.
 - Light, dark and device appearance preferences stored in SQLite; INR currency formatting.
@@ -275,3 +275,5 @@ npx expo export --platform ios --platform android --output-dir /private/tmp/pock
 Cloud backup/authentication/sync implementation and deployment instructions are in [CLOUD.md](CLOUD.md). No remote project has been provisioned; cloud access defaults to free once configured. SQLite schema 4 adds sync metadata without changing financial tables. Local backups and exports remain available offline.
 
 The four-tab interface, design decisions, preserved secondary workflows and device QA checklist are in [DESIGN.md](DESIGN.md). Native visual/performance verification remains outstanding without a usable simulator or attached device.
+
+For a signed Android App Bundle, keep `release.keystore` locally and set `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, and `ANDROID_KEY_PASSWORD` in `.env` (or the process environment). From the project root, run `bun run android:aab` (or `npm run android:aab`). The command sets `NODE_ENV=production`, regenerates Android resources, builds all four Android architectures with limited native compiler parallelism and release signing, verifies the signature against the keystore, and copies the result to `builds/pocketbook-1.0.0.aab`. Node.js, Android SDK and Java must be installed. Run only one build at a time. Keystores and bundle output are ignored by Git.

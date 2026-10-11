@@ -1,4 +1,4 @@
-import { useRouter } from 'expo-router';
+import { useSafeBack } from '../hooks/useSafeBack';
 import type { Loan, RecurringRule } from '../typesAdvanced';
 import { AdvancedForm, type FormField } from '../components/AdvancedForm';
 import { Label, Screen } from '../components/ui';
@@ -6,7 +6,7 @@ import { useFinance } from '../store/useFinance';
 import { repo } from '../db/database';
 import { localDate, minor } from '../utils/finance';
 export function RecurringForm({ rule, loans }: { rule?: RecurringRule; loans: Loan[] }) {
-  const router = useRouter();
+  const goBack = useSafeBack('/recurring');
   const { accounts, categories, mutate } = useFinance();
   const assets = accounts.filter(
     (a) => !a.archived && a.kind === 'asset' && a.subtype === 'standard'
@@ -62,7 +62,7 @@ export function RecurringForm({ rule, loans }: { rule?: RecurringRule; loans: Lo
     },
   ];
   return (
-    <Screen title={rule ? 'Edit future recurrence' : 'New recurrence'} back>
+    <Screen title={rule ? 'Edit future recurrence' : 'New recurrence'} back backTo="/recurring">
       <Label small>
         Occurrences are reminders until you explicitly confirm them. Loan recurrences post principal
         only; record interest and fees separately on the loan screen. Monthly dates retain their
@@ -102,9 +102,9 @@ export function RecurringForm({ rule, loans }: { rule?: RecurringRule; loans: Lo
               rule?.id
             )
           );
-          router.back();
+          goBack();
         }}
-        cancel={() => router.back()}
+        cancel={() => goBack()}
       />
     </Screen>
   );

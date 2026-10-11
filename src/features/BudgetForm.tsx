@@ -1,6 +1,6 @@
+import { useSafeBack } from '../hooks/useSafeBack';
 import { notify } from '../store/useFeedback';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useRouter } from 'expo-router';
 import { Controller, useFieldArray, useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -54,7 +54,7 @@ const schema = z
   });
 type Values = z.infer<typeof schema>;
 export function BudgetForm({ id, initialMonth }: { id?: number; initialMonth?: string }) {
-  const router = useRouter();
+  const goBack = useSafeBack('/(tabs)/budgets');
   const categories = useFinance((s) => s.categories);
   const mutate = useFinance((s) => s.mutateBudget);
   const [busy, setBusy] = useState(false);
@@ -117,7 +117,7 @@ export function BudgetForm({ id, initialMonth }: { id?: number; initialMonth?: s
         )
       );
       notify('Budget saved');
-      router.back();
+      goBack();
     } catch (e) {
       showError(e);
     } finally {
@@ -130,7 +130,8 @@ export function BudgetForm({ id, initialMonth }: { id?: number; initialMonth?: s
     <Screen
       title={id ? 'Edit budget' : 'New monthly budget'}
       subtitle="Give your spending a little direction"
-      back>
+      back
+      backTo="/(tabs)/budgets">
       {id && (query.loading || query.error) ? (
         <QueryState {...query} />
       ) : id && query.data === null ? (
@@ -239,7 +240,7 @@ export function BudgetForm({ id, initialMonth }: { id?: number; initialMonth?: s
             />
           )}
           <Button title="Save budget" busy={busy} onPress={() => void save()} />
-          <Button secondary title="Cancel" onPress={() => router.back()} />
+          <Button secondary title="Cancel" onPress={() => goBack()} />
         </>
       )}
     </Screen>
