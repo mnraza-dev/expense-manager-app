@@ -1,5 +1,6 @@
 import * as XLSX from 'xlsx';
 import type { ExportRow } from './export';
+import { expenseGroups } from './expenseReports';
 export function transactionWorkbook(rows: ExportRow[]): Uint8Array {
   const workbook = XLSX.utils.book_new();
   const add = (name: string, data: (string | number | null)[][]) => {
@@ -82,6 +83,24 @@ export function transactionWorkbook(rows: ExportRow[]): Uint8Array {
       decimal(m.transfer),
     ]),
   ]);
+  for (const [period, name] of [
+    ['daily', 'Daily Expenses'],
+    ['weekly', 'Weekly Expenses'],
+    ['monthly', 'Monthly Expenses'],
+  ] as const) {
+    const groups = expenseGroups(rows, period);
+    const summary = add(name, [
+      [
+        period === 'weekly' ? 'Week starting (Monday)' : 'Period',
+        'Currency',
+        'Expenses',
+        'Expense count',
+      ],
+      ...groups.map((group) => [group.period, group.currency, group.amount / 100, group.count]),
+    ]);
+    for (let i = 1; i <= groups.length; i++)
+      summary[XLSX.utils.encode_cell({ r: i, c: 2 })].z = '0.00';
+  }
   return new Uint8Array(
     XLSX.write(workbook, { type: 'array', bookType: 'xlsx', compression: true })
   );

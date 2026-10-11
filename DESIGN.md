@@ -22,7 +22,7 @@ TypeScript, ESLint, accounting/SQLite/cloud regression tests and Android/iOS pro
 
 The final refinement uses an Overview heading with a contextual month and compact labeled report/settings actions. Budget edit/delete and comparison controls are secondary disclosures. Sheet close, apply and cancel all finish a brief opacity/translation transition before dismissing; native back follows the same path. The account default uses the most recently updated eligible transaction rather than its financial date, so backdated entries do not select an older account accidentally.
 
-Automated verification: 59 passing tests, TypeScript and ESLint clean, Android and iOS Hermes production exports successful. The current dependency audit reports 34 advisories (12 moderate, 22 high); see SECURITY.md for release limitations.
+Automated verification before MVP v2: 59 passing tests, TypeScript and ESLint clean, Android and iOS Hermes production exports successful. The current dependency audit reports 34 advisories (12 moderate, 22 high); see SECURITY.md for release limitations.
 
 ## Launch branding and onboarding
 
@@ -47,3 +47,5 @@ Budgets use a raised month selector, 24-point section gaps and extra bottom padd
 Back, Cancel and successful form mutations use a shared return action. The focused navigator checks and pops its own history directly, avoiding a queued Back action against stale root state; a directly opened form replaces itself with its corresponding list (budgets, transactions, accounts, cards, loans or recurring rules). Header Back follows the same fallback. Rapid repeated taps issue one navigation action per focus cycle, and save completion after leaving a form does not navigate the user away from their current screen. Five navigation regression tests cover these cases alongside the existing suite.
 
 Reports retains a visible header back control. Shared back controls use a bordered surface, a button accessibility role and an Overview fallback when there is no previous route.
+
+MVP v2 adds receipt thumbnails and local attachment sharing within transaction forms, remembered entry choices, recent shortcuts and Save & add another. Compact voice actions open an on-device dictation and editable multi-expense review flow. Reports links to a historical expense export card with daily/weekly/monthly/all-history periods, account filtering, currency totals and native PDF/Excel sharing. See MVP_V2.md for native-device acceptance checks and availability limits.

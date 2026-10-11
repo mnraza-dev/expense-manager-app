@@ -42,7 +42,12 @@ export function TransactionItem({
             ? ` → ${accounts.find((x) => x.id === item.destination_account_id)?.name}`
             : ''}
         </Text>
-        <Text style={{ color: c.muted, fontSize: 12, marginTop: 3 }}>{item.date}</Text>
+        <Text style={{ color: c.muted, fontSize: 12, marginTop: 3 }}>
+          {item.date}
+          {item.receipt_count
+            ? ` · ${item.receipt_count} receipt${item.receipt_count === 1 ? '' : 's'}`
+            : ''}
+        </Text>
       </View>
       <Text
         numberOfLines={1}

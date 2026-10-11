@@ -177,12 +177,14 @@ export function Button({
   title,
   onPress,
   busy = false,
+  disabled = false,
   secondary = false,
   danger = false,
 }: {
   title: string;
   onPress: () => void;
   busy?: boolean;
+  disabled?: boolean;
   secondary?: boolean;
   danger?: boolean;
 }) {
@@ -193,7 +195,7 @@ export function Button({
     <Animated.View style={motion}>
       <Pressable
         accessibilityRole="button"
-        accessibilityState={{ disabled: busy, busy }}
+        accessibilityState={{ disabled: busy || disabled, busy }}
         onPressIn={() => {
           scale.set(
             withTiming(0.985, { duration: tokens.motion.press, reduceMotion: ReduceMotion.System })
@@ -204,14 +206,14 @@ export function Button({
             withTiming(1, { duration: tokens.motion.press, reduceMotion: ReduceMotion.System })
           );
         }}
-        disabled={busy}
+        disabled={busy || disabled}
         onPress={onPress}
         style={[
           styles.button,
           {
             backgroundColor: danger ? c.negative : secondary ? c.card : c.accent,
             borderColor: c.border,
-            opacity: busy ? 0.6 : 1,
+            opacity: busy || disabled ? 0.6 : 1,
             borderBottomWidth: 3,
             borderBottomColor: secondary ? c.border : danger ? c.negative : c.hero,
           },
@@ -235,13 +237,15 @@ export function Button({
 export function Field({
   label,
   error,
+  inputRef,
   ...props
-}: TextInputProps & { label: string; error?: string }) {
+}: TextInputProps & { label: string; error?: string; inputRef?: React.Ref<TextInput> }) {
   const c = useTheme();
   return (
     <View style={{ marginVertical: 6 }}>
       <Label small>{label}</Label>
       <TextInput
+        ref={inputRef}
         accessibilityLabel={label}
         placeholderTextColor={c.muted}
         {...props}

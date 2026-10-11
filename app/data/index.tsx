@@ -18,6 +18,7 @@ import {
   useDataOperation,
 } from '../../src/services/files';
 import type { IntegrityIssue } from '../../src/db/dataRepository';
+import { ExpenseReportExport } from '../../src/components/ExpenseReportExport';
 export default function DataScreen() {
   const { accounts, categories, mutate } = useFinance();
   const [start, setStart] = useState(''),
@@ -80,6 +81,7 @@ export default function DataScreen() {
   };
   return (
     <Screen title="Data & backups" back subtitle="Export, recover and verify your records">
+      <ExpenseReportExport busy={busy} run={run} />
       <Card>
         <Label>CSV for Excel</Label>
         <Label small>
@@ -154,7 +156,9 @@ export default function DataScreen() {
         <Label>Complete backup & replace restore</Label>
         <Label small>
           Includes all financial data, audit journals, schedules and preferences. App-lock secrets
-          are excluded. Share and retain a backup outside this device before relying on it.
+          and receipt files are excluded. Share receipts separately from their transaction before
+          changing devices or uninstalling. Share and retain a backup outside this device before
+          relying on it.
         </Label>
         <Field
           label="Backup encryption password (optional, 12+ characters)"

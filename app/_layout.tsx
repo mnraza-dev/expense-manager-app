@@ -7,6 +7,7 @@ import { billingUser } from '../src/cloud/entitlements';
 import { useEffect } from 'react';
 import { DataOperationGate } from '../src/components/DataOperationGate';
 import { shareMigrationRecovery } from '../src/services/files';
+import { cleanOrphanReceiptFiles } from '../src/services/receipts';
 import { LockGate } from '../src/components/LockGate';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -33,6 +34,9 @@ export default function RootLayout() {
   useEffect(() => {
     if (!ready) return;
     return startSyncObservers();
+  }, [ready]);
+  useEffect(() => {
+    if (ready) void cleanOrphanReceiptFiles().catch(() => {});
   }, [ready]);
   const cloudOwner = useCloudAuth((s) => s.session?.user.id ?? null);
   useEffect(() => {

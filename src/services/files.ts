@@ -4,6 +4,8 @@ import * as DocumentPicker from 'expo-document-picker';
 import * as Crypto from 'expo-crypto';
 import { openDatabaseAsync, deleteDatabaseAsync } from 'expo-sqlite';
 import { create } from 'zustand';
+import { requireOptionalNativeModule } from 'expo';
+import { waitForForegroundAccess } from '../security/lock';
 import { DataRepository } from '../db/dataRepository';
 import { repo } from '../db/database';
 import { decryptBackup, encryptBackup } from '../security/crypto';
@@ -41,6 +43,39 @@ export async function shareText(text: string, extension: 'csv' | 'json', label: 
     });
   } catch {
     throw new Error('Could not write or share the file. Check available storage and try again.');
+  }
+}
+export async function sharePDFReport(html: string, label: string) {
+  if (!requireOptionalNativeModule('ExpoPrint'))
+    throw new Error(
+      'Install the updated native Settler build to enable PDF exports. Excel export is available in the current build.'
+    );
+  if (!(await Sharing.isAvailableAsync()))
+    throw new Error('File sharing is unavailable on this device.');
+  await waitForForegroundAccess();
+  const Print = await import('expo-print');
+  const result = await Print.printToFileAsync({
+    html,
+    width: 595,
+    height: 842,
+    margins: { top: 36, right: 36, bottom: 36, left: 36 },
+  });
+  const original = new File(result.uri);
+  const output = new File(exportDirectory(), `${label}-${Date.now()}.pdf`);
+  try {
+    await original.copy(output);
+    await waitForForegroundAccess();
+    await Sharing.shareAsync(output.uri, {
+      mimeType: 'application/pdf',
+      UTI: 'com.adobe.pdf',
+      dialogTitle: 'Settler expense report',
+    });
+  } finally {
+    try {
+      if (original.exists) original.delete();
+    } catch {
+      /* OS cache cleanup handles the temporary PDF. */
+    }
   }
 }
 export async function readBackupFile() {

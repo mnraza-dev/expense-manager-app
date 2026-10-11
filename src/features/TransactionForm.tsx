@@ -1,9 +1,19 @@
 import { useSafeBack } from '../hooks/useSafeBack';
-import { Reveal } from '../components/Motion';
+import { Reveal, MotionPressable } from '../components/Motion';
 import { useEffect, useRef, useState } from 'react';
+import { ReceiptAttachments } from '../components/ReceiptAttachments';
+import { VoiceEntryButton } from '../components/VoiceEntryButton';
+import {
+  deleteWithReceipts,
+  discardReceiptDraft,
+  pickReceipt,
+  saveWithReceipts,
+} from '../services/receipts';
+import { MAX_RECEIPTS, type ReceiptDraft, type Receipt } from '../utils/receipts';
+import { entryFromTemplate, recentEntryTemplates } from '../utils/quickEntry';
 import Animated, { FadeIn, FadeOut, ReduceMotion } from 'react-native-reanimated';
 import { tokens } from '../design/tokens';
-import { Platform } from 'react-native';
+import { Platform, ScrollView, Text, View } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useRouter } from 'expo-router';
 import { Controller, useForm, useWatch } from 'react-hook-form';
@@ -74,23 +84,64 @@ export function TransactionForm({
   const { transactions, accounts, categories, mutate } = useFinance();
   const existing = transactions.find((t) => t.id === id);
   const active = accounts.filter((a) => !a.archived && a.subtype === 'standard');
-  const lastUsed = [...transactions]
-    .sort((a, b) => b.updated_at.localeCompare(a.updated_at) || b.id - a.id)
-    .find((t) =>
-      accounts.some(
-        (a) =>
-          a.id === t.account_id &&
-          !a.archived &&
-          !a.subtype?.startsWith('loan_') &&
-          (initialType === 'expense' || a.kind !== 'liability')
-      )
-    )?.account_id;
+  const latest = recentEntryTemplates(
+    transactions,
+    accounts,
+    categories,
+    initialType,
+    initialAccount
+  )[0];
   const [busy, setBusy] = useState(false);
   const saving = useRef(false);
+  const mounted = useRef(false);
+  const [receipts, setReceipts] = useState<ReceiptDraft[]>([]);
+  const drafts = useRef<ReceiptDraft[]>([]);
+  const originalReceipts = useRef<Receipt[]>([]);
+  const [receiptLoading, setReceiptLoading] = useState(Boolean(id));
+  const [receiptError, setReceiptError] = useState<string | null>(null);
+  const [receiptRetry, setReceiptRetry] = useState(0);
+  const picking = useRef(false);
+  const [receiptBusy, setReceiptBusy] = useState(false);
+  const [focusRequest, setFocusRequest] = useState(0);
+  const updateReceipts = (next: ReceiptDraft[]) => {
+    drafts.current = next;
+    setReceipts(next);
+  };
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      if (!saving.current) drafts.current.forEach(discardReceiptDraft);
+    };
+  }, []);
+  useEffect(() => {
+    if (!id) return;
+    let active = true;
+    repo()
+      .receipts(id)
+      .then((rows) => {
+        if (!active) return;
+        originalReceipts.current = rows;
+        drafts.current = rows;
+        setReceipts(rows);
+        setReceiptLoading(false);
+      })
+      .catch(() => {
+        if (active) {
+          setReceiptError('Unable to load receipts. Retry before saving changes.');
+          setReceiptLoading(false);
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, [id, receiptRetry]);
   const [picker, setPicker] = useState(false);
   const {
     control,
     setValue,
+    reset,
+    setFocus,
     handleSubmit,
     formState: { errors },
   } = useForm<Values>({
@@ -98,10 +149,11 @@ export function TransactionForm({
     defaultValues: {
       type: existing?.type ?? initialType,
       amount: existing ? (existing.amount / 100).toFixed(2) : '',
-      account: existing?.account_id ?? initialAccount ?? lastUsed ?? active[0]?.id ?? 0,
+      account: existing?.account_id ?? initialAccount ?? latest?.account_id ?? active[0]?.id ?? 0,
       destination: existing?.destination_account_id ?? initialDestination ?? null,
       category:
         existing?.category_id ??
+        latest?.category_id ??
         categories.find((c) => !c.archived && c.type === initialType)?.id ??
         null,
       description: existing?.description ?? '',
@@ -113,6 +165,12 @@ export function TransactionForm({
   const type = useWatch({ control, name: 'type' });
   const date = useWatch({ control, name: 'date' });
   const selectedAccount = useWatch({ control, name: 'account' });
+  const templates = recentEntryTemplates(transactions, accounts, categories, type, initialAccount);
+  useEffect(() => {
+    if (!focusRequest) return;
+    const timer = setTimeout(() => setFocus('amount'), 50);
+    return () => clearTimeout(timer);
+  }, [focusRequest, setFocus]);
   useEffect(() => {
     if (!selectedAccount && active.length) setValue('account', active[0].id);
   }, [selectedAccount, active, setValue]);
@@ -146,14 +204,35 @@ export function TransactionForm({
   const available = categories.filter(
     (c) => c.type === type && (!c.archived || c.id === existing?.category_id)
   );
-  const submit = async (v: Values) => {
-    if (saving.current) return;
+  const addReceipt = async () => {
+    if (picking.current || saving.current || drafts.current.length >= MAX_RECEIPTS) return;
+    picking.current = true;
+    setReceiptBusy(true);
+    setSaveError(null);
+    try {
+      const receipt = await pickReceipt();
+      if (!receipt) return;
+      if (!mounted.current) {
+        discardReceiptDraft(receipt);
+        return;
+      }
+      updateReceipts([...drafts.current, receipt]);
+    } catch (error) {
+      if (mounted.current)
+        setSaveError(error instanceof Error ? error.message : 'Could not attach this receipt.');
+    } finally {
+      picking.current = false;
+      if (mounted.current) setReceiptBusy(false);
+    }
+  };
+  const submit = async (v: Values, another = false) => {
+    if (saving.current || picking.current || receiptLoading || receiptError) return;
     saving.current = true;
     setBusy(true);
     setSaveError(null);
     try {
-      await mutate(() =>
-        repo().saveTransaction(
+      await mutate(async () => {
+        await saveWithReceipts(
           {
             type: v.type,
             amount: minor(v.amount),
@@ -166,22 +245,38 @@ export function TransactionForm({
             notes: v.notes,
             component: v.component,
           },
-          id
-        )
-      );
+          id,
+          drafts.current,
+          originalReceipts.current
+        );
+        drafts.current.forEach(discardReceiptDraft);
+        drafts.current = [];
+        originalReceipts.current = [];
+      });
       notify(id ? 'Transaction updated' : 'Transaction saved');
-      goBack();
+      if (mounted.current && another && !id) {
+        setReceipts([]);
+        reset({ ...v, amount: '', description: '', notes: '' });
+        setDetails(false);
+        setFocusRequest((n) => n + 1);
+      } else if (mounted.current) goBack();
     } catch (e) {
-      setSaveError(e instanceof Error ? e.message : 'Unable to save. Please retry.');
+      if (mounted.current)
+        setSaveError(e instanceof Error ? e.message : 'Unable to save. Please retry.');
     } finally {
       saving.current = false;
-      setBusy(false);
+      if (mounted.current) setBusy(false);
+      else drafts.current.forEach(discardReceiptDraft);
     }
   };
-  const save = () => handleSubmit(submit)();
+  const save = (another = false) => handleSubmit((v) => submit(v, another))();
   const [y, m, d] = date.split('-').map(Number);
   return (
-    <Screen title={id ? 'Edit transaction' : 'New transaction'} back backTo="/(tabs)/transactions">
+    <Screen
+      title={id ? 'Edit transaction' : 'New transaction'}
+      back
+      backTo="/(tabs)/transactions"
+      headerActions={!id ? <VoiceEntryButton compact /> : undefined}>
       {!selectable.length ? (
         <>
           <Empty
@@ -213,9 +308,53 @@ export function TransactionForm({
                   borderWidth: 0,
                   borderBottomWidth: 1,
                 }}
+                inputRef={field.ref}
+                editable={!busy}
+                onSubmitEditing={() => void save()}
               />
             )}
           />
+          {!id && templates.length > 0 && (
+            <View style={{ gap: 8 }}>
+              <Label small>Use recent details · review before saving</Label>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ gap: 10, paddingBottom: 6 }}
+                keyboardShouldPersistTaps="handled">
+                {templates.map((t) => (
+                  <MotionPressable
+                    key={t.id}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Reuse ${t.description}, ${money(t.amount)}`}
+                    disabled={busy}
+                    onPress={() => {
+                      reset(entryFromTemplate(t));
+                      setDetails(true);
+                      setSaveError(null);
+                      setFocusRequest((n) => n + 1);
+                    }}
+                    style={{
+                      width: 172,
+                      padding: 14,
+                      borderRadius: 16,
+                      borderWidth: 1,
+                      borderColor: c.border,
+                      backgroundColor: c.card,
+                      gap: 6,
+                    }}>
+                    <Text numberOfLines={1} style={{ color: c.text, fontWeight: '600' }}>
+                      {t.description}
+                    </Text>
+                    <Text style={{ color: c.accent, fontWeight: '600' }}>{money(t.amount)}</Text>
+                    <Text numberOfLines={1} style={{ color: c.muted, fontSize: 12 }}>
+                      {accounts.find((a) => a.id === t.account_id)?.name}
+                    </Text>
+                  </MotionPressable>
+                ))}
+              </ScrollView>
+            </View>
+          )}
           <Controller
             control={control}
             name="type"
@@ -241,7 +380,15 @@ export function TransactionForm({
                     'category',
                     v === 'transfer'
                       ? null
-                      : (categories.find((c) => !c.archived && c.type === v)?.id ?? null)
+                      : (recentEntryTemplates(
+                          transactions,
+                          accounts,
+                          categories,
+                          v,
+                          initialAccount
+                        )[0]?.category_id ??
+                          categories.find((c) => !c.archived && c.type === v)?.id ??
+                          null)
                   );
                 }}
               />
@@ -385,17 +532,48 @@ export function TransactionForm({
             </Animated.View>
           )}
           {saveError && <InlineFeedback message={saveError} />}
-          <Button title="Save transaction" busy={busy} onPress={() => void save()} />
+          <ReceiptAttachments
+            receipts={receipts}
+            loading={receiptLoading}
+            error={receiptError}
+            onRetry={() => {
+              setReceiptLoading(true);
+              setReceiptError(null);
+              setReceiptRetry((n) => n + 1);
+            }}
+            busy={busy || receiptBusy}
+            onAdd={() => void addReceipt()}
+            onRemove={(receipt) => {
+              discardReceiptDraft(receipt);
+              updateReceipts(drafts.current.filter((r) => r.id !== receipt.id));
+            }}
+          />
+          <Button
+            title="Save transaction"
+            busy={busy || receiptBusy || receiptLoading}
+            disabled={Boolean(receiptError)}
+            onPress={() => void save()}
+          />
+          {!id && (
+            <Button
+              secondary
+              title="Save & add another"
+              busy={busy || receiptBusy || receiptLoading}
+              disabled={Boolean(receiptError)}
+              onPress={() => void save(true)}
+            />
+          )}
           {existing && (
             <Button
               danger
               title="Delete transaction"
+              busy={busy || receiptBusy}
               onPress={() =>
                 confirm(
                   'Delete transaction?',
                   'This removes the entry and recalculates the affected balances.',
                   async () => {
-                    await mutate(() => repo().deleteTransaction(existing.id));
+                    await mutate(() => deleteWithReceipts(existing.id));
                     notify('Transaction deleted');
                     goBack();
                   }

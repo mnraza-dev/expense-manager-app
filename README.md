@@ -2,17 +2,17 @@
 
 Settler was previously named Pocketbook. Existing database names, secure-storage keys, backup formats and cloud record identifiers retain their legacy names. Both native platforms now use `com.razatechlabs.settler` as the application identifier. The app accepts both `settler://` and legacy `pocketbook://` links; cloud authentication retains its existing callback URL.
 
-An Android/iOS personal finance app with Phase 1 and Phase 2 functionality, built with Expo SDK 57, React Native, strict TypeScript and Expo Router. SQLite is the source of truth; Zustand holds a refreshed view of the database. No financial records are sent to a server.
+An Android/iOS personal finance app with local accounting, budgets, reports, optional cloud backup/sync and [MVP v2 receipts, faster and private voice entry, and expense exports](MVP_V2.md), built with Expo SDK 57, React Native, strict TypeScript and Expo Router. SQLite is the source of truth; Zustand holds a refreshed view of the database. Financial records stay local unless cloud backup or sync is enabled. Receipt attachments remain device-local.
 
 ## Install and run
 
-Use Node.js 24 LTS (the repository tests use `node:sqlite`) and npm. The npm lockfile is authoritative.
+Use Node.js 24 LTS (the repository tests use `node:sqlite`) and Bun. The checked-in Bun lockfile pins dependencies; an npm lockfile is also retained.
 
 ```sh
-npm ci
-npm start
-npm run android
-npm run ios
+bun install --frozen-lockfile
+bun start
+bun run android
+bun run ios
 ```
 
 Scan the development server QR code using an Expo Go version compatible with SDK 57. For Android, use a connected device or an Android Studio emulator. For the iOS simulator, install Xcode and select its developer tools. Physical iPhones can open the QR code through Expo Go. If the installed Expo Go version does not support SDK 57, create a development build:
@@ -31,11 +31,12 @@ npx expo install --npm expo-sqlite @react-native-community/datetimepicker react-
 npm install zustand react-hook-form zod @hookform/resolvers lucide-react-native
 ```
 
-Use `npm ci` to reproduce the checked-in versions. Legacy Bun lockfiles are not the package manager source for this implementation.
+Use `bun install --frozen-lockfile` to reproduce the checked-in Bun versions.
 
 ## Implemented
 
-- Five tabs: Home, Transactions, Accounts, Reports and Settings.
+- Four tabs: Home, Transactions, Accounts and Budgets. Reports and Settings are reachable from Home.
+- [MVP v2](MVP_V2.md): device-local JPEG/PNG/PDF receipt attachments with image previews and sharing, recent transaction shortcuts, remembered account/category, Save & add another, on-device English/Hindi/Urdu voice drafts, and historical daily/weekly/monthly PDF/Excel expense reports.
 - Monthly dashboard with active-account total balance, income, expenses, net cash flow, transaction count, recent activity and expense category breakdown.
 - Account creation and editing, opening balances, account transaction history, archive/restore and guarded deletion. Accounts with any transaction history cannot be deleted.
 - Expense, income and transfer creation/editing/deletion, calendar picker, local calendar dates, notes, compatible category selection and duplicate submission guards.
@@ -86,13 +87,13 @@ The persistent file is `pocketbook.db` in Expo SQLite's application database dir
 
 Schema versions 1 and 2 live in `src/db/migrations.ts`:
 
-| Table | Fields and constraints |
-| --- | --- |
-| accounts | ID, name, type, integer opening balance, INR currency, description, archive flag, created/updated timestamps |
-| categories | ID, name, income/expense type, icon, color, archive flag, timestamps; unique name/type |
-| transactions | ID, type, positive integer amount, source account FK, destination account FK, category FK, description, calendar date, notes, timestamps |
-| app_settings | unique key and value, including theme, currency and category-seeding marker |
-| schema_migrations | unique version and applied timestamp |
+| Table             | Fields and constraints                                                                                                                   |
+| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| accounts          | ID, name, type, integer opening balance, INR currency, description, archive flag, created/updated timestamps                             |
+| categories        | ID, name, income/expense type, icon, color, archive flag, timestamps; unique name/type                                                   |
+| transactions      | ID, type, positive integer amount, source account FK, destination account FK, category FK, description, calendar date, notes, timestamps |
+| app_settings      | unique key and value, including theme, currency and category-seeding marker                                                              |
+| schema_migrations | unique version and applied timestamp                                                                                                     |
 
 Transaction checks require a distinct destination and no category for transfers, or a category and no destination for income/expenses. Database triggers enforce category compatibility and preserve types used by historical transactions. Account/category foreign keys restrict deletion. Indexes cover dates, both account references, categories and transaction types. User values are passed through SQL parameters.
 
@@ -139,8 +140,7 @@ TypeScript, ESLint and all 18 tests pass. Both iOS and Android development bundl
 - Native device smoke testing remains outstanding. Production bundles do not prove native runtime correctness.
 - Phase 2 history is paginated and virtualized; report/budget data uses SQL aggregation. The retained Phase 1 dashboard/account state still loads a full ledger snapshot and should be optimized before scaling to very large ledgers.
 - Compatible dependency security fixes removed the initial critical finding. The final npm audit still reports 31 advisories (21 high, 10 moderate) in the Expo/React Native tooling tree (including advisories without a compatible patched upstream version). Review these before release; forced downgrades or an untested SDK migration were not applied.
-- Biometric/passcode protection and a future double-entry ledger are extension points, not implemented features.
-
+- Passcode/biometric protection and immutable double-entry audit journals are implemented; see SECURITY.md and the later phase sections below.
 
 ## Phase 2: budgets, reports and advanced search
 
@@ -182,17 +182,17 @@ Focused report/budget queries use independent ledger and budget invalidation rev
 
 ### Phase 2 file map
 
-| Area | Files |
-| --- | --- |
-| Migration and database interface | `src/db/migrations.ts`, `src/db/adapter.ts` |
-| Aggregation, budget CRUD and search | `src/db/analyticsRepository.ts`, `src/db/repositories.ts` |
-| Calculations and calendar rules | `src/utils/budgets.ts`, `src/utils/periods.ts`, `src/utils/reports.ts`, existing `finance.ts` |
-| Budget routes/form | `app/budget/index.tsx`, `add.tsx`, `[id].tsx`, `src/features/BudgetForm.tsx` |
-| Reports and search screens | `app/(tabs)/reports.tsx`, `transactions.tsx` |
-| Navigation/preferences integration | `app/(tabs)/index.tsx`, `settings.tsx`, `src/features/TransactionForm.tsx` |
-| Reusable UI | `BudgetProgressCard.tsx`, `charts.tsx`, `DateRangeSelector.tsx`, `MonthSelector.tsx`, `QueryState.tsx`, `TransactionFilterSheet.tsx`, shared `ui.tsx` |
-| Refresh and types | `src/hooks/useDatabaseQuery.ts`, `src/store/useFinance.ts`, `src/types.ts` |
-| Tests and dependencies | `tests/phase2.test.cjs`, `tests/repositories.test.cjs`, `package.json`, `package-lock.json` |
+| Area                                | Files                                                                                                                                                 |
+| ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Migration and database interface    | `src/db/migrations.ts`, `src/db/adapter.ts`                                                                                                           |
+| Aggregation, budget CRUD and search | `src/db/analyticsRepository.ts`, `src/db/repositories.ts`                                                                                             |
+| Calculations and calendar rules     | `src/utils/budgets.ts`, `src/utils/periods.ts`, `src/utils/reports.ts`, existing `finance.ts`                                                         |
+| Budget routes/form                  | `app/budget/index.tsx`, `add.tsx`, `[id].tsx`, `src/features/BudgetForm.tsx`                                                                          |
+| Reports and search screens          | `app/(tabs)/reports.tsx`, `transactions.tsx`                                                                                                          |
+| Navigation/preferences integration  | `app/(tabs)/index.tsx`, `settings.tsx`, `src/features/TransactionForm.tsx`                                                                            |
+| Reusable UI                         | `BudgetProgressCard.tsx`, `charts.tsx`, `DateRangeSelector.tsx`, `MonthSelector.tsx`, `QueryState.tsx`, `TransactionFilterSheet.tsx`, shared `ui.tsx` |
+| Refresh and types                   | `src/hooks/useDatabaseQuery.ts`, `src/store/useFinance.ts`, `src/types.ts`                                                                            |
+| Tests and dependencies              | `tests/phase2.test.cjs`, `tests/repositories.test.cjs`, `package.json`, `package-lock.json`                                                           |
 
 ### Validation and manual checks
 
@@ -256,7 +256,7 @@ No schema-4 transformation is needed: schema 3 remains the current financial sch
 
 Validation: **40 automated tests pass**, including all prior phases, selected export, real workbook parsing, backup round trips, corrupted/unsupported files, reference validation, recovery-write failure, interrupted replacement rollback, encryption authentication, passcode verification/throttling/change, unavailable biometrics, relock policy, restore cancellation and read-only diagnostics. TypeScript and ESLint pass; both iOS and Android production Hermes exports compile. These checks do not replace real-device testing.
 
-Limits: backups support the exact current schema, up to 20 MB and 250,000 records; CSV/workbook exports support 50,000 selected transactions. Merge, bank connections, cloud recovery and currency conversion are not implemented. Progress screens prevent navigation during data operations. Shared-file cache older than 24 hours is pruned on later exports; recipient copies and persistent recovery files remain sensitive.
+Limits: backups support the exact current schema, up to 20 MB and 250,000 records; CSV/workbook exports support 50,000 selected transactions. Merge, bank connections and currency conversion are not implemented; optional cloud recovery is described in CLOUD.md. Receipt attachments are device-local and excluded from financial backups/exports. Progress screens prevent navigation during data operations. Shared-file cache older than 24 hours is pruned on later exports; recipient copies and persistent recovery files remain sensitive.
 
 See [SECURITY.md](SECURITY.md) for format, cryptography, credential recovery, storage/privacy assumptions and dependency advisories. The dependency audit currently reports 34 advisories (12 moderate, 22 high); SDK-compatible updates and native regression testing are still needed before release.
 
@@ -278,4 +278,4 @@ Cloud backup/authentication/sync implementation and deployment instructions are 
 
 The four-tab interface, design decisions, preserved secondary workflows and device QA checklist are in [DESIGN.md](DESIGN.md). Native visual/performance verification remains outstanding without a usable simulator or attached device.
 
-For a signed Android App Bundle, keep `release.keystore` locally and set `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, and `ANDROID_KEY_PASSWORD` in `.env` (or the process environment). From the project root, run `bun run android:aab` (or `npm run android:aab`). The command sets `NODE_ENV=production`, regenerates Android resources, builds all four Android architectures with limited native compiler parallelism and release signing, verifies the signature against the keystore, and copies the result to `builds/settler-1.0.0.aab`. Node.js, Android SDK and Java must be installed. Run only one build at a time. Keystores and bundle output are ignored by Git.
+For a signed Android App Bundle, keep `release.keystore` locally and set `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, and `ANDROID_KEY_PASSWORD` in `.env` (or the process environment). From the project root, run `bun run android:aab` (or `npm run android:aab`). The command sets `NODE_ENV=production`, regenerates Android resources, builds all four Android architectures with limited native compiler parallelism and release signing, verifies the signature against the keystore, and copies the result to `builds/settler-1.1.0.aab`. Node.js, Android SDK and Java must be installed. Run only one build at a time. Keystores and bundle output are ignored by Git.

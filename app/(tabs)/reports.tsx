@@ -40,6 +40,11 @@ export default function Reports() {
     <Screen title="Reports" back>
       <Button
         secondary
+        title="Daily, weekly & monthly PDF / Excel exports →"
+        onPress={() => router.push('/data')}
+      />
+      <Button
+        secondary
         title="Monthly budgets & progress →"
         onPress={() => router.push('/budget')}
       />

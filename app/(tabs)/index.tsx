@@ -19,6 +19,7 @@ import { TransactionItem } from '../../src/components/TransactionItem';
 import { BudgetProgressCard } from '../../src/components/BudgetProgressCard';
 import { useDatabaseQuery } from '../../src/hooks/useDatabaseQuery';
 import { repo } from '../../src/db/database';
+import { VoiceEntryButton } from '../../src/components/VoiceEntryButton';
 
 export default function Home() {
   const router = useRouter();
@@ -55,7 +56,7 @@ export default function Home() {
           ))}
         </View>
       }>
-           <View style={home.balanceSpacer} />
+      <View style={home.balanceSpacer} />
       <View>
         <Reveal delay={40}>
           <DepthSurface
@@ -157,6 +158,7 @@ export default function Home() {
           </Text>
         </MotionPressable>
       </View>
+      {hasAccount && <VoiceEntryButton />}
       {!hasAccount && (
         <View style={[home.setupCard, { backgroundColor: c.soft }]}>
           <Text style={{ color: c.text, fontSize: 15, fontWeight: '600' }}>
@@ -228,7 +230,7 @@ export default function Home() {
 }
 
 const home = StyleSheet.create({
-  actions: { flexDirection: 'row', gap: 8, },
+  actions: { flexDirection: 'row', gap: 8 },
   iconButton: {
     width: 44,
     height: 44,

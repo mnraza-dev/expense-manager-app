@@ -366,6 +366,9 @@ test('Excel export is a real workbook with numeric amounts and literal untrusted
     'Accounts',
     'Categories',
     'Monthly Summary',
+    'Daily Expenses',
+    'Weekly Expenses',
+    'Monthly Expenses',
   ]);
   assert.equal(workbook.Sheets.Transactions.E2.t, 'n');
   assert.equal(workbook.Sheets.Transactions.E2.v, 123.45);

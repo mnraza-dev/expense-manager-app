@@ -26,6 +26,7 @@ export interface Category {
   updated_at: string;
 }
 export interface Transaction {
+  receipt_count?: number;
   status?: 'posted' | 'void';
   component?: 'standard' | 'interest' | 'fee' | 'principal';
   loan_id?: number | null;

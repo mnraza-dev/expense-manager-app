@@ -2,6 +2,13 @@ import type { Account, Category, Snapshot, Transaction } from '../types';
 import { defaults, migrations } from './migrations';
 import { MAX_MONEY, validDate, localDate } from '../utils/finance';
 import { SyncRepository } from './syncRepository';
+import {
+  receiptSchema,
+  receiptCountSQL,
+  transactionReceipts,
+  replaceTransactionReceipts,
+} from './receiptSchema';
+import type { Receipt } from '../utils/receipts';
 export type { DB } from './adapter';
 export class Repositories extends SyncRepository {
   private async checkPrecision(kind: 'account' | 'transaction', amount: number, id?: number) {
@@ -40,6 +47,7 @@ export class Repositories extends SyncRepository {
             new Date().toISOString()
           );
         }
+      await this.db.execAsync(receiptSchema);
       const now = new Date().toISOString();
       const seeded = await this.db.getFirstAsync<{ value: string }>(
         "SELECT value FROM app_settings WHERE key='categories_seeded'"
@@ -73,7 +81,7 @@ export class Repositories extends SyncRepository {
         'SELECT * FROM categories ORDER BY type,name'
       );
       const transactions = await this.db.getAllAsync<Transaction>(
-        'SELECT * FROM active_transactions ORDER BY date DESC,id DESC'
+        `SELECT t.*,${receiptCountSQL} FROM active_transactions t ORDER BY t.date DESC,t.id DESC`
       );
       const settings = Object.fromEntries(
         (
@@ -219,123 +227,165 @@ export class Repositories extends SyncRepository {
       )
     );
   }
-  saveTransaction(input: Omit<Transaction, 'id' | 'created_at' | 'updated_at'>, id?: number) {
+  receipts(id: number) {
+    return this.read(() => transactionReceipts(this.db, id));
+  }
+  receiptFiles() {
+    return this.read(() =>
+      this.db.getAllAsync<Receipt>('SELECT id,name,mime_type,size FROM local_receipts')
+    );
+  }
+  saveTransaction(
+    input: Omit<Transaction, 'id' | 'created_at' | 'updated_at'>,
+    id?: number,
+    receipts?: Receipt[]
+  ) {
     return this.write(async () => {
+      let savedId = 0;
       await this.db.withTransactionAsync(async () => {
-        if (
-          !['expense', 'income', 'transfer'].includes(input.type) ||
-          !Number.isSafeInteger(input.amount) ||
-          input.amount <= 0 ||
-          input.amount > MAX_MONEY ||
-          !input.description.trim() ||
-          !validDate(input.date)
-        )
-          throw new Error('Enter a positive amount, description and valid date.');
-        const previous = id
-          ? await this.db.getFirstAsync<Transaction>('SELECT * FROM transactions WHERE id=?', id)
-          : null;
-        if (id && (!previous || previous.status === 'void'))
-          throw new Error('Transaction no longer exists.');
-        if (previous?.loan_id || input.loan_id)
-          throw new Error('Manage loan events from the loan details screen.');
-        const role = await this.db.getFirstAsync<{ kind: string; subtype: string }>(
-          'SELECT * FROM account_roles WHERE account_id=?',
-          input.account_id
-        );
-        if (
-          !role ||
-          role.subtype.startsWith('loan_') ||
-          (role.kind === 'liability' && input.type !== 'expense')
-        )
-          throw new Error('Use an asset account, or a credit card for purchases.');
-        const account = await this.db.getFirstAsync<Account>(
-          'SELECT * FROM accounts WHERE id=?',
-          input.account_id
-        );
-        if (!account || (account.archived && previous?.account_id !== account.id))
-          throw new Error('Select an active account.');
-        if (input.type === 'transfer') {
-          const dest = await this.db.getFirstAsync<Account>(
-            'SELECT * FROM accounts WHERE id=?',
-            input.destination_account_id
-          );
-          const destRole = await this.db.getFirstAsync<{ subtype: string }>(
-            'SELECT subtype FROM account_roles WHERE account_id=?',
-            input.destination_account_id
-          );
-          if (destRole?.subtype.startsWith('loan_'))
-            throw new Error('Manage loan principal through the loan screen.');
-          if (
-            !dest ||
-            dest.id === account.id ||
-            (dest.archived && previous?.destination_account_id !== dest.id) ||
-            dest.currency !== account.currency ||
-            input.category_id !== null
-          )
-            throw new Error('Choose a different active destination account.');
-        } else {
-          const category = await this.db.getFirstAsync<Category>(
-            'SELECT * FROM categories WHERE id=?',
-            input.category_id
-          );
-          if (
-            !category ||
-            category.type !== input.type ||
-            (category.archived && previous?.category_id !== category.id) ||
-            input.destination_account_id !== null
-          )
-            throw new Error('Choose a compatible active category.');
-        }
-        await this.checkPrecision('transaction', input.amount, id);
-        const now = new Date().toISOString();
-        const args = [
-          input.type,
-          input.amount,
-          input.account_id,
-          input.destination_account_id,
-          input.category_id,
-          input.description.trim(),
-          input.date,
-          input.notes,
-          now,
-          input.component ?? previous?.component ?? 'standard',
-        ];
-        if (id) await this.reverseTransactionCore(id, 'Transaction edit');
-        if (id)
-          await this.db.runAsync(
-            'UPDATE transactions SET type=?,amount=?,account_id=?,destination_account_id=?,category_id=?,description=?,date=?,notes=?,updated_at=?,component=? WHERE id=?',
-            ...args,
-            id
-          );
-        else
-          await this.db.runAsync(
-            'INSERT INTO transactions(type,amount,account_id,destination_account_id,category_id,description,date,notes,updated_at,component,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)',
-            ...args,
-            now
-          );
-        const transactionId =
-          id ?? (await this.db.getFirstAsync<{ id: number }>('SELECT last_insert_rowid() id'))!.id;
-        await this.postTransactionCore(transactionId);
+        savedId = await this.saveTransactionCore(input, id, receipts);
       });
+      return savedId;
     });
   }
+  saveExpenseBatch(inputs: Omit<Transaction, 'id' | 'created_at' | 'updated_at'>[]) {
+    return this.write(async () => {
+      if (!inputs.length || inputs.length > 20 || inputs.some((input) => input.type !== 'expense'))
+        throw new Error('Review between 1 and 20 expenses before saving.');
+      const ids: number[] = [];
+      await this.db.withTransactionAsync(async () => {
+        for (const input of inputs) ids.push(await this.saveTransactionCore(input));
+      });
+      return ids;
+    });
+  }
+  private async saveTransactionCore(
+    input: Omit<Transaction, 'id' | 'created_at' | 'updated_at'>,
+    id?: number,
+    receipts?: Receipt[]
+  ) {
+    if (
+      !['expense', 'income', 'transfer'].includes(input.type) ||
+      !Number.isSafeInteger(input.amount) ||
+      input.amount <= 0 ||
+      input.amount > MAX_MONEY ||
+      !input.description.trim() ||
+      !validDate(input.date)
+    )
+      throw new Error('Enter a positive amount, description and valid date.');
+    const previous = id
+      ? await this.db.getFirstAsync<Transaction>('SELECT * FROM transactions WHERE id=?', id)
+      : null;
+    if (id && (!previous || previous.status === 'void'))
+      throw new Error('Transaction no longer exists.');
+    if (previous?.loan_id || input.loan_id)
+      throw new Error('Manage loan events from the loan details screen.');
+    const role = await this.db.getFirstAsync<{ kind: string; subtype: string }>(
+      'SELECT * FROM account_roles WHERE account_id=?',
+      input.account_id
+    );
+    if (
+      !role ||
+      role.subtype.startsWith('loan_') ||
+      (role.kind === 'liability' && input.type !== 'expense')
+    )
+      throw new Error('Use an asset account, or a credit card for purchases.');
+    const account = await this.db.getFirstAsync<Account>(
+      'SELECT * FROM accounts WHERE id=?',
+      input.account_id
+    );
+    if (!account || (account.archived && previous?.account_id !== account.id))
+      throw new Error('Select an active account.');
+    if (input.type === 'transfer') {
+      const dest = await this.db.getFirstAsync<Account>(
+        'SELECT * FROM accounts WHERE id=?',
+        input.destination_account_id
+      );
+      const destRole = await this.db.getFirstAsync<{ subtype: string }>(
+        'SELECT subtype FROM account_roles WHERE account_id=?',
+        input.destination_account_id
+      );
+      if (destRole?.subtype.startsWith('loan_'))
+        throw new Error('Manage loan principal through the loan screen.');
+      if (
+        !dest ||
+        dest.id === account.id ||
+        (dest.archived && previous?.destination_account_id !== dest.id) ||
+        dest.currency !== account.currency ||
+        input.category_id !== null
+      )
+        throw new Error('Choose a different active destination account.');
+    } else {
+      const category = await this.db.getFirstAsync<Category>(
+        'SELECT * FROM categories WHERE id=?',
+        input.category_id
+      );
+      if (
+        !category ||
+        category.type !== input.type ||
+        (category.archived && previous?.category_id !== category.id) ||
+        input.destination_account_id !== null
+      )
+        throw new Error('Choose a compatible active category.');
+    }
+    await this.checkPrecision('transaction', input.amount, id);
+    const now = new Date().toISOString();
+    const args = [
+      input.type,
+      input.amount,
+      input.account_id,
+      input.destination_account_id,
+      input.category_id,
+      input.description.trim(),
+      input.date,
+      input.notes,
+      now,
+      input.component ?? previous?.component ?? 'standard',
+    ];
+    if (id) await this.reverseTransactionCore(id, 'Transaction edit');
+    if (id)
+      await this.db.runAsync(
+        'UPDATE transactions SET type=?,amount=?,account_id=?,destination_account_id=?,category_id=?,description=?,date=?,notes=?,updated_at=?,component=? WHERE id=?',
+        ...args,
+        id
+      );
+    else
+      await this.db.runAsync(
+        'INSERT INTO transactions(type,amount,account_id,destination_account_id,category_id,description,date,notes,updated_at,component,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)',
+        ...args,
+        now
+      );
+    const transactionId =
+      id ?? (await this.db.getFirstAsync<{ id: number }>('SELECT last_insert_rowid() id'))!.id;
+    await this.postTransactionCore(transactionId);
+    if (receipts !== undefined) await replaceTransactionReceipts(this.db, transactionId, receipts);
+    return transactionId;
+  }
   deleteTransaction(id: number) {
-    return this.write(() =>
-      this.db.withTransactionAsync(async () => {
+    return this.write(async () => {
+      let removed: Receipt[] = [];
+      await this.db.withTransactionAsync(async () => {
         const t = await this.db.getFirstAsync<Transaction>(
           "SELECT * FROM transactions WHERE id=? AND status='posted'",
           id
         );
         if (!t) throw new Error('Transaction no longer exists.');
         if (t.loan_id) throw new Error('Reverse loan payments from the loan details screen.');
+        removed = await transactionReceipts(this.db, id);
         await this.reverseTransactionCore(id, 'Transaction deleted');
         await this.db.runAsync(
           "UPDATE transactions SET status='void',updated_at=? WHERE id=?",
           new Date().toISOString(),
           id
         );
-      })
-    );
+        await this.db.runAsync(
+          'DELETE FROM local_receipts WHERE transaction_id=? AND transaction_created_at=?',
+          id,
+          t.created_at
+        );
+      });
+      return removed;
+    });
   }
   settingsSnapshot() {
     return this.read(async () =>

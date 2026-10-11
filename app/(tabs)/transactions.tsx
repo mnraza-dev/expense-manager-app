@@ -16,6 +16,7 @@ import { localDate } from '../../src/utils/finance';
 import { monthRange } from '../../src/utils/periods';
 import { notify } from '../../src/store/useFeedback';
 import { repo } from '../../src/db/database';
+import { VoiceEntryButton } from '../../src/components/VoiceEntryButton';
 export default function Transactions() {
   const router = useRouter();
   const c = useTheme();
@@ -128,7 +129,11 @@ export default function Transactions() {
     setPage(0);
   };
   return (
-    <Screen title="Transactions" scroll={false} action={() => router.push('/transaction/add')}>
+    <Screen
+      title="Transactions"
+      scroll={false}
+      action={() => router.push('/transaction/add')}
+      headerActions={<VoiceEntryButton compact />}>
       {(header) => (
         <>
           <FlatList

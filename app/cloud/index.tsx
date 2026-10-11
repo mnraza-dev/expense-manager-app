@@ -111,7 +111,8 @@ export default function CloudScreen() {
           Enabling backup or sync uploads your financial records and audit history to your Supabase
           project. The backend operator can read plaintext cloud data. Access uses authenticated
           private records and Storage; this is not end-to-end encryption. Local exports and recovery
-          never require a subscription.
+          never require a subscription. Receipt attachments remain on this device and are excluded
+          from cloud backups and sync.
         </Label>
       </Card>
       {error && <Label>{error}</Label>}

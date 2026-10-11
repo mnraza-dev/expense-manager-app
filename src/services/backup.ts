@@ -42,7 +42,7 @@ export type Backup = {
 export const MAX_BACKUP_BYTES = 20000000;
 export function serializeBackup(tables: Dataset): string {
   const payload: BackupPayload = {
-    appVersion: '1.0.0',
+    appVersion: '1.1.0',
     schemaVersion: migrations.length,
     createdAt: new Date().toISOString(),
     currency: 'INR',

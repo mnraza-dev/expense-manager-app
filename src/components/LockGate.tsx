@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { AppState, View, ActivityIndicator, Platform } from 'react-native';
+import { AppState, View, ActivityIndicator, Platform, StyleSheet } from 'react-native';
 import * as ScreenCapture from 'expo-screen-capture';
 import { Button, Field, Label, showError, useTheme } from './ui';
 import { lockCore, useLock } from '../security/lock';
@@ -60,46 +60,62 @@ export function LockGate({ children }: { children: ReactNode }) {
       setBusy(false);
     }
   };
-  if (ready && !locked && !privateScreen) return children;
+  const hidden = !ready || locked || privateScreen || Boolean(error);
   return (
-    <View
-      style={{ flex: 1, backgroundColor: c.bg, justifyContent: 'center', padding: 30, gap: 16 }}>
-      <Label>Settler</Label>
-      {error ? (
-        <>
-          <Label>{error}</Label>
-          <Button title="Retry secure storage" onPress={() => void load()} />
-        </>
-      ) : !ready ? (
-        <ActivityIndicator color={c.accent} />
-      ) : privateScreen ? (
-        <Label>Your financial information is hidden.</Label>
-      ) : (
-        <>
-          <Label>Unlock your financial records</Label>
-          <Field
-            label="App passcode"
-            value={passcode}
-            onChangeText={setPasscode}
-            secureTextEntry
-            keyboardType="number-pad"
-            maxLength={12}
-            autoComplete="off"
-          />
-          <Button title="Unlock" busy={busy} onPress={() => void attempt()} />
-          {lockCore.record?.biometric && (
-            <Button
-              secondary
-              title="Unlock with biometrics"
-              busy={busy}
-              onPress={() => void attempt(true)}
-            />
+    <View style={{ flex: 1, backgroundColor: c.bg }}>
+      {ready && !error && (
+        <View
+          style={{ flex: 1, opacity: hidden ? 0 : 1 }}
+          pointerEvents={hidden ? 'none' : 'auto'}
+          accessibilityElementsHidden={hidden}
+          importantForAccessibility={hidden ? 'no-hide-descendants' : 'auto'}>
+          {children}
+        </View>
+      )}
+      {hidden && (
+        <View
+          style={[
+            StyleSheet.absoluteFill,
+            { backgroundColor: c.bg, justifyContent: 'center', padding: 30, gap: 16 },
+          ]}>
+          <Label>Settler</Label>
+          {error ? (
+            <>
+              <Label>{error}</Label>
+              <Button title="Retry secure storage" onPress={() => void load()} />
+            </>
+          ) : !ready ? (
+            <ActivityIndicator color={c.accent} />
+          ) : privateScreen ? (
+            <Label>Your financial information is hidden.</Label>
+          ) : (
+            <>
+              <Label>Unlock your financial records</Label>
+              <Field
+                label="App passcode"
+                value={passcode}
+                onChangeText={setPasscode}
+                secureTextEntry
+                keyboardType="number-pad"
+                maxLength={12}
+                autoComplete="off"
+              />
+              <Button title="Unlock" busy={busy} onPress={() => void attempt()} />
+              {lockCore.record?.biometric && (
+                <Button
+                  secondary
+                  title="Unlock with biometrics"
+                  busy={busy}
+                  onPress={() => void attempt(true)}
+                />
+              )}
+              <Label small>
+                Use your app passcode if biometrics are unavailable. Forgotten passcodes cannot be
+                reset here; keep an external backup.
+              </Label>
+            </>
           )}
-          <Label small>
-            Use your app passcode if biometrics are unavailable. Forgotten passcodes cannot be reset
-            here; keep an external backup.
-          </Label>
-        </>
+        </View>
       )}
     </View>
   );

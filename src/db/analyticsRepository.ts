@@ -1,4 +1,5 @@
 import type { DB } from './adapter';
+import { receiptCountSQL } from './receiptSchema';
 import type {
   Budget,
   BudgetAllocation,
@@ -256,7 +257,7 @@ export class AnalyticsRepository {
         ...params
       );
       const rows = await this.db.getAllAsync<Transaction>(
-        `SELECT t.*${join}${where} ORDER BY ${orders[filters.sort ?? 'newest']} LIMIT ? OFFSET ?`,
+        `SELECT t.*,${receiptCountSQL}${join}${where} ORDER BY ${orders[filters.sort ?? 'newest']} LIMIT ? OFFSET ?`,
         ...params,
         limit,
         offset
