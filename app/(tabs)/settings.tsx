@@ -50,6 +50,11 @@ export default function Settings() {
         title="Passcode & biometric app lock"
         onPress={() => router.push('/security')}
       />
+      <Button
+        secondary
+        title="Optional cloud, sync & subscriptions"
+        onPress={() => router.push('/cloud')}
+      />
       <Card>
         <Label>Local database</Label>
         <Label small>SQLite · pocketbook.db · schema v{migrations.length}</Label>

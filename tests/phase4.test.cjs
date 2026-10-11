@@ -160,7 +160,7 @@ test('complete backup round trip preserves cards, loans, budgets, occurrence his
   });
   const original = await r.backup(),
     backup = validateBackup(original);
-  assert.equal(backup.payload.schemaVersion, 3);
+  assert.equal(backup.payload.schemaVersion, 4);
   assert.ok(backup.payload.tables.ledger_lines.length);
   assert.equal(Object.hasOwn(backup.payload.tables, 'lock'), false);
   const stage = new DatabaseSync(':memory:');
@@ -290,7 +290,7 @@ test('passcode verifier, throttling, change and disable persist without plaintex
   assert.equal(shouldRelock(1000, 1000, 0), true);
 });
 test('each supported schema upgrades without removing records; future versions fail closed', async () => {
-  for (let version = 1; version <= 3; version++) {
+  for (let version = 1; version <= 4; version++) {
     const n = new DatabaseSync(':memory:');
     n.exec('CREATE TABLE schema_migrations(version INTEGER PRIMARY KEY,applied_at TEXT NOT NULL)');
     for (let i = 0; i < version; i++) {
@@ -307,7 +307,7 @@ test('each supported schema upgrades without removing records; future versions f
     });
     await repo.initialize();
     assert.equal((await repo.snapshot()).accounts[0].ledger_balance, 123);
-    assert.equal(n.prepare('SELECT count(*) n FROM schema_migrations').get().n, 3);
+    assert.equal(n.prepare('SELECT count(*) n FROM schema_migrations').get().n, 4);
     n.prepare('INSERT INTO schema_migrations VALUES (?,?)').run(99, 'future');
     await assert.rejects(repo.initialize(), /Unsupported/);
     assert.equal((await repo.snapshot()).accounts[0].name, 'Preserved');

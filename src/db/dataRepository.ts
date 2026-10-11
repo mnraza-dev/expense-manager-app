@@ -278,7 +278,9 @@ export class DataRepository extends AdvancedRepository {
         await this.db.withTransactionAsync(async () => {
           for (const table of [...TABLES].reverse()) await this.db.execAsync(`DROP TABLE ${table}`);
           await this.db.execAsync('DROP VIEW active_transactions; DELETE FROM schema_migrations;');
-          await this.db.execAsync("UPDATE sync_config SET owner=NULL,enabled=0,checkpoint=0,last_success=NULL; DELETE FROM sync_outbox;DELETE FROM sync_mappings;DELETE FROM sync_remote;DELETE FROM sync_dirty;DELETE FROM sync_conflicts;");
+          await this.db.execAsync(
+            'UPDATE sync_config SET owner=NULL,enabled=0,checkpoint=0,last_success=NULL; DELETE FROM sync_outbox;DELETE FROM sync_mappings;DELETE FROM sync_remote;DELETE FROM sync_dirty;DELETE FROM sync_conflicts;'
+          );
           for (let i = 0; i < migrations.length; i++) {
             await this.db.execAsync(migrations[i]);
             await this.db.runAsync(

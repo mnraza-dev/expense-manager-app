@@ -24,3 +24,9 @@ android
 .metro-health-check*
 .test-build/
 .install-tmp/cache/7a90cdb7bde7a8d6.npm
+
+# Local cloud credentials
+.env
+.env.local
+.env.*.local
+supabase/.temp/

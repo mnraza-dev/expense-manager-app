@@ -72,7 +72,7 @@ export function validateBackup(text: string): Backup {
   if (
     b?.format !== 'pocketbook-backup' ||
     b.formatVersion !== 1 ||
-    ![3,migrations.length].includes(b.payload?.schemaVersion)
+    ![3, migrations.length].includes(b.payload?.schemaVersion)
   )
     throw new Error(
       'Unsupported backup format or database version. Open it with its original app version and re-export.'

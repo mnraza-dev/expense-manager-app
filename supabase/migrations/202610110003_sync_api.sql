@@ -1,6 +1,7 @@
 create function public.validate_cloud_graph(who uuid) returns void language plpgsql security definer set search_path='' as $$
 declare r record; s record; field record; v jsonb; target text; n numeric; d numeric;c numeric; tx record;j record; debit_target uuid;credit_target uuid;
 begin
+ if (select count(*) from public.cloud_records where owner_id=who and not deleted)>10000 then raise exception 'dataset_size_limit';end if;
  for r in select * from public.cloud_records where owner_id=who and not deleted loop
   select * into s from public.cloud_schema where entity=r.entity;
   if not found or jsonb_typeof(r.data)<>'object' or (select count(*) from jsonb_object_keys(r.data))<>(select count(*) from jsonb_object_keys(s.columns)) then raise exception 'invalid_schema';end if;
@@ -50,21 +51,26 @@ end $$;
 revoke all on function public.validate_cloud_graph(uuid) from public,anon,authenticated;
 
 create function public.apply_sync(operation jsonb) returns jsonb language plpgsql security definer set search_path='' as $$
-declare who uuid=auth.uid(); op uuid; fingerprint text; receipt jsonb; change jsonb; old public.cloud_records; head bigint; conflict uuid; reason text; result jsonb;
+declare who uuid=auth.uid(); op uuid; op_fingerprint text; receipt jsonb; change jsonb; old public.cloud_records; head bigint; conflict uuid; reason text; result jsonb;
 begin
  if who is null or not public.cloud_allowed('multi_device_sync') then raise exception 'cloud_access_required';end if;
+ if (select count(distinct value->>'id') from jsonb_array_elements(operation->'changes'))<>jsonb_array_length(operation->'changes') then raise exception 'duplicate_operation_records';end if;
  if operation->>'schema_version'<>'4' or jsonb_typeof(operation->'changes')<>'array' or jsonb_array_length(operation->'changes') not between 1 and 10000 or octet_length(operation::text)>20000000 then raise exception 'unsupported_operation';end if;
- op=(operation->>'id')::uuid;fingerprint=encode(sha256(convert_to(operation::text,'UTF8')),'hex');
+ op=(operation->>'id')::uuid;op_fingerprint=encode(sha256(convert_to(operation::text,'UTF8')),'hex');
  insert into public.cloud_heads(owner_id) values(who) on conflict do nothing;
  select revision into head from public.cloud_heads where owner_id=who for update;
- select o.result into receipt from public.cloud_operations o where owner_id=who and id=op and o.fingerprint=fingerprint;
+ select o.result into receipt from public.cloud_operations o where owner_id=who and id=op and o.fingerprint=op_fingerprint;
  if found then return receipt;end if;
  if exists(select 1 from public.cloud_operations where owner_id=who and id=op) then raise exception 'idempotency_payload_mismatch';end if;
  begin
   for change in select value from jsonb_array_elements(operation->'changes') loop
    select * into old from public.cloud_records where owner_id=who and id=(change->>'id')::uuid;
-   if coalesce(old.revision,0)<>(change->>'expected_revision')::bigint or (old.id is not null and old.entity<>change->>'entity') then raise exception 'revision_conflict';end if;
+   if (coalesce(old.revision,0)<>(change->>'expected_revision')::bigint and not (old.id is not null and old.data=change->'data' and old.deleted=(change->>'deleted')::boolean)) or (old.id is not null and old.entity<>change->>'entity') then raise exception 'revision_conflict';end if;
+   if old.deleted and not (change->>'deleted')::boolean then raise exception 'deleted_record_cannot_resurrect';end if;
    if old.id is not null and old.entity in ('ledger_journals','ledger_lines','transaction_journals') and ((change->>'deleted')::boolean or old.data is distinct from change->'data') then raise exception 'immutable_accounting_history';end if;
+  end loop;
+  for change in select value from jsonb_array_elements(operation->'changes') loop
+   select * into old from public.cloud_records where owner_id=who and id=(change->>'id')::uuid;
    insert into public.cloud_records(owner_id,id,entity,data,revision,deleted) values(who,(change->>'id')::uuid,change->>'entity',coalesce(nullif(change->'data','null'::jsonb),old.data),head+1,(change->>'deleted')::boolean) on conflict(owner_id,id) do update set data=excluded.data,revision=excluded.revision,deleted=excluded.deleted,updated_at=now();
   end loop;
   perform public.validate_cloud_graph(who);
@@ -75,7 +81,7 @@ begin
   insert into public.cloud_conflicts(owner_id,operation_id,proposal,current_records,reason) values(who,op,operation,coalesce((select jsonb_agg(to_jsonb(r)) from public.cloud_records r where owner_id=who and id in(select (value->>'id')::uuid from jsonb_array_elements(operation->'changes'))),'[]'::jsonb),reason) returning id into conflict;
   result=jsonb_build_object('status','conflict','conflict_id',conflict,'reason',reason,'revision',head);
  end;
- insert into public.cloud_operations(owner_id,id,fingerprint,result) values(who,op,fingerprint,result);
+ insert into public.cloud_operations(owner_id,id,fingerprint,result) values(who,op,op_fingerprint,result);
  return result;
 end $$;
 revoke all on function public.apply_sync(jsonb) from public,anon;
@@ -84,7 +90,7 @@ grant execute on function public.apply_sync(jsonb) to authenticated;
 create function public.cloud_snapshot(after_revision bigint default 0) returns jsonb language plpgsql security definer set search_path='' as $$
 declare who uuid=auth.uid();begin
  if who is null then raise exception 'authentication_required';end if;
- return jsonb_build_object('schema_version',4,'revision',coalesce((select revision from public.cloud_heads where owner_id=who),0),'record_count',(select count(*) from public.cloud_records where owner_id=who and not deleted),'records',coalesce((select jsonb_agg(jsonb_build_object('id',id,'entity',entity,'data',data,'revision',revision,'deleted',deleted)) from public.cloud_records where owner_id=who and revision>after_revision),'[]'::jsonb));
+ return jsonb_build_object('owner_id',who,'schema_version',4,'revision',coalesce((select revision from public.cloud_heads where owner_id=who),0),'record_count',(select count(*) from public.cloud_records where owner_id=who and not deleted),'records',coalesce((select jsonb_agg(jsonb_build_object('id',id,'entity',entity,'data',data,'revision',revision,'deleted',deleted)) from public.cloud_records where owner_id=who and revision>after_revision),'[]'::jsonb));
 end $$;
 revoke all on function public.cloud_snapshot(bigint) from public,anon;
 grant execute on function public.cloud_snapshot(bigint) to authenticated;

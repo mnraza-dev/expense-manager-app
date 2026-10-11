@@ -1,3 +1,6 @@
+import { startCloudAuth, useCloudAuth } from '../src/cloud/auth';
+import { startSyncObservers } from '../src/cloud/sync';
+import { billingUser } from '../src/cloud/entitlements';
 import { useEffect } from 'react';
 import { DataOperationGate } from '../src/components/DataOperationGate';
 import { shareMigrationRecovery } from '../src/services/files';
@@ -14,6 +17,18 @@ export default function RootLayout() {
   useEffect(() => {
     void initialize();
   }, [initialize]);
+  useEffect(() => {
+    const stop = startCloudAuth();
+    return stop;
+  }, []);
+  useEffect(() => {
+    if (!ready) return;
+    return startSyncObservers();
+  }, [ready]);
+  const cloudOwner = useCloudAuth((s) => s.session?.user.id ?? null);
+  useEffect(() => {
+    void billingUser(cloudOwner).catch(() => {});
+  }, [cloudOwner]);
   return (
     <SafeAreaProvider>
       <StatusBar style={c.bg === '#101B20' ? 'light' : 'dark'} />
