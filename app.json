@@ -4,10 +4,7 @@
     "slug": "expense-manager",
     "version": "1.0.0",
     "scheme": "pocketbook",
-    "platforms": [
-      "ios",
-      "android"
-    ],
+    "platforms": ["ios", "android"],
     "web": {
       "bundler": "metro",
       "output": "static",
@@ -50,9 +47,7 @@
       "resizeMode": "contain",
       "backgroundColor": "#F3F5F3"
     },
-    "assetBundlePatterns": [
-      "**/*"
-    ],
+    "assetBundlePatterns": ["**/*"],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.razatechlabs.pocketbook",

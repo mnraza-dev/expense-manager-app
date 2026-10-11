@@ -71,8 +71,8 @@ export function OnboardingScene({ page }: { page: number }) {
     opacity: reveal.value,
     transform: [
       { perspective: 800 },
-      { translateY: -10 * float.value },
-      { rotateY: `${-14 + 7 * float.value}deg` },
+      { translateY: -10 * float.value - 7 * tap.value },
+      { rotateY: `${-14 + 7 * float.value + 8 * tap.value}deg` },
       { rotateZ: '8deg' },
     ],
   }));
@@ -114,79 +114,144 @@ export function OnboardingScene({ page }: { page: number }) {
             <View style={[scene.halo, { backgroundColor: c.soft }]} />
             <Animated.View style={[scene.shadow, { backgroundColor: c.text }, shadow]} />
             {page === 1 && (
-              <Animated.View
-                style={[
-                  scene.receipt,
-                  { backgroundColor: c.card, borderColor: c.border },
-                  receipt,
-                ]}>
-                <View
-                  style={{
-                    width: 36,
-                    height: 5,
-                    backgroundColor: c.accent,
-                    borderRadius: 3,
-                    marginBottom: 12,
-                  }}
-                />
-                {[64, 86, 52].map((w) => (
+              <>
+                <Animated.View style={[scene.budgetBoard, receipt]}>
+                  <View style={scene.boardDepth} />
+                  <LinearGradient colors={[c.card, c.soft]} style={scene.boardFace}>
+                    <View
+                      style={{ width: 72, height: 7, borderRadius: 4, backgroundColor: c.accent }}
+                    />
+                    <View
+                      style={{
+                        width: 116,
+                        height: 4,
+                        marginTop: 9,
+                        borderRadius: 3,
+                        backgroundColor: c.border,
+                      }}
+                    />
+                    <View style={scene.barGroup}>
+                      {[44, 76, 58, 92].map((height, index) => (
+                        <View
+                          key={height}
+                          style={{ height, width: 27, borderRadius: 7, overflow: 'hidden' }}>
+                          <LinearGradient
+                            colors={index === 3 ? ['#E9D39E', '#A38B54'] : ['#92CAB0', '#316B53']}
+                            style={{ flex: 1 }}
+                          />
+                          <View
+                            style={{
+                              position: 'absolute',
+                              width: 5,
+                              right: 0,
+                              top: 0,
+                              bottom: 0,
+                              backgroundColor: 'rgba(0,0,0,0.12)',
+                            }}
+                          />
+                        </View>
+                      ))}
+                    </View>
+                    <View style={{ height: 1, backgroundColor: c.border }} />
+                    <View
+                      style={{
+                        height: 7,
+                        width: 145,
+                        borderRadius: 4,
+                        backgroundColor: c.border,
+                        marginTop: 15,
+                      }}>
+                      <Animated.View
+                        style={[
+                          { width: 145, height: 7, borderRadius: 4, backgroundColor: c.accent },
+                          progress,
+                        ]}
+                      />
+                    </View>
+                  </LinearGradient>
+                </Animated.View>
+                <Animated.View
+                  style={[
+                    scene.receiptSlip,
+                    { backgroundColor: c.card, borderColor: c.border },
+                    satellite,
+                  ]}>
                   <View
-                    key={w}
                     style={{
-                      height: 5,
-                      width: w,
-                      backgroundColor: c.border,
+                      width: 27,
+                      height: 4,
                       borderRadius: 3,
-                      marginVertical: 5,
+                      backgroundColor: c.accent,
+                      marginBottom: 8,
                     }}
                   />
-                ))}
-                <View
-                  style={{
-                    marginTop: 14,
-                    height: 9,
-                    width: 88,
-                    borderRadius: 5,
-                    backgroundColor: c.soft,
-                    overflow: 'hidden',
-                  }}>
-                  <Animated.View
-                    style={[
-                      { height: 9, width: 88, borderRadius: 5, backgroundColor: c.accent },
-                      progress,
-                    ]}
-                  />
-                </View>
-                <Check size={18} color={c.accent} style={{ marginTop: 12 }} />
+                  {[43, 54, 37].map((w) => (
+                    <View
+                      key={w}
+                      style={{
+                        width: w,
+                        height: 3,
+                        borderRadius: 2,
+                        backgroundColor: c.border,
+                        marginVertical: 4,
+                      }}
+                    />
+                  ))}
+                  <Check size={18} color={c.accent} style={{ marginTop: 8 }} />
+                </Animated.View>
+              </>
+            )}
+            {page === 0 && (
+              <Animated.View style={[scene.walletAssembly, wallet]}>
+                <View style={[scene.walletBack, { backgroundColor: '#102F28' }]} />
+                <Animated.View style={[scene.bankCard, card]}>
+                  <LinearGradient colors={['#B8DAC7', '#72A98C']} style={scene.cardFill}>
+                    <View style={scene.chip} />
+                    <View style={scene.cardLine} />
+                    <View style={[scene.cardLine, { width: 48, opacity: 0.35 }]} />
+                  </LinearGradient>
+                </Animated.View>
+                <View style={[scene.secondCard, { backgroundColor: '#E4CE9F' }]} />
+                <LinearGradient
+                  colors={[c.heroEnd, c.hero]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 0.7, y: 1 }}
+                  style={scene.walletFront}>
+                  <View style={scene.stitch} />
+                  <View style={scene.brand}>
+                    <View style={scene.brandStem} />
+                    <View style={scene.brandLoop} />
+                  </View>
+                  <View style={scene.seam} />
+                </LinearGradient>
+                <LinearGradient colors={['#4C8068', '#214F40']} style={scene.clasp}>
+                  <View style={scene.rivet} />
+                </LinearGradient>
+                <View style={scene.bottomEdge} />
               </Animated.View>
             )}
-            <Animated.View style={[scene.walletAssembly, wallet]}>
-              <View style={[scene.walletBack, { backgroundColor: '#102F28' }]} />
-              <Animated.View style={[scene.bankCard, card]}>
-                <LinearGradient colors={['#B8DAC7', '#72A98C']} style={scene.cardFill}>
-                  <View style={scene.chip} />
-                  <View style={scene.cardLine} />
-                  <View style={[scene.cardLine, { width: 48, opacity: 0.35 }]} />
+            {page === 2 && (
+              <Animated.View style={[scene.vault, wallet]}>
+                <View style={scene.vaultDepth} />
+                <LinearGradient
+                  colors={['#588F78', '#173D32']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={scene.vaultBody}>
+                  <View style={scene.vaultDoor}>
+                    <View style={[scene.hinge, { top: 23 }]} />
+                    <View style={[scene.hinge, { bottom: 23 }]} />
+                    <View style={scene.dial}>
+                      <View style={scene.dialInner}>
+                        <LockKeyhole size={32} color="#F2E4C3" />
+                      </View>
+                    </View>
+                    <View style={scene.statusLight} />
+                  </View>
                 </LinearGradient>
+                <View style={scene.vaultFeet} />
               </Animated.View>
-              <View style={[scene.secondCard, { backgroundColor: '#E4CE9F' }]} />
-              <LinearGradient
-                colors={[c.heroEnd, c.hero]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 0.7, y: 1 }}
-                style={scene.walletFront}>
-                <View style={scene.stitch} />
-                <View style={scene.brand}>
-                  <View style={scene.brandStem} />
-                  <View style={scene.brandLoop} />
-                </View>
-                <View style={scene.seam} />
-              </LinearGradient>
-              <LinearGradient colors={['#4C8068', '#214F40']} style={scene.clasp}>
-                <View style={scene.rivet} />
-              </LinearGradient>
-              <View style={scene.bottomEdge} />
-            </Animated.View>
+            )}
             <Animated.View
               style={[scene.badge, { backgroundColor: c.card, borderColor: c.border }, satellite]}>
               {page === 2 ? (
@@ -221,6 +286,117 @@ export function OnboardingScene({ page }: { page: number }) {
   );
 }
 const scene = StyleSheet.create({
+  budgetBoard: { position: 'absolute', width: 198, height: 206, left: 55, top: 29 },
+  boardDepth: {
+    position: 'absolute',
+    width: 198,
+    height: 200,
+    left: 6,
+    top: 6,
+    backgroundColor: '#477561',
+    borderRadius: 21,
+  },
+  boardFace: {
+    width: 198,
+    height: 200,
+    borderRadius: 20,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: '#88B09A',
+  },
+  barGroup: {
+    height: 99,
+    flexDirection: 'row',
+    gap: 13,
+    alignItems: 'flex-end',
+    marginTop: 10,
+    paddingBottom: 3,
+  },
+  receiptSlip: {
+    position: 'absolute',
+    left: 14,
+    top: 143,
+    width: 81,
+    height: 104,
+    borderWidth: 1,
+    borderRadius: 10,
+    padding: 12,
+  },
+  vault: { position: 'absolute', width: 197, height: 177, left: 58, top: 69 },
+  vaultDepth: {
+    position: 'absolute',
+    width: 195,
+    height: 160,
+    borderRadius: 24,
+    backgroundColor: '#102D26',
+    top: 10,
+    left: 9,
+  },
+  vaultBody: {
+    width: 195,
+    height: 160,
+    borderRadius: 23,
+    padding: 13,
+    borderWidth: 1,
+    borderColor: '#91B9A2',
+  },
+  vaultDoor: {
+    flex: 1,
+    borderRadius: 17,
+    borderWidth: 2,
+    borderColor: '#9ABEAA',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#285A48',
+  },
+  hinge: {
+    position: 'absolute',
+    left: -8,
+    width: 15,
+    height: 24,
+    borderRadius: 5,
+    backgroundColor: '#C5DCCD',
+    borderWidth: 1,
+    borderColor: '#83A28C',
+  },
+  dial: {
+    width: 73,
+    height: 73,
+    borderRadius: 38,
+    borderWidth: 6,
+    borderColor: '#CBB681',
+    backgroundColor: '#EBDAAF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dialInner: {
+    width: 52,
+    height: 52,
+    borderRadius: 27,
+    backgroundColor: '#416E58',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#8DAD93',
+  },
+  statusLight: {
+    position: 'absolute',
+    right: 12,
+    top: 10,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#B1E6B8',
+  },
+  vaultFeet: {
+    position: 'absolute',
+    bottom: 8,
+    left: 20,
+    right: 9,
+    height: 10,
+    borderRadius: 4,
+    backgroundColor: '#0F2B23',
+  },
   halo: { position: 'absolute', width: 238, height: 238, borderRadius: 119, left: 41, top: 7 },
   shadow: { position: 'absolute', width: 190, height: 20, borderRadius: 100, left: 67, bottom: 18 },
   walletAssembly: { position: 'absolute', width: 218, height: 164, left: 47, top: 67 },
@@ -340,16 +516,6 @@ const scene = StyleSheet.create({
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  receipt: {
-    position: 'absolute',
-    top: 8,
-    right: 12,
-    width: 114,
-    height: 151,
-    borderRadius: 14,
-    borderWidth: 1,
-    padding: 13,
   },
   cloud: {
     position: 'absolute',

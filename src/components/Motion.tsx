@@ -34,10 +34,15 @@ export function MotionPressable({
   style,
   onPressIn,
   onPressOut,
+  depth = false,
   ...props
-}: PressableProps & { style?: StyleProp<ViewStyle> }) {
+}: PressableProps & { style?: StyleProp<ViewStyle>; depth?: boolean }) {
   const scale = useSharedValue(1);
-  const motion = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+  const motion = useAnimatedStyle(() => ({
+    transform: depth
+      ? [{ perspective: 700 }, { rotateX: `${(1 - scale.value) * 100}deg` }, { scale: scale.value }]
+      : [{ scale: scale.value }],
+  }));
   return (
     <AnimatedPressable
       {...props}

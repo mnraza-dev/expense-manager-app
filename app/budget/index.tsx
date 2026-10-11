@@ -45,6 +45,7 @@ export default function Budgets() {
           {p.budget ? (
             <>
               <BudgetProgressCard
+                art
                 name={p.budget.name}
                 limit={p.budget.total_limit_minor}
                 spent={p.spent}
@@ -99,6 +100,7 @@ export default function Budgets() {
           ) : (
             <>
               <Empty
+                art="chart"
                 title="No budget for this month"
                 detail={`You've spent ${money(p.spent)}. Create a monthly limit to see remaining funds and progress.`}
               />

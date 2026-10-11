@@ -15,6 +15,7 @@ import type {
   Transaction,
   TransactionFilters,
   TransactionPage,
+  TransactionDay,
 } from '../types';
 import { MAX_MONEY, validDate } from '../utils/finance';
 import { reportMetrics } from '../utils/reports';
@@ -248,6 +249,39 @@ export class AnalyticsRepository {
       limit > 100
     )
       throw new Error('Invalid page size.');
+    const { join, where, params } = this.transactionQuery(filters);
+    return this.read(async () => {
+      const count = await this.db.getFirstAsync<{ count: number }>(
+        `SELECT COUNT(*) count${join}${where}`,
+        ...params
+      );
+      const rows = await this.db.getAllAsync<Transaction>(
+        `SELECT t.*${join}${where} ORDER BY ${orders[filters.sort ?? 'newest']} LIMIT ? OFFSET ?`,
+        ...params,
+        limit,
+        offset
+      );
+      return { rows, count: count?.count ?? 0 };
+    });
+  }
+  transactionCalendar(month: string, filters: TransactionFilters = {}): Promise<TransactionDay[]> {
+    const range = monthRange(month);
+    const { join, where, params } = this.transactionQuery(filters);
+    return this.read(() =>
+      this.db.getAllAsync<TransactionDay>(
+        `SELECT t.date,
+          SUM(CASE WHEN t.type='income' THEN t.amount ELSE 0 END) income,
+          SUM(CASE WHEN t.type='expense' THEN t.amount ELSE 0 END) expense,
+          SUM(CASE WHEN t.type='transfer' THEN 1 ELSE 0 END) transfers,
+          COUNT(*) count${join}${where}${where ? ' AND' : ' WHERE'} t.date BETWEEN ? AND ?
+          GROUP BY t.date ORDER BY t.date`,
+        ...params,
+        range.start,
+        range.end
+      )
+    );
+  }
+  private transactionQuery(filters: TransactionFilters) {
     if (
       (filters.start && !validDate(filters.start)) ||
       (filters.end && !validDate(filters.end)) ||
@@ -310,18 +344,6 @@ export class AnalyticsRepository {
     const join =
       ' FROM active_transactions t JOIN accounts a ON a.id=t.account_id LEFT JOIN accounts d ON d.id=t.destination_account_id LEFT JOIN categories c ON c.id=t.category_id';
     const where = clauses.length ? ` WHERE ${clauses.join(' AND ')}` : '';
-    return this.read(async () => {
-      const count = await this.db.getFirstAsync<{ count: number }>(
-        `SELECT COUNT(*) count${join}${where}`,
-        ...params
-      );
-      const rows = await this.db.getAllAsync<Transaction>(
-        `SELECT t.*${join}${where} ORDER BY ${orders[filters.sort ?? 'newest']} LIMIT ? OFFSET ?`,
-        ...params,
-        limit,
-        offset
-      );
-      return { rows, count: count?.count ?? 0 };
-    });
+    return { join, where, params };
   }
 }

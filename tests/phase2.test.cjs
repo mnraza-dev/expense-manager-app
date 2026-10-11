@@ -12,6 +12,7 @@ const {
   calendarDays,
   presetRange,
   fillPeriods,
+  monthCalendar,
 } = require('../.test-build/utils/periods.js');
 function adapter(n) {
   return {
@@ -75,6 +76,114 @@ const budget = (food, grocery) => ({
     { category_id: food, limit_minor: 4000 },
     { category_id: grocery, limit_minor: 3000 },
   ],
+});
+
+test('calendar weeks use local dates, Monday alignment and leap-year boundaries', () => {
+  const february = monthCalendar('2024-02');
+  assert.deepEqual(february[0], [
+    null,
+    null,
+    null,
+    '2024-02-01',
+    '2024-02-02',
+    '2024-02-03',
+    '2024-02-04',
+  ]);
+  assert.equal(february.flat().filter(Boolean).length, 29);
+  assert.equal(february.flat().filter(Boolean).at(-1), '2024-02-29');
+  assert.equal(monthCalendar('2021-02').length, 4);
+  assert.equal(monthCalendar('2026-03').length, 6);
+  assert.equal(monthCalendar('2026-03')[0][6], '2026-03-01');
+  assert.throws(() => monthCalendar('2026-13'), /valid month/);
+});
+
+test('calendar totals cover all pages, exclude transfers from cash flow and update after edits and voids', async () => {
+  const { n, r, entry } = await fixture();
+  try {
+    for (let index = 0; index < 60; index++) {
+      await r.saveTransaction(
+        entry(
+          'expense',
+          100 + index,
+          index % 2 ? '2026-10-31' : '2026-10-01',
+          undefined,
+          `Calendar ${index}`
+        )
+      );
+    }
+    await r.saveTransaction(entry('income', 9000));
+    await r.saveTransaction(entry('transfer', 3000));
+    await r.saveTransaction(entry('expense', 800, '2026-09-30'));
+    await r.saveTransaction(entry('income', 500, '2026-11-01'));
+    const days = await r.transactionCalendar('2026-10');
+    assert.equal(days.length, 2);
+    assert.equal(
+      days.reduce((sum, day) => sum + day.count, 0),
+      62
+    );
+    assert.equal(
+      days.reduce((sum, day) => sum + day.expense, 0),
+      7770
+    );
+    assert.equal(
+      days.reduce((sum, day) => sum + day.income, 0),
+      9000
+    );
+    assert.equal(days[0].transfers, 1);
+    assert.equal(
+      (await r.searchTransactions({ start: '2026-10-01', end: '2026-10-31' })).rows.length,
+      50
+    );
+    const saved = (await r.searchTransactions({ query: 'Calendar 0' })).rows[0];
+    await r.saveTransaction(
+      entry('expense', 250, '2026-11-01', undefined, 'Moved calendar entry'),
+      saved.id
+    );
+    assert.equal(
+      (await r.transactionCalendar('2026-10')).reduce((sum, day) => sum + day.expense, 0),
+      7670
+    );
+    await r.deleteTransaction(saved.id);
+    assert.equal(
+      (await r.transactionCalendar('2026-11')).reduce((sum, day) => sum + day.expense, 0),
+      0
+    );
+  } finally {
+    n.close();
+  }
+});
+
+test('calendar markers share list search, account, category, amount and date filters', async () => {
+  const { n, r, entry, bank, cash, food, grocery } = await fixture();
+  try {
+    await r.saveTransaction(entry('expense', 100, '2026-10-01', food, '100% lunch'));
+    await r.saveTransaction(entry('expense', 200, '2026-10-02', grocery, 'Groceries'));
+    await r.saveTransaction(entry('income', 9000));
+    await r.saveTransaction(entry('transfer', 300));
+    for (const filters of [
+      { query: '%' },
+      { account_id: bank, type: 'expense', min_amount: 150, max_amount: 250 },
+      { account_id: cash },
+      { category_id: food },
+      { start: '2026-10-02', end: '2026-10-31' },
+    ]) {
+      const list = await r.searchTransactions({
+        ...filters,
+        start: filters.start ?? '2026-10-01',
+        end: filters.end ?? '2026-10-31',
+      });
+      const days = await r.transactionCalendar('2026-10', filters);
+      assert.equal(
+        days.reduce((sum, day) => sum + day.count, 0),
+        list.count
+      );
+    }
+    assert.deepEqual(await r.transactionCalendar('2026-10', { start: '2026-11-01' }), []);
+    assert.throws(() => r.transactionCalendar('2026-10', { start: '2026-02-29' }), /date range/);
+    assert.throws(() => r.transactionCalendar('2026-10', { min_amount: -1 }), /amount/);
+  } finally {
+    n.close();
+  }
 });
 test('budget status below, at, above, zero limits and configurable warning', () => {
   assert.equal(budgetStatus(100, 79).status, 'normal');

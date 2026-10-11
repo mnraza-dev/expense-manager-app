@@ -2,15 +2,20 @@ import React, { useState } from 'react';
 import { useRouter } from 'expo-router';
 import { useFinance } from '../../src/store/useFinance';
 import { balance } from '../../src/utils/finance';
-import { Button, Choices, Empty, Label, Screen } from '../../src/components/ui';
+import { Button, Choices, Empty, Label, Screen, useTheme } from '../../src/components/ui';
+import { FinanceArt } from '../../src/components/Depth';
 import { AccountRow } from '../../src/components/AccountRow';
 export default function Accounts() {
   const router = useRouter();
+  const c = useTheme();
   const { accounts, transactions } = useFinance();
   const [mode, setMode] = useState('active');
   const rows = accounts.filter((a) => Boolean(a.archived) === (mode === 'archived'));
   return (
-    <Screen title="Accounts" action={() => router.push('/account/add')}>
+    <Screen
+      title="Accounts"
+      headerActions={<FinanceArt kind="card" colors={c} size={48} />}
+      action={() => router.push('/account/add')}>
       <Choices
         label="Show"
         value={mode}
@@ -33,6 +38,7 @@ export default function Accounts() {
       })}
       {!rows.length && (
         <Empty
+          art="wallet"
           title={mode === 'active' ? 'No accounts yet' : 'No archived accounts'}
           detail="Use + to add an account and its opening balance."
         />

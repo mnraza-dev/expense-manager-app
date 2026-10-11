@@ -5,6 +5,7 @@ import { budgetStatus, DEFAULT_WARNING_PERCENT } from '../utils/budgets';
 import { money } from '../utils/finance';
 import { Card, Label, styles, useTheme } from './ui';
 import { useFinance } from '../store/useFinance';
+import { FinanceArt } from './Depth';
 export function BudgetProgressBar({
   limit,
   spent,
@@ -45,10 +46,12 @@ export function BudgetProgressCard({
   name,
   limit,
   spent,
+  art = false,
 }: {
   name: string;
   limit: number;
   spent: number;
+  art?: boolean;
 }) {
   const configuredWarning = Number(
     useFinance((s) => s.settings.budget_warning_percent) ?? DEFAULT_WARNING_PERCENT
@@ -62,7 +65,10 @@ export function BudgetProgressCard({
   return (
     <Card>
       <View style={styles.row}>
-        <Label>{name}</Label>
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Label>{name}</Label>
+        </View>
+        {art && <FinanceArt kind="chart" colors={c} size={56} />}
         <Text
           style={{ color: state.status === 'exceeded' ? c.negative : c.accent, fontWeight: '700' }}>
           {state.status === 'exceeded'

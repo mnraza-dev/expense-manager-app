@@ -1,5 +1,6 @@
 import React from 'react';
 import { Reveal, MotionPressable } from './Motion';
+import { DepthSurface, FinanceArt, type FinanceArtKind } from './Depth';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -21,6 +22,8 @@ import {
   View,
   useColorScheme,
   type TextInputProps,
+  type StyleProp,
+  type ViewStyle,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFinance } from '../store/useFinance';
@@ -40,33 +43,48 @@ export function Screen({
   action,
   headerActions,
   scroll = true,
+  topPadding = 0,
+  headerStyle,
 }: {
-  children: React.ReactNode;
+  children: React.ReactNode | ((header: React.ReactNode) => React.ReactNode);
   title: string;
   subtitle?: string;
   back?: boolean;
   action?: () => void;
   headerActions?: React.ReactNode;
   scroll?: boolean;
+  topPadding?: number;
+  headerStyle?: StyleProp<ViewStyle>;
 }) {
   const c = useTheme();
   const router = useRouter();
   const message = useFeedback((s) => s.message);
   const refreshError = useFinance((s) => s.refreshError),
     refresh = useFinance((s) => s.refresh);
-  const content = (
+  const header = (
     <>
-      <Reveal style={styles.header}>
+      <Reveal style={[styles.header, headerStyle]}>
         {back && (
           <Pressable
+            accessibilityRole="button"
             accessibilityLabel="Go back"
-            onPress={() => router.back()}
-            style={styles.touch}>
+            onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)'))}
+            style={[
+              styles.touch,
+              {
+                backgroundColor: c.card,
+                borderRadius: tokens.radius.control,
+                borderWidth: 1,
+                borderColor: c.border,
+              },
+            ]}>
             <ArrowLeft color={c.text} />
           </Pressable>
         )}
-        <View style={{ flex: 1 }}>
-          <Text style={{ color: c.text, fontSize: tokens.typography.title, fontWeight: '600' }}>
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text
+            accessibilityRole="header"
+            style={{ color: c.text, fontSize: tokens.typography.title, fontWeight: '600' }}>
             {title}
           </Text>
           {subtitle && <Text style={{ color: c.muted, marginTop: 5 }}>{subtitle}</Text>}
@@ -91,20 +109,34 @@ export function Screen({
         </Card>
       )}
       {message && <InlineFeedback message={message} />}
-      {children}
     </>
   );
+  const content =
+    typeof children === 'function' ? (
+      children(header)
+    ) : (
+      <>
+        {header}
+        {children}
+      </>
+    );
   return (
     <SafeAreaView edges={['top', 'left', 'right']} style={{ flex: 1, backgroundColor: c.bg }}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         {scroll ? (
-          <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.page}>
+          <ScrollView
+            automaticallyAdjustContentInsets={false}
+            contentInsetAdjustmentBehavior="never"
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={[styles.page, { paddingTop: topPadding }]}>
             {content}
           </ScrollView>
         ) : (
-          <View style={[styles.page, { flex: 1, paddingBottom: 0 }]}>{content}</View>
+          <View style={[styles.page, { flex: 1, paddingBottom: 0, paddingTop: topPadding }]}>
+            {content}
+          </View>
         )}
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -127,8 +159,12 @@ export function Label({ children, small = false }: { children: React.ReactNode; 
 export function Card({ children }: { children: React.ReactNode }) {
   const c = useTheme();
   return (
-    <Reveal style={[styles.card, { backgroundColor: c.card, borderColor: c.border }]}>
-      {children}
+    <Reveal>
+      <DepthSurface
+        edgeColor={c.border}
+        faceStyle={[styles.card, { backgroundColor: c.card, borderColor: c.border }]}>
+        {children}
+      </DepthSurface>
     </Reveal>
   );
 }
@@ -171,6 +207,8 @@ export function Button({
             backgroundColor: danger ? c.negative : secondary ? c.card : c.accent,
             borderColor: c.border,
             opacity: busy ? 0.6 : 1,
+            borderBottomWidth: 3,
+            borderBottomColor: secondary ? c.border : danger ? c.negative : c.hero,
           },
         ]}>
         {busy ? (
@@ -247,11 +285,25 @@ export function Choices<T extends string | number>({
     </View>
   );
 }
-export function Empty({ title, detail }: { title: string; detail: string }) {
+export function Empty({
+  title,
+  detail,
+  art = 'receipt',
+}: {
+  title: string;
+  detail: string;
+  art?: FinanceArtKind;
+}) {
+  const c = useTheme();
   return (
     <Card>
-      <Label>{title}</Label>
-      <Label small>{detail}</Label>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+        <FinanceArt kind={art} colors={c} size={72} />
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Label>{title}</Label>
+          <Label small>{detail}</Label>
+        </View>
+      </View>
     </Card>
   );
 }
@@ -271,8 +323,13 @@ export function showError(error: unknown) {
   Alert.alert('Unable to save', error instanceof Error ? error.message : 'Please try again.');
 }
 export const styles = StyleSheet.create({
-  page: { padding: tokens.spacing.xl, paddingBottom: 40, gap: tokens.spacing.md },
-  header: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
+  page: {
+    padding: tokens.spacing.xl,
+    paddingTop: 0,
+    paddingBottom: 40,
+    gap: tokens.spacing.md,
+  },
+  header: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 0 },
   touch: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center' },
   card: {
     paddingVertical: tokens.spacing.lg,

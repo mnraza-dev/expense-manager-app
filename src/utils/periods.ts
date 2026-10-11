@@ -11,6 +11,24 @@ export function shiftMonth(month: string, offset: number) {
   const [y, m] = month.split('-').map(Number);
   return localDate(new Date(y, m - 1 + offset, 1)).slice(0, 7);
 }
+export function shiftDay(date: string, offset: number) {
+  if (!validDate(date) || !Number.isSafeInteger(offset)) throw new Error('Choose a valid day.');
+  const [year, month, day] = date.split('-').map(Number);
+  const next = localDate(new Date(year, month - 1, day + offset));
+  if (!validDate(next)) throw new Error('Choose a valid day.');
+  return next;
+}
+export function monthCalendar(month: string): (string | null)[][] {
+  const range = monthRange(month);
+  const [year, number] = month.split('-').map(Number);
+  const leading = (new Date(year, number - 1, 1).getDay() + 6) % 7;
+  const days = Number(range.end.slice(8));
+  const cells = Array.from({ length: Math.ceil((leading + days) / 7) * 7 }, (_, index) => {
+    const day = index - leading + 1;
+    return day < 1 || day > days ? null : `${month}-${String(day).padStart(2, '0')}`;
+  });
+  return Array.from({ length: cells.length / 7 }, (_, week) => cells.slice(week * 7, week * 7 + 7));
+}
 export function calendarDays(range: DateRange) {
   const utc = (s: string) => {
     const [y, m, d] = s.split('-').map(Number);

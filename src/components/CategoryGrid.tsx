@@ -1,6 +1,7 @@
 import { MotionPressable } from './Motion';
 import { Text, View } from 'react-native';
 import { CategoryIcon } from './CategoryIcon';
+import { DepthIcon } from './Depth';
 import { Label, useTheme } from './ui';
 export function CategoryGrid({
   options,
@@ -18,6 +19,7 @@ export function CategoryGrid({
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
         {options.map((o) => (
           <MotionPressable
+            depth
             key={o.value}
             accessibilityRole="button"
             accessibilityState={{ selected: o.value === value }}
@@ -32,8 +34,12 @@ export function CategoryGrid({
               borderWidth: 1,
               borderColor: o.value === value ? c.accent : c.border,
               alignItems: 'center',
+              backgroundColor: o.value === value ? c.soft : c.card,
+              borderBottomWidth: 3,
             }}>
-            <CategoryIcon name={o.label} />
+            <DepthIcon colors={c} size={32}>
+              <CategoryIcon name={o.label} />
+            </DepthIcon>
             <Text style={{ color: c.text, textAlign: 'center', fontSize: 13 }}>{o.label}</Text>
           </MotionPressable>
         ))}

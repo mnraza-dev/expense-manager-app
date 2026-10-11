@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { OnboardingScene } from './OnboardingScene';
 import { Button, useTheme } from './ui';
 import { Reveal } from './Motion';
-const key = 'pocketbook.onboarding.v2';
+const key = 'pocketbook.onboarding.v3';
 const pages = [
   {
     title: 'A clearer picture of your money',
@@ -85,8 +85,8 @@ export function OnboardingGate({ children }: { children: ReactNode }) {
           <Text style={{ color: c.text, textAlign: 'center' }}>Preparing your welcome…</Text>
         ) : (
           <>
-            <OnboardingScene key={page} page={page} />
-            <Reveal key={page} style={{ gap: 20, alignItems: 'center' }}>
+            <OnboardingScene key={`scene-${page}`} page={page} />
+            <Reveal key={`copy-${page}`} style={{ gap: 20, alignItems: 'center' }}>
               <Text
                 accessibilityRole="header"
                 style={{ color: c.text, fontSize: 28, fontWeight: '600', textAlign: 'center' }}>

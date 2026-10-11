@@ -37,6 +37,7 @@ Use `npm ci` to reproduce the checked-in versions. Legacy Bun lockfiles are not 
 - Monthly dashboard with active-account total balance, income, expenses, net cash flow, transaction count, recent activity and expense category breakdown.
 - Account creation and editing, opening balances, account transaction history, archive/restore and guarded deletion. Accounts with any transaction history cannot be deleted.
 - Expense, income and transfer creation/editing/deletion, calendar picker, local calendar dates, notes, compatible category selection and duplicate submission guards.
+- Transactions List/Calendar views with monthly activity markers, filtered income/spending totals and tap-to-view daily entries. Calendar totals include all matching records beyond the first page; transfers stay separate from income and spending.
 - Virtualized, paginated transaction history with description/notes/category/account search, combined type/account/category/date/amount filters, and four stable sort orders. Transfers appear under both associated accounts.
 - Seeded income/expense categories, custom categories, editable name/icon/color, archive and restore. Renaming a default category does not recreate it after a restart.
 - Light, dark and device appearance preferences stored in SQLite; INR currency formatting.

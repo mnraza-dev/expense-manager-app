@@ -1,13 +1,19 @@
 import { useRouter } from 'expo-router';
-import { Button, Card, Choices, Label, Screen, showError } from '../../src/components/ui';
+import { Button, Card, Choices, Label, Screen, showError, useTheme } from '../../src/components/ui';
+import { FinanceArt } from '../../src/components/Depth';
 import { useFinance } from '../../src/store/useFinance';
 import { repo } from '../../src/db/database';
 import { migrations } from '../../src/db/migrations';
 export default function Settings() {
   const router = useRouter();
+  const c = useTheme();
   const { settings, accounts, transactions, mutatePreference } = useFinance();
   return (
-    <Screen back title="Settings" subtitle="Make Pocketbook your own">
+    <Screen
+      back
+      title="Settings"
+      subtitle="Make Pocketbook your own"
+      headerActions={<FinanceArt kind="shield" colors={c} size={48} />}>
       <Choices
         label="Appearance"
         value={settings.theme ?? 'system'}

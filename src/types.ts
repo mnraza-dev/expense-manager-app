@@ -146,3 +146,10 @@ export interface TransactionPage {
   rows: Transaction[];
   count: number;
 }
+export interface TransactionDay {
+  date: string;
+  income: number;
+  expense: number;
+  transfers: number;
+  count: number;
+}

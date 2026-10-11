@@ -3,7 +3,7 @@ export const tokens = {
   radius: { control: 14, surface: 20 },
   typography: { amount: 36, title: 24, section: 17, body: 15, metadata: 13, button: 15, error: 13 },
   border: 1,
-  elevation: 0,
+  elevation: 2,
   motion: { press: 100, feedback: 160, progress: 280, reveal: 260 },
 };
 
