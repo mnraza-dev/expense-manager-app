@@ -1,3 +1,4 @@
+import { TabGlyph } from '../../src/components/Motion';
 import { Tabs } from 'expo-router';
 import { House, List, Wallet, ChartPie } from 'lucide-react-native';
 import { useTheme } from '../../src/components/ui';
@@ -28,7 +29,14 @@ export default function TabLayout() {
         <Tabs.Screen
           key={name}
           name={name}
-          options={{ title, tabBarIcon: ({ color, size }) => <Icon color={color} size={size} /> }}
+          options={{
+            title,
+            tabBarIcon: ({ color, size, focused }) => (
+              <TabGlyph focused={focused} background={c.soft}>
+                <Icon color={color} size={size} />
+              </TabGlyph>
+            ),
+          }}
         />
       ))}
     </Tabs>

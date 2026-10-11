@@ -1,10 +1,11 @@
+import { useEffect, useState } from 'react';
 import { Modal, Pressable, View } from 'react-native';
 import Animated, {
-  FadeIn,
-  FadeOut,
-  SlideInDown,
-  SlideOutDown,
   ReduceMotion,
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  runOnJS,
 } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from './ui';
@@ -16,34 +17,61 @@ export function BottomSheet({
 }: {
   visible: boolean;
   onClose: () => void;
-  children: React.ReactNode;
+  children: (dismiss: () => void) => React.ReactNode;
 }) {
   const c = useTheme();
+  const progress = useSharedValue(0);
+  const [closing, setClosing] = useState(false);
+  useEffect(() => {
+    progress.set(
+      withTiming(1, { duration: tokens.motion.progress, reduceMotion: ReduceMotion.System })
+    );
+  }, [progress]);
+  const sheet = useAnimatedStyle(() => ({
+    opacity: progress.value,
+    transform: [{ translateY: (1 - progress.value) * 28 }],
+  }));
+  const backdrop = useAnimatedStyle(() => ({ opacity: progress.value }));
+  const dismiss = () => {
+    if (closing) return;
+    setClosing(true);
+    progress.set(
+      withTiming(
+        0,
+        { duration: tokens.motion.feedback, reduceMotion: ReduceMotion.System },
+        (finished) => {
+          if (finished) runOnJS(onClose)();
+        }
+      )
+    );
+  };
   return (
-    <Modal transparent visible={visible} animationType="none" onRequestClose={onClose}>
+    <Modal transparent visible={visible} animationType="none" onRequestClose={dismiss}>
       <View style={{ flex: 1, justifyContent: 'flex-end' }}>
         <Animated.View
-          entering={FadeIn.duration(tokens.motion.feedback).reduceMotion(ReduceMotion.System)}
-          exiting={FadeOut.duration(tokens.motion.feedback).reduceMotion(ReduceMotion.System)}
-          style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(0,0,0,0.35)' }}>
+          style={[
+            { position: 'absolute', inset: 0, backgroundColor: 'rgba(0,0,0,0.35)' },
+            backdrop,
+          ]}>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Close sheet"
-            onPress={onClose}
+            onPress={dismiss}
             style={{ flex: 1 }}
           />
         </Animated.View>
         <Animated.View
-          entering={SlideInDown.duration(tokens.motion.progress).reduceMotion(ReduceMotion.System)}
-          exiting={SlideOutDown.duration(tokens.motion.feedback).reduceMotion(ReduceMotion.System)}
-          style={{
-            height: '90%',
-            backgroundColor: c.bg,
-            borderTopLeftRadius: tokens.radius.surface,
-            borderTopRightRadius: tokens.radius.surface,
-          }}>
+          style={[
+            {
+              height: '90%',
+              backgroundColor: c.bg,
+              borderTopLeftRadius: tokens.radius.surface,
+              borderTopRightRadius: tokens.radius.surface,
+            },
+            sheet,
+          ]}>
           <SafeAreaView edges={['bottom', 'left', 'right']} style={{ flex: 1 }}>
-            {children}
+            {children(dismiss)}
           </SafeAreaView>
         </Animated.View>
       </View>

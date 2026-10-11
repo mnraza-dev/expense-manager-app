@@ -22,6 +22,8 @@ export default function Budgets() {
     }
   });
   const [history, setHistory] = useState(false);
+  const [manage, setManage] = useState(false);
+  const [comparison, setComparison] = useState(false);
   const mutate = useFinance((s) => s.mutateBudget);
   const load = useCallback(
     async () => ({
@@ -53,22 +55,31 @@ export default function Budgets() {
               </Label>
               <Button
                 secondary
-                title="Edit this budget"
-                onPress={() =>
-                  router.push({ pathname: '/budget/[id]', params: { id: p.budget!.id } })
-                }
+                title={manage ? 'Hide budget options' : 'Manage budget'}
+                onPress={() => setManage(!manage)}
               />
-              <Button
-                danger
-                title="Delete this month's budget"
-                onPress={() =>
-                  confirm(
-                    'Delete monthly budget?',
-                    'This removes the budget and its allocations. All transactions remain intact.',
-                    () => mutate(() => repo().deleteBudget(p.budget!.id))
-                  )
-                }
-              />
+              {manage && (
+                <>
+                  <Button
+                    secondary
+                    title="Edit this budget"
+                    onPress={() =>
+                      router.push({ pathname: '/budget/[id]', params: { id: p.budget!.id } })
+                    }
+                  />
+                  <Button
+                    danger
+                    title="Delete this month's budget"
+                    onPress={() =>
+                      confirm(
+                        'Delete monthly budget?',
+                        'This removes the budget and its allocations. All transactions remain intact.',
+                        () => mutate(() => repo().deleteBudget(p.budget!.id))
+                      )
+                    }
+                  />
+                </>
+              )}
               <Label>Category progress</Label>
               {p.categories.map((c) => (
                 <BudgetProgressCard
@@ -78,7 +89,12 @@ export default function Budgets() {
                   spent={c.spent}
                 />
               ))}
-              <BudgetComparisonChart key={month} rows={p.categories} />
+              <Button
+                secondary
+                title={comparison ? 'Hide comparison' : 'View budget vs actual'}
+                onPress={() => setComparison(!comparison)}
+              />
+              {comparison && <BudgetComparisonChart key={month} rows={p.categories} />}
             </>
           ) : (
             <>

@@ -1,4 +1,5 @@
 import React from 'react';
+import { Reveal, MotionPressable } from './Motion';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -6,7 +7,7 @@ import Animated, {
   ReduceMotion,
 } from 'react-native-reanimated';
 import { useFeedback } from '../store/useFeedback';
-import { tokens } from '../design/tokens';
+import { tokens, palette } from '../design/tokens';
 import {
   ActivityIndicator,
   Alert,
@@ -25,32 +26,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFinance } from '../store/useFinance';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Plus } from 'lucide-react-native';
-export const palette = {
-  light: {
-    bg: '#FAF9F6',
-    card: '#FFFFFF',
-    text: '#202B2B',
-    muted: '#606D6D',
-    border: '#E3E8EA',
-    accent: '#167461',
-    onAccent: '#FFFFFF',
-    positive: '#216B50',
-    negative: '#A33943',
-    warning: '#855B13',
-  },
-  dark: {
-    bg: '#172020',
-    card: '#202B2B',
-    text: '#EFF6F5',
-    muted: '#A3B5BC',
-    border: '#30434B',
-    accent: '#83CDBA',
-    onAccent: '#172020',
-    positive: '#83CDBA',
-    negative: '#FFABB2',
-    warning: '#EAC37D',
-  },
-};
+export { palette } from '../design/tokens';
 export function useTheme() {
   const mode = useFinance((s) => s.settings.theme);
   const system = useColorScheme();
@@ -62,6 +38,7 @@ export function Screen({
   subtitle,
   back = false,
   action,
+  headerActions,
   scroll = true,
 }: {
   children: React.ReactNode;
@@ -69,6 +46,7 @@ export function Screen({
   subtitle?: string;
   back?: boolean;
   action?: () => void;
+  headerActions?: React.ReactNode;
   scroll?: boolean;
 }) {
   const c = useTheme();
@@ -78,7 +56,7 @@ export function Screen({
     refresh = useFinance((s) => s.refresh);
   const content = (
     <>
-      <View style={styles.header}>
+      <Reveal style={styles.header}>
         {back && (
           <Pressable
             accessibilityLabel="Go back"
@@ -93,6 +71,7 @@ export function Screen({
           </Text>
           {subtitle && <Text style={{ color: c.muted, marginTop: 5 }}>{subtitle}</Text>}
         </View>
+        {headerActions}
         {action && (
           <Pressable
             accessibilityLabel="Add new"
@@ -104,7 +83,7 @@ export function Screen({
             <Plus color={c.onAccent} />
           </Pressable>
         )}
-      </View>
+      </Reveal>
       {refreshError && (
         <Card>
           <Label>{refreshError}</Label>
@@ -148,7 +127,9 @@ export function Label({ children, small = false }: { children: React.ReactNode; 
 export function Card({ children }: { children: React.ReactNode }) {
   const c = useTheme();
   return (
-    <View style={[styles.card, { backgroundColor: c.bg, borderColor: c.border }]}>{children}</View>
+    <Reveal style={[styles.card, { backgroundColor: c.card, borderColor: c.border }]}>
+      {children}
+    </Reveal>
   );
 }
 export function Button({
@@ -248,7 +229,7 @@ export function Choices<T extends string | number>({
       <Label small>{label}</Label>
       <View style={styles.wrap}>
         {options.map((o) => (
-          <Pressable
+          <MotionPressable
             accessibilityRole="button"
             accessibilityState={{ selected: o.value === value }}
             key={o.value}
@@ -260,7 +241,7 @@ export function Choices<T extends string | number>({
             <Text style={{ color: o.value === value ? c.onAccent : c.text, fontWeight: '600' }}>
               {o.label}
             </Text>
-          </Pressable>
+          </MotionPressable>
         ))}
       </View>
     </View>
@@ -295,8 +276,9 @@ export const styles = StyleSheet.create({
   touch: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center' },
   card: {
     paddingVertical: tokens.spacing.lg,
-    borderRadius: 0,
-    borderBottomWidth: tokens.border,
+    paddingHorizontal: tokens.spacing.lg,
+    borderRadius: tokens.radius.surface,
+    borderWidth: tokens.border,
     gap: 6,
   },
   button: {
@@ -346,14 +328,16 @@ export function AmountText({
 export function InlineFeedback({ message }: { message: string }) {
   const c = useTheme();
   return (
-    <Text
-      accessibilityLiveRegion="polite"
-      style={{
-        color: c.text,
-        fontSize: tokens.typography.metadata,
-        paddingVertical: tokens.spacing.sm,
-      }}>
-      {message}
-    </Text>
+    <Reveal>
+      <Text
+        accessibilityLiveRegion="polite"
+        style={{
+          color: c.text,
+          fontSize: tokens.typography.metadata,
+          paddingVertical: tokens.spacing.sm,
+        }}>
+        {message}
+      </Text>
+    </Reveal>
   );
 }

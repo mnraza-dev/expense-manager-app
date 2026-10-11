@@ -1,4 +1,5 @@
-import { Pressable, Text, View } from 'react-native';
+import { MotionPressable } from './Motion';
+import { Text, View } from 'react-native';
 import { CategoryIcon } from './CategoryIcon';
 import { useRouter } from 'expo-router';
 import type { Transaction } from '../types';
@@ -10,11 +11,11 @@ export function TransactionItem({ item }: { item: Transaction }) {
   const router = useRouter();
   const { accounts, categories } = useFinance();
   return (
-    <Pressable
+    <MotionPressable
       accessibilityRole="button"
       onPress={() => router.push({ pathname: '/transaction/[id]', params: { id: item.id } })}
       style={[styles.row, { paddingVertical: 12, borderBottomWidth: 1, borderColor: c.border }]}>
-      <View style={{ padding: 8 }}>
+      <View style={{ padding: 12, backgroundColor: c.soft, borderRadius: 14 }}>
         <CategoryIcon
           name={categories.find((x) => x.id === item.category_id)?.name ?? ''}
           transfer={item.type === 'transfer'}
@@ -35,6 +36,6 @@ export function TransactionItem({ item }: { item: Transaction }) {
         {item.type === 'income' ? '+' : item.type === 'expense' ? '−' : '↔'}
         {money(item.amount)}
       </Text>
-    </Pressable>
+    </MotionPressable>
   );
 }

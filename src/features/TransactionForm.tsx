@@ -1,3 +1,4 @@
+import { Reveal } from '../components/Motion';
 import { useEffect, useRef, useState } from 'react';
 import Animated, { FadeIn, FadeOut, ReduceMotion } from 'react-native-reanimated';
 import { tokens } from '../design/tokens';
@@ -71,6 +72,17 @@ export function TransactionForm({
   const { transactions, accounts, categories, mutate } = useFinance();
   const existing = transactions.find((t) => t.id === id);
   const active = accounts.filter((a) => !a.archived && a.subtype === 'standard');
+  const lastUsed = [...transactions]
+    .sort((a, b) => b.updated_at.localeCompare(a.updated_at) || b.id - a.id)
+    .find((t) =>
+      accounts.some(
+        (a) =>
+          a.id === t.account_id &&
+          !a.archived &&
+          !a.subtype?.startsWith('loan_') &&
+          (initialType === 'expense' || a.kind !== 'liability')
+      )
+    )?.account_id;
   const [busy, setBusy] = useState(false);
   const saving = useRef(false);
   const [picker, setPicker] = useState(false);
@@ -84,12 +96,7 @@ export function TransactionForm({
     defaultValues: {
       type: existing?.type ?? initialType,
       amount: existing ? (existing.amount / 100).toFixed(2) : '',
-      account:
-        existing?.account_id ??
-        initialAccount ??
-        active.find((a) => a.id === transactions[0]?.account_id)?.id ??
-        active[0]?.id ??
-        0,
+      account: existing?.account_id ?? initialAccount ?? lastUsed ?? active[0]?.id ?? 0,
       destination: existing?.destination_account_id ?? initialDestination ?? null,
       category:
         existing?.category_id ??
@@ -264,7 +271,7 @@ export function TransactionForm({
               />
             )}
           {type !== 'transfer' && (
-            <>
+            <Reveal key={type}>
               <Controller
                 control={control}
                 name="category"
@@ -282,7 +289,7 @@ export function TransactionForm({
                 title="Manage categories"
                 onPress={() => router.push('/category')}
               />
-            </>
+            </Reveal>
           )}
           <Controller
             control={control}
@@ -331,9 +338,10 @@ export function TransactionForm({
               value={validDate(date) ? new Date(y, m - 1, d) : new Date()}
               mode="date"
               display={Platform.OS === 'ios' ? 'inline' : 'default'}
-              onChange={(_, selected) => {
+              onDismiss={() => setPicker(false)}
+              onValueChange={(_, selected) => {
                 setPicker(false);
-                if (selected) setValue('date', localDate(selected), { shouldValidate: true });
+                setValue('date', localDate(selected), { shouldValidate: true });
               }}
             />
           )}

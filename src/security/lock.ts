@@ -2,7 +2,8 @@ import * as SecureStore from 'expo-secure-store';
 import * as Crypto from 'expo-crypto';
 import * as LocalAuthentication from 'expo-local-authentication';
 import { create } from 'zustand';
-import { AppState } from 'react-native';
+import { AppState, Platform } from 'react-native';
+import { isRunningInExpoGo } from 'expo';
 import { LockCore, authenticateBiometric } from './lockCore';
 let lockGeneration = 0;
 const biometricKey = 'pocketbook.biometric.v1';
@@ -33,6 +34,8 @@ export const lockCore = new LockCore(
   Crypto.getRandomBytes
 );
 export async function biometricsAvailable() {
+  // Expo Go lacks the Face ID usage description required by authenticated Keychain access.
+  if (Platform.OS === 'ios' && isRunningInExpoGo()) return false;
   return (
     (await LocalAuthentication.hasHardwareAsync()) &&
     (await LocalAuthentication.isEnrolledAsync()) &&

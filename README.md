@@ -255,7 +255,7 @@ Validation: **40 automated tests pass**, including all prior phases, selected ex
 
 Limits: backups support the exact current schema, up to 20 MB and 250,000 records; CSV/workbook exports support 50,000 selected transactions. Merge, bank connections, cloud recovery and currency conversion are not implemented. Progress screens prevent navigation during data operations. Shared-file cache older than 24 hours is pruned on later exports; recipient copies and persistent recovery files remain sensitive.
 
-See [SECURITY.md](SECURITY.md) for format, cryptography, credential recovery, storage/privacy assumptions and dependency advisories. The dependency audit currently reports 32 advisories (11 moderate, 21 high); SDK-compatible updates and native regression testing are still needed before release.
+See [SECURITY.md](SECURITY.md) for format, cryptography, credential recovery, storage/privacy assumptions and dependency advisories. The dependency audit currently reports 34 advisories (12 moderate, 22 high); SDK-compatible updates and native regression testing are still needed before release.
 
 Native verification remains pending: this machine has no usable iOS simulator and ADB lists no connected Android devices. On real iOS and Android devices, test CSV/XLSX opening and sharing, encrypted/plain backup round trips, cancellation, low storage and interrupted restore, wrong passwords, SecureStore failures, valid/invalid passcodes, biometric cancellation/enrollment changes, background/resume timing, deep links while locked and privacy snapshots. Face ID requires a development/native build, not Expo Go.
 

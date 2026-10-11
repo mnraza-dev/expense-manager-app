@@ -1,5 +1,6 @@
 import { Platform } from 'react-native';
-import Purchases, { type PurchasesPackage } from 'react-native-purchases';
+import type { PurchasesPackage } from 'react-native-purchases';
+import { isRunningInExpoGo } from 'expo';
 import { cloudClient } from './client';
 import { verifiedOwner } from './auth';
 export type Feature =
@@ -14,10 +15,13 @@ const publicKey =
 let configured = false,
   currentOwner: string | null = null;
 export function billingConfigured() {
-  return !!publicKey;
+  return (
+    !!publicKey && !isRunningInExpoGo() && (Platform.OS === 'ios' || Platform.OS === 'android')
+  );
 }
 export async function billingUser(owner: string | null) {
-  if (!publicKey) return;
+  if (!publicKey || !billingConfigured()) return;
+  const { default: Purchases } = await import('react-native-purchases');
   if (!configured) {
     Purchases.configure({ apiKey: publicKey, appUserID: owner ?? undefined });
     configured = true;
@@ -53,7 +57,8 @@ export async function requireFeature(feature: Feature) {
 export async function refreshEntitlements() {
   const owner = await verifiedOwner();
   await billingUser(owner);
-  if (publicKey) {
+  if (billingConfigured()) {
+    const { default: Purchases } = await import('react-native-purchases');
     await Purchases.getCustomerInfo();
     const response = await cloudClient().functions.invoke('entitlements');
     if (response.error)
@@ -63,17 +68,24 @@ export async function refreshEntitlements() {
 }
 export async function packages() {
   const owner = await verifiedOwner();
-  if (!publicKey) throw new Error('Native billing is not configured.');
+  if (!billingConfigured())
+    throw new Error('Purchases require a native development build and configured billing keys.');
+  const { default: Purchases } = await import('react-native-purchases');
   await billingUser(owner);
   return (await Purchases.getOfferings()).current?.availablePackages ?? [];
 }
 export async function purchase(pkg: PurchasesPackage) {
+  if (!billingConfigured())
+    throw new Error('Purchases require a native development build and configured billing keys.');
+  const { default: Purchases } = await import('react-native-purchases');
   await billingUser(await verifiedOwner());
   await Purchases.purchasePackage(pkg);
   return refreshEntitlements();
 }
 export async function restorePurchases() {
-  if (!publicKey) throw new Error('Native billing is not configured.');
+  if (!billingConfigured())
+    throw new Error('Purchases require a native development build and configured billing keys.');
+  const { default: Purchases } = await import('react-native-purchases');
   await billingUser(await verifiedOwner());
   await Purchases.restorePurchases();
   return refreshEntitlements();

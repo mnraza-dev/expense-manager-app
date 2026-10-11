@@ -1,4 +1,5 @@
-import { Pressable, Text, View } from 'react-native';
+import { MotionPressable } from './Motion';
+import { Text, View } from 'react-native';
 import { CategoryIcon } from './CategoryIcon';
 import { Label, useTheme } from './ui';
 export function CategoryGrid({
@@ -16,7 +17,7 @@ export function CategoryGrid({
       <Label small>Category</Label>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
         {options.map((o) => (
-          <Pressable
+          <MotionPressable
             key={o.value}
             accessibilityRole="button"
             accessibilityState={{ selected: o.value === value }}
@@ -34,7 +35,7 @@ export function CategoryGrid({
             }}>
             <CategoryIcon name={o.label} />
             <Text style={{ color: c.text, textAlign: 'center', fontSize: 13 }}>{o.label}</Text>
-          </Pressable>
+          </MotionPressable>
         ))}
       </View>
     </View>

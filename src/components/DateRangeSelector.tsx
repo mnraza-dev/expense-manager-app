@@ -63,7 +63,8 @@ export function DateRangeSelector({
               mode="date"
               display={Platform.OS === 'ios' ? 'inline' : 'default'}
               value={new Date(y, m - 1, d)}
-              onChange={(_, date) => {
+              onDismiss={() => setPicker(null)}
+              onValueChange={(_, date) => {
                 if (date && picker) setDraft((v) => ({ ...v, [picker]: localDate(date) }));
                 setPicker(null);
               }}

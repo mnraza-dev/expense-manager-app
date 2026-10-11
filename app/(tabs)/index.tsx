@@ -1,15 +1,27 @@
-import { View, Pressable } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Reveal } from '../../src/components/Motion';
+import { ChartNoAxesColumn, Settings } from 'lucide-react-native';
+import { Text, View, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { useFinance } from '../../src/store/useFinance';
 import { balance, localDate, money, summary } from '../../src/utils/finance';
-import { AmountText, Button, Empty, Label, Screen, styles } from '../../src/components/ui';
+import {
+  AmountText,
+  Button,
+  Empty,
+  Label,
+  Screen,
+  styles,
+  useTheme,
+} from '../../src/components/ui';
 import { TransactionItem } from '../../src/components/TransactionItem';
 import { BudgetProgressCard } from '../../src/components/BudgetProgressCard';
 import { useDatabaseQuery } from '../../src/hooks/useDatabaseQuery';
 import { repo } from '../../src/db/database';
 export default function Home() {
   const router = useRouter();
+  const c = useTheme();
   const { accounts, transactions } = useFinance();
   const [month] = useState(() => localDate().slice(0, 7));
   const totals = summary(transactions, month);
@@ -17,34 +29,51 @@ export default function Home() {
   const loadBudget = useCallback(() => repo().budgetProgress(month), [month]);
   const budget = useDatabaseQuery(loadBudget);
   return (
-    <Screen title="Pocketbook">
-      <View style={styles.row}>
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => router.push('/(tabs)/reports')}
-          style={{ minHeight: 44, justifyContent: 'center' }}>
-          <Label small>Reports</Label>
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => router.push('/(tabs)/settings')}
-          style={{ minHeight: 44, justifyContent: 'center' }}>
-          <Label small>Settings</Label>
-        </Pressable>
-      </View>
-      <Label small>Available balance · active assets</Label>
-      <AmountText large>
-        {money(active.reduce((s, a) => s + balance(a, transactions), 0))}
-      </AmountText>
-      <Pressable
-        accessibilityRole="button"
-        onPress={() => router.push('/(tabs)/accounts')}
-        style={{ minHeight: 44, justifyContent: 'center' }}>
-        <Label small>View accounts</Label>
-      </Pressable>
-      <Label small>
-        {new Date().toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}
-      </Label>
+    <Screen
+      title="Overview"
+      subtitle={new Date().toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}
+      headerActions={
+        <View style={{ flexDirection: 'row' }}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Reports"
+            onPress={() => router.push('/(tabs)/reports')}
+            style={styles.touch}>
+            <ChartNoAxesColumn size={20} color={c.muted} />
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Settings"
+            onPress={() => router.push('/(tabs)/settings')}
+            style={styles.touch}>
+            <Settings size={20} color={c.muted} />
+          </Pressable>
+        </View>
+      }>
+      <Reveal delay={40}>
+        <LinearGradient
+          colors={[c.hero, c.heroEnd]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={{ padding: 24, borderRadius: 24, gap: 12 }}>
+          <Text style={{ color: c.heroMuted, fontSize: 13 }}>TOTAL BALANCE · ACTIVE ASSETS</Text>
+          <Text
+            style={{
+              color: c.onHero,
+              fontSize: 36,
+              fontWeight: '600',
+              fontVariant: ['tabular-nums'],
+            }}>
+            {money(active.reduce((s, a) => s + balance(a, transactions), 0))}
+          </Text>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => router.push('/(tabs)/accounts')}
+            style={{ minHeight: 44, justifyContent: 'center' }}>
+            <Text style={{ color: c.heroMuted }}>Across your accounts →</Text>
+          </Pressable>
+        </LinearGradient>
+      </Reveal>
       <View style={styles.row}>
         <View style={{ flex: 1 }}>
           <Label small>Income</Label>
@@ -79,12 +108,14 @@ export default function Home() {
         <Pressable
           accessibilityRole="button"
           onPress={() => router.push('/(tabs)/transactions')}
-          style={styles.touch}>
-          <Label small>All</Label>
+          style={{ minHeight: 48, justifyContent: 'center' }}>
+          <Label small>View all</Label>
         </Pressable>
       </View>
-      {transactions.slice(0, 5).map((t) => (
-        <TransactionItem key={t.id} item={t} />
+      {transactions.slice(0, 5).map((t, index) => (
+        <Reveal key={t.id} delay={Math.min(index * 35, 140)}>
+          <TransactionItem item={t} />
+        </Reveal>
       ))}
       {!transactions.length && (
         <Empty
