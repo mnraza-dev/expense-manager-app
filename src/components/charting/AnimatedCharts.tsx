@@ -1,4 +1,4 @@
-import { useEffect, useId } from 'react';
+import { useEffect, useId, useMemo } from 'react';
 import { Text, View } from 'react-native';
 import Svg, { Defs, LinearGradient, Rect, Stop, Path, Circle } from 'react-native-svg';
 import Animated, {
@@ -16,7 +16,11 @@ import { DepthSurface } from '../Depth';
 import { money } from '../../utils/finance';
 import { tokens } from '../../design/tokens';
 import { useChartActivity } from './useChartActivity';
-import { ringArcs } from '../../utils/chartData';
+import { ringArcs, themeChartColors } from '../../utils/chartData';
+export function useChartColors() {
+  const theme = useTheme();
+  return useMemo(() => themeChartColors(theme), [theme]);
+}
 const AnimatedRect = Animated.createAnimatedComponent(Rect);
 const AnimatedPath = Animated.createAnimatedComponent(Path);
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);

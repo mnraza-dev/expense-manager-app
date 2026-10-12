@@ -13,7 +13,6 @@ import Svg, {
 import type { BudgetComparison, CategoryTotal, PeriodTotal } from '../types';
 import { money } from '../utils/finance';
 import {
-  chartColors,
   categoryRingSegments,
   chartDomain,
   chartPeriods,
@@ -28,6 +27,7 @@ import {
   AnimatedLine,
   AnimatedTrack,
   ChartSurface,
+  useChartColors,
 } from './charting/AnimatedCharts';
 import { ThreeRingChart } from './charting/ThreeRingChart';
 const plotHeight = 168,
@@ -118,6 +118,7 @@ function Grid({ domain, width }: { domain: ReturnType<typeof chartDomain>; width
   );
 }
 export function IncomeExpenseChart({ periods }: { periods: PeriodTotal[] }) {
+  const chartColors = useChartColors();
   const c = useTheme(),
     id = useId().replace(/:/g, '');
   const plot = usePlot(periods),
@@ -149,12 +150,12 @@ export function IncomeExpenseChart({ periods }: { periods: PeriodTotal[] }) {
         <Svg width={plot.chartWidth} height={222}>
           <Defs>
             <LinearGradient id={`${id}income`} x1="0" y1="0" x2="0" y2="1">
-              <Stop offset="0" stopColor="#48D9B7" />
-              <Stop offset="1" stopColor="#198675" />
+              <Stop offset="0" stopColor={chartColors[0]} />
+              <Stop offset="1" stopColor={chartColors[4]} />
             </LinearGradient>
             <LinearGradient id={`${id}expense`} x1="0" y1="0" x2="0" y2="1">
-              <Stop offset="0" stopColor="#F6C98F" />
-              <Stop offset="1" stopColor="#DE8A52" />
+              <Stop offset="0" stopColor={chartColors[2]} />
+              <Stop offset="1" stopColor={chartColors[2]} stopOpacity={0.65} />
             </LinearGradient>
           </Defs>
           <Grid domain={domain} width={plot.chartWidth} />
@@ -214,6 +215,7 @@ function BarPeriod({
   color: string;
   onSelect: () => void;
 }) {
+  const c = useTheme();
   return (
     <>
       <Rect
@@ -221,7 +223,7 @@ function BarPeriod({
         y={top}
         width={40}
         height={plotHeight + 8}
-        fill={selected ? '#28B69C' : 'transparent'}
+        fill={selected ? c.accent : 'transparent'}
         opacity={selected ? 0.08 : 1}
         rx={8}
       />
@@ -255,9 +257,13 @@ export function ExpenseBreakdownChart({
   title?: string;
   onSelect?: (id: number) => void;
 }) {
+  const chartColors = useChartColors();
   const c = useTheme(),
     [selected, setSelected] = useState<string | null>(null);
-  const segments = useMemo(() => categoryRingSegments(categories), [categories]);
+  const segments = useMemo(
+    () => categoryRingSegments(categories, chartColors),
+    [categories, chartColors]
+  );
   const total = categories.reduce((sum, row) => sum + row.amount, 0),
     signed = categories.some((row) => row.amount < 0);
   const selectedCategory = categories.find((row) => String(row.id) === selected),
@@ -275,9 +281,7 @@ export function ExpenseBreakdownChart({
   return (
     <ChartSurface
       title={title}
-      subtitle={
-        signed ? 'Net amounts include refund credits' : 'Where your money went · tap a category'
-      }
+      subtitle={signed ? 'Net amounts include refund credits' : 'Net spending by category'}
       badge={signed ? 'NET SPENDING' : `${categories.length} CATEGORIES`}>
       {!signed ? (
         <ThreeRingChart
@@ -359,13 +363,14 @@ export function ExpenseBreakdownChart({
 }
 export function SpendingTrendChart({
   periods,
-  title = 'Spending rhythm',
+  title = 'Spending trend',
   expensesOnly = false,
 }: {
   periods: PeriodTotal[];
   title?: string;
   expensesOnly?: boolean;
 }) {
+  const chartColors = useChartColors();
   const c = useTheme(),
     id = useId().replace(/:/g, '');
   const plot = usePlot(periods),
@@ -400,7 +405,7 @@ export function SpendingTrendChart({
   if (!periods.some((row) => row.expense || (!expensesOnly && row.income)))
     return <Empty animate={false} title={title} detail="No activity to plot for this period." />;
   return (
-    <ChartSurface title={title} subtitle="Explore the peaks and quieter periods" badge="TREND">
+    <ChartSurface title={title} subtitle="Income and net spending over time" badge="TREND">
       <View style={{ flexDirection: 'row', gap: 16 }}>
         <Legend label="Spending" color={chartColors[1]} />
         {!expensesOnly && <Legend label="Income" color={chartColors[0]} />}
@@ -475,6 +480,8 @@ function PlotPoint({
   color: string;
   onSelect: () => void;
 }) {
+  const chartColors = useChartColors(),
+    c = useTheme();
   return (
     <>
       {selected && (
@@ -493,7 +500,7 @@ function PlotPoint({
         cy={y}
         r={selected ? 6 : 3.5}
         fill={chartColors[1]}
-        stroke="#FFFFFF"
+        stroke={c.card}
         strokeWidth={2}
       />
       <SvgText x={x} y={plotHeight + 36} textAnchor="middle" fill={color} fontSize={10}>
@@ -504,6 +511,7 @@ function PlotPoint({
   );
 }
 export function BudgetComparisonChart({ rows }: { rows: BudgetComparison[]; animate?: boolean }) {
+  const chartColors = useChartColors();
   const c = useTheme(),
     [selectedKey, setSelectedKey] = useState<string | null>(null);
   const maximum = Math.max(1, ...rows.flatMap((row) => [row.allocated, Math.abs(row.spent)]));
@@ -522,7 +530,7 @@ export function BudgetComparisonChart({ rows }: { rows: BudgetComparison[]; anim
       badge={`${rows.length} ALLOCATIONS`}>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 16 }}>
         <Legend label="Allocated" color={chartColors[0]} />
-        <Legend label="Spent" color={chartColors[1]} />
+        <Legend label="Spent" color={chartColors[2]} />
         <Legend label="Over limit" color={c.negative} />
       </View>
       {rows.map((row) => {
@@ -558,7 +566,7 @@ export function BudgetComparisonChart({ rows }: { rows: BudgetComparison[]; anim
             <AnimatedTrack fraction={row.allocated / maximum} color={chartColors[0]} height={6} />
             <AnimatedTrack
               fraction={Math.abs(row.spent) / maximum}
-              color={row.spent < 0 ? chartColors[3] : over ? c.negative : chartColors[1]}
+              color={row.spent < 0 ? c.positive : over ? c.negative : chartColors[2]}
               height={6}
             />
             <Text style={{ color: c.muted, fontSize: 11 }}>

@@ -6,7 +6,7 @@ import { useDatabaseQuery } from '../hooks/useDatabaseQuery';
 import { cashFlowSegments } from '../utils/chartData';
 import { useTheme } from './ui';
 import { QueryState } from './QueryState';
-import { AnimatedAmount, ChartSurface } from './charting/AnimatedCharts';
+import { AnimatedAmount, ChartSurface, useChartColors } from './charting/AnimatedCharts';
 import { ThreeRingChart } from './charting/ThreeRingChart';
 export function DailyTransactionSummary({
   date,
@@ -17,6 +17,7 @@ export function DailyTransactionSummary({
 }) {
   const c = useTheme(),
     [selected, setSelected] = useState<string | null>(null);
+  const colors = useChartColors();
   const load = useCallback(
     async () => ({
       date,
@@ -34,7 +35,10 @@ export function DailyTransactionSummary({
     : undefined;
   const income = totals?.income ?? 0,
     expense = totals?.expense ?? 0;
-  const segments = useMemo(() => cashFlowSegments(income, expense), [income, expense]);
+  const segments = useMemo(
+    () => cashFlowSegments(income, expense, colors),
+    [income, expense, colors]
+  );
   const chosen = segments.find((row) => row.key === selected);
   return (
     <ChartSurface

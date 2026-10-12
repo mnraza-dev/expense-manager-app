@@ -39,13 +39,13 @@ export default function Reports() {
         )
       : [];
   return (
-    <Screen title="Insights" subtitle="Find the pattern in your money" back>
+    <Screen title="Insights" subtitle="Income, spending and budgets" back>
       <DateRangeSelector value={range} onChange={setRange} />
       <QueryState {...query} />
       {report && (
         <>
           <ChartSurface
-            title="Your money, at a glance"
+            title="Period summary"
             subtitle={`${report.range.start} – ${report.range.end}${query.isPreviousData ? ' · Previous selection' : ''}`}
             amount={report.net}
             badge="NET FLOW">
