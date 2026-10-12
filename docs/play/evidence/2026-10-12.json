@@ -1,0 +1,483 @@
+{
+  "date": "2026-10-12",
+  "timezone": "Asia/Calcutta",
+  "baseCommit": "724bcb5621515d8953244055e7bc01c1be65b6e2",
+  "sourceTreeSha256": "057093e11909bb3baf2912ae985c1fbac2863377aa5c67f84fc6faa2ce7411dd",
+  "sourceFiles": 208,
+  "configuration": {
+    "supabase": "not configured (key presence checked; no values recorded)",
+    "revenuecat": "not configured (key presence checked; no values recorded)"
+  },
+  "existingAab": {
+    "file": "builds/settler-1.3.0.aab",
+    "sha256": "3cb0afc2e1428b48516b078b4165ca6545459d99886cb59da08beb0a93de22eb",
+    "bytes": 116121514,
+    "bundletoolValidation": "PASS",
+    "signatureVerification": "PASS (Play certificate identity not verified)",
+    "elf64LibrariesChecked": 56,
+    "elf64AlignmentFailures": 0,
+    "bundleConfigAlignment": "PAGE_ALIGNMENT_16K",
+    "generatedUniversalApkZipAlignment": "PASS",
+    "containsLatestFixes": false
+  },
+  "before": {
+    "file": "/private/tmp/settler-existing-aab-manifest.xml",
+    "sha256": "5da1c0b7b8eab2a63494c1f195c011e9b92a0cd11c2457556a8475ba9e308dfc",
+    "package": "com.razatechlabs.settler",
+    "versionCode": "5",
+    "versionName": "1.3.0",
+    "sdk": {
+      "android:minSdkVersion": "24",
+      "android:targetSdkVersion": "36"
+    },
+    "application": {
+      "android:allowBackup": "true",
+      "android:appComponentFactory": "androidx.core.app.CoreComponentFactory",
+      "android:dataExtractionRules": "@xml/secure_store_data_extraction_rules",
+      "android:enableOnBackInvokedCallback": "false",
+      "android:extractNativeLibs": "false",
+      "android:fullBackupContent": "@xml/secure_store_backup_rules",
+      "android:icon": "@mipmap/ic_launcher",
+      "android:label": "@string/app_name",
+      "android:name": "com.razatechlabs.settler.MainApplication",
+      "android:roundIcon": "@mipmap/ic_launcher_round",
+      "android:supportsRtl": "true",
+      "android:theme": "@style/AppTheme"
+    },
+    "permissions": [
+      "android.permission.ACCESS_NETWORK_STATE",
+      "android.permission.ACCESS_WIFI_STATE",
+      "android.permission.CAMERA",
+      "android.permission.DETECT_SCREEN_CAPTURE",
+      "android.permission.INTERNET",
+      "android.permission.POST_NOTIFICATIONS",
+      "android.permission.READ_APP_BADGE",
+      "android.permission.RECEIVE_BOOT_COMPLETED",
+      "android.permission.RECORD_AUDIO",
+      "android.permission.SYSTEM_ALERT_WINDOW",
+      "android.permission.USE_BIOMETRIC",
+      "android.permission.USE_FINGERPRINT",
+      "android.permission.VIBRATE",
+      "android.permission.WAKE_LOCK",
+      "com.anddoes.launcher.permission.UPDATE_COUNT",
+      "com.android.vending.BILLING",
+      "com.google.android.c2dm.permission.RECEIVE",
+      "com.google.android.finsky.permission.BIND_GET_INSTALL_REFERRER_SERVICE",
+      "com.htc.launcher.permission.READ_SETTINGS",
+      "com.htc.launcher.permission.UPDATE_SHORTCUT",
+      "com.huawei.android.launcher.permission.CHANGE_BADGE",
+      "com.huawei.android.launcher.permission.READ_SETTINGS",
+      "com.huawei.android.launcher.permission.WRITE_SETTINGS",
+      "com.majeur.launcher.permission.UPDATE_BADGE",
+      "com.oppo.launcher.permission.READ_SETTINGS",
+      "com.oppo.launcher.permission.WRITE_SETTINGS",
+      "com.razatechlabs.settler.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION",
+      "com.sec.android.provider.badge.permission.READ",
+      "com.sec.android.provider.badge.permission.WRITE",
+      "com.sonyericsson.home.permission.BROADCAST_BADGE",
+      "com.sonymobile.home.permission.PROVIDER_INSERT_BADGE",
+      "me.everything.badger.permission.BADGE_COUNT_READ",
+      "me.everything.badger.permission.BADGE_COUNT_WRITE"
+    ],
+    "metadata": [
+      {
+        "android:name": "expo.modules.updates.ENABLED",
+        "android:value": "false"
+      },
+      {
+        "android:name": "expo.modules.updates.ENABLE_BSDIFF_PATCH_SUPPORT",
+        "android:value": "true"
+      },
+      {
+        "android:name": "expo.modules.updates.EXPO_UPDATES_CHECK_ON_LAUNCH",
+        "android:value": "ALWAYS"
+      },
+      {
+        "android:name": "expo.modules.updates.EXPO_UPDATES_LAUNCH_WAIT_MS",
+        "android:value": "0"
+      },
+      {
+        "android:name": "org.unimodules.core.AppLoader#react-native-headless",
+        "android:value": "expo.modules.adapters.react.apploader.RNHeadlessAppLoader"
+      },
+      {
+        "android:name": "com.facebook.soloader.enabled",
+        "android:value": "true"
+      },
+      {
+        "android:name": "com.google.mlkit.vision.DEPENDENCIES",
+        "android:value": "barcode_ui"
+      },
+      {
+        "android:name": "com.google.android.play.billingclient.version",
+        "android:value": "8.3.0"
+      },
+      {
+        "android:name": "com.google.android.gms.version",
+        "android:value": "@integer/google_play_services_version"
+      }
+    ]
+  },
+  "after": {
+    "file": "android/app/build/intermediates/merged_manifest/release/processReleaseMainManifest/AndroidManifest.xml",
+    "sha256": "2ed82775721ff93db9958770742734a3df6e44c04b8e7268b95c50a287e668da",
+    "package": "com.razatechlabs.settler",
+    "versionCode": "5",
+    "versionName": "1.3.0",
+    "sdk": {
+      "android:minSdkVersion": "24",
+      "android:targetSdkVersion": "36"
+    },
+    "application": {
+      "android:name": "com.razatechlabs.settler.MainApplication",
+      "android:allowBackup": "false",
+      "android:appComponentFactory": "androidx.core.app.CoreComponentFactory",
+      "android:dataExtractionRules": "@xml/settler_data_extraction_rules",
+      "android:enableOnBackInvokedCallback": "false",
+      "android:extractNativeLibs": "false",
+      "android:fullBackupContent": "@xml/settler_backup_rules",
+      "android:icon": "@mipmap/ic_launcher",
+      "android:label": "@string/app_name",
+      "android:roundIcon": "@mipmap/ic_launcher_round",
+      "android:supportsRtl": "true",
+      "android:theme": "@style/AppTheme",
+      "android:usesCleartextTraffic": "false"
+    },
+    "permissions": [
+      "android.permission.ACCESS_NETWORK_STATE",
+      "android.permission.ACCESS_WIFI_STATE",
+      "android.permission.CAMERA",
+      "android.permission.DETECT_SCREEN_CAPTURE",
+      "android.permission.INTERNET",
+      "android.permission.POST_NOTIFICATIONS",
+      "android.permission.READ_APP_BADGE",
+      "android.permission.RECEIVE_BOOT_COMPLETED",
+      "android.permission.RECORD_AUDIO",
+      "android.permission.USE_BIOMETRIC",
+      "android.permission.USE_FINGERPRINT",
+      "android.permission.VIBRATE",
+      "android.permission.WAKE_LOCK",
+      "com.anddoes.launcher.permission.UPDATE_COUNT",
+      "com.android.vending.BILLING",
+      "com.google.android.c2dm.permission.RECEIVE",
+      "com.google.android.finsky.permission.BIND_GET_INSTALL_REFERRER_SERVICE",
+      "com.htc.launcher.permission.READ_SETTINGS",
+      "com.htc.launcher.permission.UPDATE_SHORTCUT",
+      "com.huawei.android.launcher.permission.CHANGE_BADGE",
+      "com.huawei.android.launcher.permission.READ_SETTINGS",
+      "com.huawei.android.launcher.permission.WRITE_SETTINGS",
+      "com.majeur.launcher.permission.UPDATE_BADGE",
+      "com.oppo.launcher.permission.READ_SETTINGS",
+      "com.oppo.launcher.permission.WRITE_SETTINGS",
+      "com.razatechlabs.settler.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION",
+      "com.sec.android.provider.badge.permission.READ",
+      "com.sec.android.provider.badge.permission.WRITE",
+      "com.sonyericsson.home.permission.BROADCAST_BADGE",
+      "com.sonymobile.home.permission.PROVIDER_INSERT_BADGE",
+      "me.everything.badger.permission.BADGE_COUNT_READ",
+      "me.everything.badger.permission.BADGE_COUNT_WRITE"
+    ],
+    "metadata": [
+      {
+        "android:name": "expo.modules.updates.ENABLED",
+        "android:value": "false"
+      },
+      {
+        "android:name": "expo.modules.updates.ENABLE_BSDIFF_PATCH_SUPPORT",
+        "android:value": "true"
+      },
+      {
+        "android:name": "expo.modules.updates.EXPO_UPDATES_CHECK_ON_LAUNCH",
+        "android:value": "ALWAYS"
+      },
+      {
+        "android:name": "expo.modules.updates.EXPO_UPDATES_LAUNCH_WAIT_MS",
+        "android:value": "0"
+      },
+      {
+        "android:name": "firebase_messaging_auto_init_enabled",
+        "android:value": "false"
+      },
+      {
+        "android:name": "org.unimodules.core.AppLoader#react-native-headless",
+        "android:value": "expo.modules.adapters.react.apploader.RNHeadlessAppLoader"
+      },
+      {
+        "android:name": "com.facebook.soloader.enabled",
+        "android:value": "true"
+      },
+      {
+        "android:name": "com.google.mlkit.vision.DEPENDENCIES",
+        "android:value": "barcode_ui"
+      },
+      {
+        "android:name": "com.google.android.play.billingclient.version",
+        "android:value": "8.3.0"
+      },
+      {
+        "android:name": "com.google.android.gms.version",
+        "android:value": "@integer/google_play_services_version"
+      }
+    ]
+  },
+  "nativeChecks": {
+    "manifestAndResourceCompilation": "PASS",
+    "debugOrUnsignedSigningRejected": "PASS",
+    "uploadSigningConfigurationAccepted": "PASS"
+  },
+  "testDevice": {
+    "model": "V2356",
+    "androidApi": 36,
+    "pageSizeBytes": 4096,
+    "installedVersionCode": 5,
+    "installedVersionName": "1.3.0",
+    "interaction": "read-only package, SDK and exit metadata; no install/uninstall or data changes",
+    "historicalExitReasons": {
+      "userRequested": 3,
+      "packageUpdated": 2,
+      "lowMemory": 2
+    },
+    "newReleaseRuntimeTests": "NOT RUN"
+  },
+  "npmAudit": {
+    "before": {
+      "total": 34,
+      "high": 22,
+      "moderate": 12,
+      "critical": 0
+    },
+    "after": {
+      "info": 0,
+      "low": 0,
+      "moderate": 9,
+      "high": 21,
+      "critical": 0,
+      "total": 30
+    },
+    "remaining": [
+      {
+        "name": "@expo/cli",
+        "severity": "high",
+        "direct": false,
+        "advisories": []
+      },
+      {
+        "name": "@expo/code-signing-certificates",
+        "severity": "high",
+        "direct": false,
+        "advisories": []
+      },
+      {
+        "name": "@expo/config",
+        "severity": "moderate",
+        "direct": false,
+        "advisories": []
+      },
+      {
+        "name": "@expo/config-plugins",
+        "severity": "moderate",
+        "direct": false,
+        "advisories": []
+      },
+      {
+        "name": "@expo/inline-modules",
+        "severity": "moderate",
+        "direct": false,
+        "advisories": []
+      },
+      {
+        "name": "@expo/local-build-cache-provider",
+        "severity": "moderate",
+        "direct": false,
+        "advisories": []
+      },
+      {
+        "name": "@expo/metro",
+        "severity": "high",
+        "direct": false,
+        "advisories": []
+      },
+      {
+        "name": "@expo/metro-config",
+        "severity": "high",
+        "direct": false,
+        "advisories": []
+      },
+      {
+        "name": "@expo/prebuild-config",
+        "severity": "moderate",
+        "direct": false,
+        "advisories": []
+      },
+      {
+        "name": "@react-native-community/datetimepicker",
+        "severity": "high",
+        "direct": true,
+        "advisories": []
+      },
+      {
+        "name": "@react-native/community-cli-plugin",
+        "severity": "high",
+        "direct": false,
+        "advisories": []
+      },
+      {
+        "name": "@react-native/metro-config",
+        "severity": "high",
+        "direct": false,
+        "advisories": []
+      },
+      {
+        "name": "@react-native/virtualized-lists",
+        "severity": "high",
+        "direct": false,
+        "advisories": []
+      },
+      {
+        "name": "braces",
+        "severity": "high",
+        "direct": false,
+        "advisories": [
+          {
+            "title": "braces vulnerable to stack-exhaustion denial of service through deeply nested patterns",
+            "url": "https://github.com/advisories/GHSA-vfj7-8cjw-p6xm",
+            "range": "<=3.0.3"
+          }
+        ]
+      },
+      {
+        "name": "expo",
+        "severity": "high",
+        "direct": true,
+        "advisories": []
+      },
+      {
+        "name": "expo-sharing",
+        "severity": "moderate",
+        "direct": true,
+        "advisories": []
+      },
+      {
+        "name": "expo-splash-screen",
+        "severity": "moderate",
+        "direct": true,
+        "advisories": []
+      },
+      {
+        "name": "metro",
+        "severity": "high",
+        "direct": false,
+        "advisories": []
+      },
+      {
+        "name": "metro-config",
+        "severity": "high",
+        "direct": false,
+        "advisories": []
+      },
+      {
+        "name": "metro-file-map",
+        "severity": "high",
+        "direct": false,
+        "advisories": []
+      },
+      {
+        "name": "metro-transform-worker",
+        "severity": "high",
+        "direct": false,
+        "advisories": []
+      },
+      {
+        "name": "micromatch",
+        "severity": "high",
+        "direct": false,
+        "advisories": []
+      },
+      {
+        "name": "node-forge",
+        "severity": "high",
+        "direct": false,
+        "advisories": [
+          {
+            "title": "node-forge RSA PKCS#1 v1.5 signature verification accepts extra nested DigestAlgorithm elements",
+            "url": "https://github.com/advisories/GHSA-86w9-cpqp-85rv",
+            "range": "<=1.4.0"
+          }
+        ]
+      },
+      {
+        "name": "react-native",
+        "severity": "high",
+        "direct": true,
+        "advisories": []
+      },
+      {
+        "name": "react-native-purchases",
+        "severity": "high",
+        "direct": true,
+        "advisories": []
+      },
+      {
+        "name": "react-native-reanimated",
+        "severity": "high",
+        "direct": true,
+        "advisories": []
+      },
+      {
+        "name": "react-native-screens",
+        "severity": "high",
+        "direct": true,
+        "advisories": []
+      },
+      {
+        "name": "react-native-worklets",
+        "severity": "high",
+        "direct": true,
+        "advisories": []
+      },
+      {
+        "name": "uuid",
+        "severity": "moderate",
+        "direct": false,
+        "advisories": [
+          {
+            "title": "uuid: Missing buffer bounds check in v3/v5/v6 when buf is provided",
+            "url": "https://github.com/advisories/GHSA-w5hq-g745-h8pq",
+            "range": "<11.1.1"
+          }
+        ]
+      },
+      {
+        "name": "xcode",
+        "severity": "moderate",
+        "direct": false,
+        "advisories": []
+      }
+    ]
+  },
+  "privacyPolicy": {
+    "url": "https://mnraza-dev.vercel.app/privacy-policy.html",
+    "retrieval": "HTTPS curl --fail --location succeeded; content inspected",
+    "sha256": "0b327e5697a9aefd5d422511592a8ecba336fff965abfda993ee2a440ed24130",
+    "publicUpdatedDate": "October 5, 2026",
+    "draftHosted": false
+  },
+  "verification": {
+    "unitAndIntegrationTests": 154,
+    "testFailures": 0,
+    "typescript": "PASS",
+    "eslint": "PASS",
+    "androidAndIosHermesExports": "PASS",
+    "releaseApproval": "BLOCKED",
+    "hermesBundles": [
+      {
+        "file": "_expo/static/js/android/entry-bc8d5fb5d8814f7aaaa0b85babe22560.hbc",
+        "sha256": "1a7c0290cf03d80f0231838383577580f283533c7c69ff4872b361435c27f61e"
+      },
+      {
+        "file": "_expo/static/js/ios/entry-bc5c3cb25c8983a9b43b6fd68c230d9a.hbc",
+        "sha256": "7cdf36709ad21bcfb7ee956d0651ae887360b5be44849fde829abcd77078b379"
+      }
+    ]
+  }
+}

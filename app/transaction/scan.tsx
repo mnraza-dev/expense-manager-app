@@ -16,6 +16,7 @@ import {
   recognizeReceiptImage,
 } from '../../src/services/receiptScan';
 import type { ReceiptScanDraft } from '../../src/utils/receiptScan';
+import { OCR_PRIVACY_NOTICE } from '../../src/privacy/policy';
 
 function ReceiptCamera({
   module,
@@ -256,6 +257,7 @@ export default function ScanReceipt() {
           Read a printed JPEG or PNG receipt on this device. Review the merchant, total, date and
           category before saving. The scanned image will be attached to the expense.
         </Label>
+        <Label small>{OCR_PRIVACY_NOTICE}</Label>
         <Label small>
           English receipts are supported. Hindi recognition depends on the device. PDF receipts can
           be attached through manual entry.

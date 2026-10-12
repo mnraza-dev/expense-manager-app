@@ -6,6 +6,7 @@ import { repo } from '../../src/db/database';
 import { migrations } from '../../src/db/migrations';
 import { requireOptionalNativeModule } from 'expo';
 import Constants from 'expo-constants';
+import { cloudConfigured } from '../../src/cloud/client';
 export default function Settings() {
   const router = useRouter();
   const c = useTheme();
@@ -63,10 +64,17 @@ export default function Settings() {
         title="Passcode & biometric app lock"
         onPress={() => router.push('/security')}
       />
+      {cloudConfigured() && (
+        <Button
+          secondary
+          title="Optional cloud, sync & subscriptions"
+          onPress={() => router.push('/cloud')}
+        />
+      )}
       <Button
         secondary
-        title="Optional cloud, sync & subscriptions"
-        onPress={() => router.push('/cloud')}
+        title="Privacy policy & data handling"
+        onPress={() => router.push('/privacy')}
       />
       <Card>
         <Label>Local database</Label>

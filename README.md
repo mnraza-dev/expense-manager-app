@@ -282,3 +282,7 @@ Cloud backup/authentication/sync implementation and deployment instructions are 
 The four-tab interface, design decisions, preserved secondary workflows and device QA checklist are in [DESIGN.md](DESIGN.md). Native visual/performance verification remains outstanding without a usable simulator or attached device.
 
 For a signed Android App Bundle, keep `release.keystore` locally and set `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, and `ANDROID_KEY_PASSWORD` in `.env` (or the process environment). From the project root, run `bun run android:aab` (or `npm run android:aab`). The command sets `NODE_ENV=production`, regenerates Android resources, builds all four Android architectures with limited native compiler parallelism and release signing, verifies the signature against the keystore, and copies the result to `builds/settler-1.3.0.aab`. Node.js, Android SDK and Java must be installed. Run only one build at a time. Keystores and bundle output are ignored by Git.
+
+## Google Play release readiness
+
+[PLAY_POLICY_AUDIT.md](PLAY_POLICY_AUDIT.md) records the October 12, 2026 audit, policy sources, code fixes, build evidence, Data safety worksheet and unresolved release gates. Release remains blocked pending declaration verification and testing of a newly signed binary containing the fixes. The existing AAB is unchanged. [The Settler privacy notice draft](docs/play/settler-privacy-notice.html) is ready for review and hosting beside the public developer policy.

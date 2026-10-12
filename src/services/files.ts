@@ -36,6 +36,7 @@ export async function shareText(text: string, extension: 'csv' | 'json', label: 
   try {
     file.create();
     file.write(text);
+    await waitForForegroundAccess();
     await Sharing.shareAsync(file.uri, {
       mimeType: extension === 'csv' ? 'text/csv' : 'application/json',
       UTI: extension === 'csv' ? 'public.comma-separated-values-text' : 'public.json',
@@ -146,6 +147,7 @@ export async function shareLatestRecovery() {
     .sort((a, b) => b.name.localeCompare(a.name));
   if (!files[0]) throw new Error('No pre-restore recovery backup is available.');
   if (!(await Sharing.isAvailableAsync())) throw new Error('Sharing is unavailable.');
+  await waitForForegroundAccess();
   await Sharing.shareAsync(files[0].uri, {
     mimeType: 'application/json',
     dialogTitle: 'Pre-restore recovery backup',
@@ -159,6 +161,7 @@ export async function shareWorkbook(bytes: Uint8Array) {
   try {
     file.create();
     file.write(bytes);
+    await waitForForegroundAccess();
     await Sharing.shareAsync(file.uri, {
       mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       UTI: 'org.openxmlformats.spreadsheetml.sheet',
@@ -187,6 +190,7 @@ export async function shareMigrationRecovery() {
     );
   if (!(await Sharing.isAvailableAsync()))
     throw new Error('Sharing is unavailable on this device.');
+  await waitForForegroundAccess();
   await Sharing.shareAsync(copies[0].uri, {
     mimeType: 'application/octet-stream',
     dialogTitle: 'Pre-upgrade SQLite recovery copy',

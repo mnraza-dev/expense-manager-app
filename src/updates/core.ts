@@ -38,6 +38,11 @@ export function validUpdateURL(value: unknown): value is string {
     return false;
   }
 }
+export const PLAY_STORE_UPDATE_URL =
+  'https://play.google.com/store/apps/details?id=com.razatechlabs.settler';
+export function validStoreUpdateURL(value: unknown, platform: UpdatePlatform): value is string {
+  return validUpdateURL(value) && (platform !== 'android' || value === PLAY_STORE_UPDATE_URL);
+}
 export function parseUpdatePolicy(value: unknown, platform: UpdatePlatform): UpdatePolicy {
   if (!value || typeof value !== 'object') throw new Error('Missing update policy.');
   const p = value as Record<string, unknown>;
@@ -46,8 +51,8 @@ export function parseUpdatePolicy(value: unknown, platform: UpdatePlatform): Upd
     typeof p.enabled !== 'boolean' ||
     !versionParts(p.minimum_version) ||
     (p.minimum_build !== null && !versionParts(p.minimum_build, true)) ||
-    (p.store_url !== null && !validUpdateURL(p.store_url)) ||
-    (p.enabled && !validUpdateURL(p.store_url)) ||
+    (p.store_url !== null && !validStoreUpdateURL(p.store_url, platform)) ||
+    (p.enabled && !validStoreUpdateURL(p.store_url, platform)) ||
     typeof p.message !== 'string' ||
     p.message.length > 500
   )

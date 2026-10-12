@@ -52,8 +52,8 @@ export default function Bills() {
       <Card>
         <Label>Device notifications</Label>
         <Label small>
-          Reminders arrive at 9 AM in device local time. Notification text hides bill names and
-          amounts. Nothing is paid or posted automatically.
+          Reminders are scheduled for 9 AM in device local time; device settings may delay delivery.
+          Notification text hides bill names and amounts. Nothing is paid or posted automatically.
         </Label>
         <Button
           secondary

@@ -27,3 +27,11 @@ MVP v3 receipt recognition uses bundled Android ML Kit models and Apple Vision, 
 ## MVP v4 reminders and recovery
 
 Payment alerts use on-device scheduled notifications, with permission requested only on explicit enablement. Notification content contains no financial names or amounts. Lead-time/enable preferences live in device-local storage and are excluded from financial backups/sync. Scheduled alerts are reconciled after edits, handling, restore, sync and foreground resume; delivery timing remains subject to operating-system restrictions. Schema-5 financial backups include split allocations, refund links, goals/contributions and bills. Legacy schema-3/4 checksums are verified before normalization and staging validation. App-lock credentials and receipt files retain their existing backup exclusions.
+
+## Android Play audit — October 12, 2026
+
+See [PLAY_POLICY_AUDIT.md](PLAY_POLICY_AUDIT.md) for the current release decision. The source now removes the overlay/advertising-ID/exact-alarm permissions, disables automatic Android backup and device transfer with explicit exclusion rules, forbids cleartext traffic and disables Firebase Messaging auto-init. An Expo config plugin preserves these changes through prebuild and rejects unsigned/debug release signing. Manual backups remain available; save a copy before uninstalling or clearing app storage.
+
+Navigation uses the patched `decode-uri-component` 0.5.0 through a checked, idempotent CommonJS bridge for `query-string`; malformed percent-encoding has a bounded-process regression test. Compatible `brace-expansion` 1.x updates to 1.1.21. The refreshed npm audit reports 30 findings (21 high, 9 moderate), including unresolved Metro `braces`, Expo CLI `node-forge`, and Xcode tooling `uuid` paths. Audit severity propagates into parent packages; it is not proof each named native SDK is vulnerable at runtime. No SDK downgrades or forced audit fixes were applied. Remaining paths require owner review and safe upstream updates.
+
+Receipt OCR processes images/text locally, while Google's ML Kit SDK may transmit diagnostic and usage metrics. The scan screen and Settings privacy policy explain this distinction. A local ledger and absent online auth do not justify a blanket “no data collected” declaration.

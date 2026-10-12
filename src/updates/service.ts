@@ -8,7 +8,7 @@ import { digest } from '../security/crypto';
 import {
   UpdateController,
   withUpdateTimeout,
-  validUpdateURL,
+  validStoreUpdateURL,
   type UpdatePlatform,
   type UpdateState,
 } from './core';
@@ -70,8 +70,9 @@ export async function checkRequiredUpdate() {
   await controller?.refresh();
 }
 export async function openRequiredUpdate() {
-  const url = useRequiredUpdate.getState().policy?.store_url;
-  if (!validUpdateURL(url))
+  const policy = useRequiredUpdate.getState().policy;
+  const url = policy?.store_url;
+  if (!policy || !validStoreUpdateURL(url, policy.platform))
     throw new Error('The update download link is unavailable. Please retry.');
   try {
     await Linking.openURL(url);

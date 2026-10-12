@@ -59,6 +59,12 @@ test('invalid metadata, cross-platform caches and unsafe update links are reject
     { store_url: 'javascript:alert(1)' },
     { store_url: 'http://example.com' },
     { store_url: 'https://user:secret@example.com/app' },
+    { store_url: 'https://example.com/releases/settler.apk' },
+    { store_url: 'https://play.google.com/store/apps/details?id=com.other.app' },
+    {
+      store_url:
+        'https://play.google.com.evil.example/store/apps/details?id=com.razatechlabs.settler',
+    },
     { store_url: null },
     { message: 'x'.repeat(501) },
   ])
@@ -188,6 +194,7 @@ test('release metadata is readable before login; clients cannot change it or ena
   try {
     await pg.exec('create role anon;create role authenticated;create role service_role bypassrls;');
     await pg.exec(readFileSync('supabase/migrations/202610120002_release_policy.sql', 'utf8'));
+    await pg.exec(readFileSync('supabase/migrations/202610120003_play_update_links.sql', 'utf8'));
     await pg.exec('set role anon');
     const rows = (await pg.query('select * from public.app_release_policy order by platform')).rows;
     assert.equal(rows.length, 2);
@@ -203,6 +210,12 @@ test('release metadata is readable before login; clients cannot change it or ena
       /permission denied/
     );
     await pg.exec('reset role;set role service_role');
+    await assert.rejects(
+      pg.exec(
+        "update public.app_release_policy set store_url='https://example.com/settler.apk' where platform='android'"
+      ),
+      /check constraint/
+    );
     await assert.rejects(
       pg.exec("update public.app_release_policy set enabled=true where platform='ios'"),
       /check constraint/

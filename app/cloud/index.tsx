@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Alert } from 'react-native';
+import { Alert, Linking, Platform } from 'react-native';
 import { Screen, Card, Label, Button, Field, showError } from '../../src/components/ui';
 import { cloudClient, cloudConfigured, authRedirect } from '../../src/cloud/client';
 import { useCloudAuth } from '../../src/cloud/auth';
@@ -96,9 +96,8 @@ export default function CloudScreen() {
         <Card>
           <Label>Cloud is not configured</Label>
           <Label small>
-            Local finance, export and recovery remain available. Configure the public Supabase URL
-            and publishable key in .env.example, then deploy the migrations and functions documented
-            in CLOUD.md. No service-role secret belongs in this app.
+            Online accounts are unavailable in this release. Local finance, export and recovery
+            remain available without signing in.
           </Label>
         </Card>
       </Screen>
@@ -208,7 +207,7 @@ export default function CloudScreen() {
                   if (
                     !(await confirm(
                       'Delete cloud account?',
-                      'All owned cloud records and backup files will be removed. Local financial data is retained. This cannot be undone.'
+                      'All owned cloud records and backup files will be removed. Local financial data is retained. Account deletion does not cancel a store subscription; manage it in your store settings. This cannot be undone.'
                     ))
                   )
                     return;
@@ -409,6 +408,17 @@ export default function CloudScreen() {
                         ]
                       );
                     })
+                  }
+                />
+                <Button
+                  secondary
+                  title="Manage or cancel store subscriptions"
+                  onPress={() =>
+                    void Linking.openURL(
+                      Platform.OS === 'android'
+                        ? 'https://play.google.com/store/account/subscriptions'
+                        : 'https://apps.apple.com/account/subscriptions'
+                    ).catch(showError)
                   }
                 />
                 <Button

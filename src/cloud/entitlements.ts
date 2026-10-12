@@ -1,7 +1,7 @@
 import { Platform } from 'react-native';
 import type { PurchasesPackage } from 'react-native-purchases';
 import { isRunningInExpoGo } from 'expo';
-import { cloudClient } from './client';
+import { cloudClient, cloudConfigured } from './client';
 import { verifiedOwner } from './auth';
 export type Feature =
   | 'cloud_backup'
@@ -16,11 +16,15 @@ let configured = false,
   currentOwner: string | null = null;
 export function billingConfigured() {
   return (
-    !!publicKey && !isRunningInExpoGo() && (Platform.OS === 'ios' || Platform.OS === 'android')
+    cloudConfigured() &&
+    !!publicKey &&
+    !isRunningInExpoGo() &&
+    (Platform.OS === 'ios' || Platform.OS === 'android')
   );
 }
 export async function billingUser(owner: string | null) {
   if (!publicKey || !billingConfigured()) return;
+  if (!configured && !owner) return;
   const { default: Purchases } = await import('react-native-purchases');
   if (!configured) {
     Purchases.configure({ apiKey: publicKey, appUserID: owner ?? undefined });
