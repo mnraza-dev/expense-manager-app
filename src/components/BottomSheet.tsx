@@ -52,32 +52,32 @@ export function BottomSheet({
     <Modal transparent visible={visible} animationType="none" onRequestClose={dismiss}>
       <View style={{ flex: 1, justifyContent: 'flex-end' }}>
         <KeyboardRegion offset={0} style={{ justifyContent: 'flex-end' }}>
-        <Animated.View
-          style={[
-            { position: 'absolute', inset: 0, backgroundColor: 'rgba(0,0,0,0.35)' },
-            backdrop,
-          ]}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Close sheet"
-            onPress={dismiss}
-            style={{ flex: 1 }}
-          />
-        </Animated.View>
-        <Animated.View
-          style={[
-            {
-              height: '90%',
-              backgroundColor: c.bg,
-              borderTopLeftRadius: tokens.radius.surface,
-              borderTopRightRadius: tokens.radius.surface,
-            },
-            sheet,
-          ]}>
-          <SafeAreaView edges={['bottom', 'left', 'right']} style={{ flex: 1 }}>
-            {children(dismiss)}
-          </SafeAreaView>
-        </Animated.View>
+          <Animated.View
+            style={[
+              { position: 'absolute', inset: 0, backgroundColor: 'rgba(0,0,0,0.35)' },
+              backdrop,
+            ]}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Close sheet"
+              onPress={dismiss}
+              style={{ flex: 1 }}
+            />
+          </Animated.View>
+          <Animated.View
+            style={[
+              {
+                height: '90%',
+                backgroundColor: c.bg,
+                borderTopLeftRadius: tokens.radius.surface,
+                borderTopRightRadius: tokens.radius.surface,
+              },
+              sheet,
+            ]}>
+            <SafeAreaView edges={['bottom', 'left', 'right']} style={{ flex: 1 }}>
+              {children(dismiss)}
+            </SafeAreaView>
+          </Animated.View>
         </KeyboardRegion>
       </View>
     </Modal>

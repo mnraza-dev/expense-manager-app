@@ -1,35 +1,72 @@
 import {
-  ShoppingBag,
-  Utensils,
-  Bus,
-  Home,
-  Heart,
-  Briefcase,
-  Tag,
   ArrowRightLeft,
+  BriefcaseBusiness,
+  Bus,
+  Clapperboard,
+  Fuel,
+  Gift,
+  GraduationCap,
+  HeartPulse,
+  House,
+  Laptop,
+  PiggyBank,
+  Plane,
+  ReceiptText,
+  Repeat,
+  RotateCcw,
+  ShoppingBag,
+  ShoppingBasket,
+  Store,
+  Tag,
+  Utensils,
+  Zap,
 } from 'lucide-react-native';
+import { categoryIconName, type CategoryIconName } from '../utils/categoryIcons';
 import { useTheme } from './ui';
-export function CategoryIcon({ name, transfer = false }: { name: string; transfer?: boolean }) {
+const icons: Record<CategoryIconName, typeof Tag> = {
+  auto: Tag,
+  food: Utensils,
+  groceries: ShoppingBasket,
+  transport: Bus,
+  fuel: Fuel,
+  travel: Plane,
+  home: House,
+  utilities: Zap,
+  shopping: ShoppingBag,
+  health: HeartPulse,
+  education: GraduationCap,
+  entertainment: Clapperboard,
+  subscriptions: Repeat,
+  bills: ReceiptText,
+  gift: Gift,
+  salary: BriefcaseBusiness,
+  business: Store,
+  freelance: Laptop,
+  savings: PiggyBank,
+  refund: RotateCcw,
+  tag: Tag,
+  transfer: ArrowRightLeft,
+};
+export function CategoryIcon({
+  name,
+  icon,
+  transfer = false,
+  color,
+  size = 20,
+}: {
+  name: string;
+  icon?: string;
+  transfer?: boolean;
+  color?: string;
+  size?: number;
+}) {
   const c = useTheme();
-  const Icon = transfer
-    ? ArrowRightLeft
-    : /food|dining|grocer/i.test(name)
-      ? Utensils
-      : /transport|travel|fuel/i.test(name)
-        ? Bus
-        : /rent|home|utilit/i.test(name)
-          ? Home
-          : /health/i.test(name)
-            ? Heart
-            : /salary|work/i.test(name)
-              ? Briefcase
-              : /shop/i.test(name)
-                ? ShoppingBag
-                : Tag;
+  const Icon = icons[categoryIconName(name, icon, transfer)];
   return (
     <Icon
-      size={19}
-      color={c.muted}
+      size={size}
+      strokeWidth={1.8}
+      color={color ?? c.accent}
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
     />

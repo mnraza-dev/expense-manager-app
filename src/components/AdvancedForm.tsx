@@ -100,6 +100,8 @@ export function AdvancedForm({
                 ) : (
                   <Field
                     label={field.label}
+                    inputRef={input.ref}
+                    onBlur={input.onBlur}
                     value={input.value ?? ''}
                     onChangeText={input.onChange}
                     error={errors[field.name]?.message as string | undefined}

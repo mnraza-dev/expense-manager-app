@@ -52,104 +52,104 @@ export function TransactionFilterSheet({
   return (
     <BottomSheet visible={visible} onClose={onClose}>
       {(dismiss) => (
-          <KeyboardScrollView contentContainerStyle={[styles.page, { flexGrow: 1 }]}>
-            <Label>Filter & sort transactions</Label>
-            <Label small>Combine any filters. Amount and date boundaries are inclusive.</Label>
-            <Choices
-              label="Transaction type"
-              value={draft.type ?? 'all'}
-              onChange={(value) =>
-                setDraft((v) => ({
-                  ...v,
-                  type: value === 'all' ? undefined : (value as TransactionType),
-                }))
-              }
-              options={['all', 'expense', 'income', 'transfer'].map((value) => ({
-                value,
-                label: value[0].toUpperCase() + value.slice(1),
-              }))}
-            />
-            <Choices
-              label="Account (includes transfer destinations)"
-              value={draft.account_id ?? 0}
-              onChange={(account_id) =>
-                setDraft((v) => ({ ...v, account_id: account_id || undefined }))
-              }
-              options={[
-                { value: 0, label: 'All accounts' },
-                ...accounts.map((a) => ({
-                  value: a.id,
-                  label: a.name + (a.archived ? ' (archived)' : ''),
-                })),
-              ]}
-            />
-            <Choices
-              label="Category"
-              value={draft.category_id ?? 0}
-              onChange={(category_id) =>
-                setDraft((v) => ({ ...v, category_id: category_id || undefined }))
-              }
-              options={[
-                { value: 0, label: 'All categories' },
-                ...categories.map((a) => ({
-                  value: a.id,
-                  label: a.name + (a.archived ? ' (archived)' : ''),
-                })),
-              ]}
-            />
-            {fixedDate ? (
-              <Label small>Selected day: {fixedDate} · Change the date in Daily view.</Label>
-            ) : (
-              <>
-                <Field
-                  label="Start date (YYYY-MM-DD)"
-                  value={draft.start ?? ''}
-                  onChangeText={(start) => setDraft((v) => ({ ...v, start: start || undefined }))}
-                />
-                <Field
-                  label="End date (YYYY-MM-DD)"
-                  value={draft.end ?? ''}
-                  onChangeText={(end) => setDraft((v) => ({ ...v, end: end || undefined }))}
-                />
-              </>
-            )}
-            <Field
-              label="Minimum amount (₹)"
-              value={min}
-              onChangeText={setMin}
-              keyboardType="decimal-pad"
-            />
-            <Field
-              label="Maximum amount (₹)"
-              value={max}
-              onChangeText={setMax}
-              keyboardType="decimal-pad"
-            />
-            <Choices
-              label="Sort order"
-              value={draft.sort ?? 'newest'}
-              onChange={(sort) => setDraft((v) => ({ ...v, sort }))}
-              options={
-                [
-                  { value: 'newest', label: 'Newest first' },
-                  { value: 'oldest', label: 'Oldest first' },
-                  { value: 'highest', label: 'Highest amount' },
-                  { value: 'lowest', label: 'Lowest amount' },
-                ] as { value: TransactionSort; label: string }[]
-              }
-            />
-            {error && <Label>{error}</Label>}
-            <Button title="Apply filters" onPress={() => apply(dismiss)} />
-            <Button
-              secondary
-              title={fixedDate ? 'Clear search & other filters' : 'Clear all filters & search'}
-              onPress={() => {
-                onClear();
-                dismiss();
-              }}
-            />
-            <Button secondary title="Cancel" onPress={dismiss} />
-          </KeyboardScrollView>
+        <KeyboardScrollView contentContainerStyle={[styles.page, { flexGrow: 1 }]}>
+          <Label>Filter & sort transactions</Label>
+          <Label small>Combine any filters. Amount and date boundaries are inclusive.</Label>
+          <Choices
+            label="Transaction type"
+            value={draft.type ?? 'all'}
+            onChange={(value) =>
+              setDraft((v) => ({
+                ...v,
+                type: value === 'all' ? undefined : (value as TransactionType),
+              }))
+            }
+            options={['all', 'expense', 'income', 'transfer'].map((value) => ({
+              value,
+              label: value[0].toUpperCase() + value.slice(1),
+            }))}
+          />
+          <Choices
+            label="Account (includes transfer destinations)"
+            value={draft.account_id ?? 0}
+            onChange={(account_id) =>
+              setDraft((v) => ({ ...v, account_id: account_id || undefined }))
+            }
+            options={[
+              { value: 0, label: 'All accounts' },
+              ...accounts.map((a) => ({
+                value: a.id,
+                label: a.name + (a.archived ? ' (archived)' : ''),
+              })),
+            ]}
+          />
+          <Choices
+            label="Category"
+            value={draft.category_id ?? 0}
+            onChange={(category_id) =>
+              setDraft((v) => ({ ...v, category_id: category_id || undefined }))
+            }
+            options={[
+              { value: 0, label: 'All categories' },
+              ...categories.map((a) => ({
+                value: a.id,
+                label: a.name + (a.archived ? ' (archived)' : ''),
+              })),
+            ]}
+          />
+          {fixedDate ? (
+            <Label small>Selected day: {fixedDate} · Change the date in Daily view.</Label>
+          ) : (
+            <>
+              <Field
+                label="Start date (YYYY-MM-DD)"
+                value={draft.start ?? ''}
+                onChangeText={(start) => setDraft((v) => ({ ...v, start: start || undefined }))}
+              />
+              <Field
+                label="End date (YYYY-MM-DD)"
+                value={draft.end ?? ''}
+                onChangeText={(end) => setDraft((v) => ({ ...v, end: end || undefined }))}
+              />
+            </>
+          )}
+          <Field
+            label="Minimum amount (₹)"
+            value={min}
+            onChangeText={setMin}
+            keyboardType="decimal-pad"
+          />
+          <Field
+            label="Maximum amount (₹)"
+            value={max}
+            onChangeText={setMax}
+            keyboardType="decimal-pad"
+          />
+          <Choices
+            label="Sort order"
+            value={draft.sort ?? 'newest'}
+            onChange={(sort) => setDraft((v) => ({ ...v, sort }))}
+            options={
+              [
+                { value: 'newest', label: 'Newest first' },
+                { value: 'oldest', label: 'Oldest first' },
+                { value: 'highest', label: 'Highest amount' },
+                { value: 'lowest', label: 'Lowest amount' },
+              ] as { value: TransactionSort; label: string }[]
+            }
+          />
+          {error && <Label>{error}</Label>}
+          <Button title="Apply filters" onPress={() => apply(dismiss)} />
+          <Button
+            secondary
+            title={fixedDate ? 'Clear search & other filters' : 'Clear all filters & search'}
+            onPress={() => {
+              onClear();
+              dismiss();
+            }}
+          />
+          <Button secondary title="Cancel" onPress={dismiss} />
+        </KeyboardScrollView>
       )}
     </BottomSheet>
   );

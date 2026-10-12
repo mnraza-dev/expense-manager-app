@@ -8,16 +8,16 @@ import { Reveal } from './Motion';
 const key = 'pocketbook.onboarding.v3';
 const pages = [
   {
-    title: 'A clearer picture of your money',
+    title: 'Track income and expenses',
     detail: 'Keep your accounts, everyday spending and monthly budgets together.',
   },
   {
-    title: 'A small habit. More control.',
+    title: 'Set a monthly budget',
     detail:
       'Start with an account and its opening balance. Add expenses as they happen, then see what remains in your budget.',
   },
   {
-    title: 'Your money stays yours',
+    title: 'Local records, optional cloud backup',
     detail:
       'Your records work offline on this device. Cloud backup is optional; you choose when to connect it.',
   },

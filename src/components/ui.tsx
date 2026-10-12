@@ -13,7 +13,6 @@ import { tokens, palette } from '../design/tokens';
 import {
   ActivityIndicator,
   Alert,
-  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -249,11 +248,14 @@ export function Field({
   const c = useTheme();
   const input = useRef<TextInput>(null);
   const reveal = useKeyboardInputFocus();
-  const setRef = useCallback((node: TextInput | null) => {
-    input.current = node;
-    if (typeof inputRef === 'function') inputRef(node);
-    else if (inputRef) inputRef.current = node;
-  }, [inputRef]);
+  const setRef = useCallback(
+    (node: TextInput | null) => {
+      input.current = node;
+      if (typeof inputRef === 'function') inputRef(node);
+      else if (inputRef) inputRef.current = node;
+    },
+    [inputRef]
+  );
   return (
     <View style={{ marginVertical: 6 }}>
       <Label small>{label}</Label>
@@ -262,8 +264,11 @@ export function Field({
         accessibilityLabel={label}
         placeholderTextColor={c.muted}
         {...props}
-        onFocus={(event) => { reveal(input.current); onFocus?.(event); }}
-        onBlur={(event) => { reveal(null); onBlur?.(event); }}
+        onFocus={(event) => {
+          reveal(input.current);
+          onFocus?.(event);
+        }}
+        onBlur={onBlur}
         style={[
           styles.input,
           { color: c.text, backgroundColor: c.card, borderColor: error ? c.negative : c.border },

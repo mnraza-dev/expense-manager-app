@@ -166,191 +166,191 @@ function TransactionList({ accountId }: { accountId?: number }) {
       {(header) => (
         <>
           <KeyboardFocusProvider getScrollHandle={getScrollHandle}>
-          <FlatList
-            ref={list}
-            style={{ flex: 1, marginBottom: 16 }}
-            contentContainerStyle={{ paddingBottom: 24 }}
-            showsVerticalScrollIndicator={false}
-            showsHorizontalScrollIndicator={false}
-            automaticallyAdjustContentInsets={false}
-            contentInsetAdjustmentBehavior="never"
-            keyboardShouldPersistTaps="handled"
-            keyboardDismissMode="on-drag"
-            data={rows}
-            keyExtractor={(item) => String(item.id)}
-            ListHeaderComponent={
-              <View style={{ gap: 12 }}>
-                {header}
-                <ReceiptScanButton />
-                <View style={{ paddingTop: 24, gap: 12 }}>
-                  <View
-                    accessibilityRole="tablist"
-                    style={{
-                      flexDirection: 'row',
-                      backgroundColor: c.soft,
-                      padding: 4,
-                      borderRadius: 16,
-                    }}>
-                    {(
-                      [
-                        { value: 'list', label: 'List', Icon: List },
-                        { value: 'calendar', label: 'Calendar', Icon: CalendarDays },
-                        { value: 'daily', label: 'Daily', Icon: Sun },
-                      ] as const
-                    ).map(({ value, label, Icon }) => (
-                      <MotionPressable
-                        key={value}
-                        accessibilityRole="tab"
-                        accessibilityState={{ selected: view === value }}
-                        onPress={() => {
-                          if (value === 'daily') {
-                            changeDay(
-                              selectedDate ?? (day.slice(0, 7) === month ? day : `${month}-01`)
-                            );
-                          } else if (view === 'daily') {
-                            setMonth(day.slice(0, 7));
-                            setFilters((previous) => ({
-                              ...previous,
-                              ...monthRange(day.slice(0, 7)),
-                            }));
-                          }
-                          setView(value);
-                          setSelectedDate(null);
+            <FlatList
+              ref={list}
+              style={{ flex: 1, marginBottom: 16 }}
+              contentContainerStyle={{ paddingBottom: 24 }}
+              showsVerticalScrollIndicator={false}
+              showsHorizontalScrollIndicator={false}
+              automaticallyAdjustContentInsets={false}
+              contentInsetAdjustmentBehavior="never"
+              keyboardShouldPersistTaps="handled"
+              keyboardDismissMode="on-drag"
+              data={rows}
+              keyExtractor={(item) => String(item.id)}
+              ListHeaderComponent={
+                <View style={{ gap: 12 }}>
+                  {header}
+                  <ReceiptScanButton />
+                  <View style={{ paddingTop: 24, gap: 12 }}>
+                    <View
+                      accessibilityRole="tablist"
+                      style={{
+                        flexDirection: 'row',
+                        backgroundColor: c.soft,
+                        padding: 4,
+                        borderRadius: 16,
+                      }}>
+                      {(
+                        [
+                          { value: 'list', label: 'List', Icon: List },
+                          { value: 'calendar', label: 'Calendar', Icon: CalendarDays },
+                          { value: 'daily', label: 'Daily', Icon: Sun },
+                        ] as const
+                      ).map(({ value, label, Icon }) => (
+                        <MotionPressable
+                          key={value}
+                          accessibilityRole="tab"
+                          accessibilityState={{ selected: view === value }}
+                          onPress={() => {
+                            if (value === 'daily') {
+                              changeDay(
+                                selectedDate ?? (day.slice(0, 7) === month ? day : `${month}-01`)
+                              );
+                            } else if (view === 'daily') {
+                              setMonth(day.slice(0, 7));
+                              setFilters((previous) => ({
+                                ...previous,
+                                ...monthRange(day.slice(0, 7)),
+                              }));
+                            }
+                            setView(value);
+                            setSelectedDate(null);
+                            setPage(0);
+                          }}
+                          style={{
+                            flex: 1,
+                            minHeight: 44,
+                            flexDirection: 'row',
+                            gap: 6,
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            borderRadius: 12,
+                            backgroundColor: view === value ? c.card : 'transparent',
+                          }}>
+                          <Icon size={18} color={view === value ? c.accent : c.muted} />
+                          <Text
+                            style={{
+                              color: view === value ? c.text : c.muted,
+                              fontSize: 13,
+                              fontWeight: '600',
+                              flexShrink: 1,
+                            }}>
+                            {label}
+                          </Text>
+                        </MotionPressable>
+                      ))}
+                    </View>
+                    <Field
+                      label="Search"
+                      placeholder="Search your transactions…"
+                      value={search}
+                      onChangeText={setSearch}
+                    />
+                    {view === 'list' && !filters.start && !filters.end && (
+                      <Label small>Showing all dates · select a month to narrow results</Label>
+                    )}
+                    {view === 'daily' ? (
+                      <>
+                        <DaySelector date={day} onChange={changeDay} />
+                        <DailyTransactionSummary date={day} filters={matchingFilters} />
+                      </>
+                    ) : (
+                      <MonthSelector
+                        month={month}
+                        onChange={(m) => {
+                          setMonth(m);
+                          apply({ ...filters, ...monthRange(m) });
+                        }}
+                      />
+                    )}
+                    {view === 'calendar' && (
+                      <TransactionCalendar
+                        month={month}
+                        filters={matchingFilters}
+                        selectedDate={selectedDate}
+                        onSelect={(date) => {
+                          setSelectedDate(date);
                           setPage(0);
                         }}
-                        style={{
-                          flex: 1,
-                          minHeight: 44,
-                          flexDirection: 'row',
-                          gap: 6,
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          borderRadius: 12,
-                          backgroundColor: view === value ? c.card : 'transparent',
-                        }}>
-                        <Icon size={18} color={view === value ? c.accent : c.muted} />
-                        <Text
-                          style={{
-                            color: view === value ? c.text : c.muted,
-                            fontSize: 13,
-                            fontWeight: '600',
-                            flexShrink: 1,
-                          }}>
-                          {label}
-                        </Text>
-                      </MotionPressable>
-                    ))}
+                      />
+                    )}
+                    <Button secondary title="Filter & sort" onPress={() => setSheet(true)} />
+                    {(search ||
+                      Object.entries(filters).some(([key, value]) =>
+                        key === 'sort'
+                          ? value !== 'newest'
+                          : view === 'daily' && (key === 'start' || key === 'end')
+                            ? false
+                            : value !== undefined
+                      )) && (
+                      <Button
+                        secondary
+                        title={
+                          view === 'daily'
+                            ? 'Clear search & other filters'
+                            : 'Clear all filters & search'
+                        }
+                        onPress={clear}
+                      />
+                    )}
+                    <Label small>
+                      {loading ? 'Searching…' : `${count} matching transactions`}
+                      {view === 'calendar' ? ` · ${selectedDate ?? month}` : ''}
+                      {view === 'daily' ? ` · ${day}` : ''}
+                      {filters.sort && filters.sort !== 'newest' ? ` · ${filters.sort} first` : ''}
+                    </Label>
                   </View>
-                  <Field
-                    label="Search"
-                    placeholder="Search your transactions…"
-                    value={search}
-                    onChangeText={setSearch}
+                </View>
+              }
+              renderItem={renderTransaction}
+              ListEmptyComponent={
+                loading ? (
+                  <ActivityIndicator color={c.accent} />
+                ) : error ? (
+                  <>
+                    <Label>{error}</Label>
+                    <Button title="Retry search" onPress={() => setRetry((n) => n + 1)} />
+                  </>
+                ) : (
+                  <Empty
+                    title={
+                      view === 'daily' || selectedDate
+                        ? 'No transactions on this day'
+                        : 'No transactions found'
+                    }
+                    detail={
+                      view === 'daily'
+                        ? 'Choose another day or adjust your search and filters.'
+                        : selectedDate
+                          ? 'Choose another day, or tap the selected day again to view the month.'
+                          : 'Adjust your search or clear the filters to explore other entries.'
+                    }
                   />
-                  {view === 'list' && !filters.start && !filters.end && (
-                    <Label small>Showing all dates · select a month to narrow results</Label>
-                  )}
-                  {view === 'daily' ? (
-                    <>
-                      <DaySelector date={day} onChange={changeDay} />
-                      <DailyTransactionSummary date={day} filters={matchingFilters} />
-                    </>
-                  ) : (
-                    <MonthSelector
-                      month={month}
-                      onChange={(m) => {
-                        setMonth(m);
-                        apply({ ...filters, ...monthRange(m) });
-                      }}
-                    />
-                  )}
-                  {view === 'calendar' && (
-                    <TransactionCalendar
-                      month={month}
-                      filters={matchingFilters}
-                      selectedDate={selectedDate}
-                      onSelect={(date) => {
-                        setSelectedDate(date);
-                        setPage(0);
-                      }}
-                    />
-                  )}
-                  <Button secondary title="Filter & sort" onPress={() => setSheet(true)} />
-                  {(search ||
-                    Object.entries(filters).some(([key, value]) =>
-                      key === 'sort'
-                        ? value !== 'newest'
-                        : view === 'daily' && (key === 'start' || key === 'end')
-                          ? false
-                          : value !== undefined
-                    )) && (
-                    <Button
-                      secondary
-                      title={
-                        view === 'daily'
-                          ? 'Clear search & other filters'
-                          : 'Clear all filters & search'
-                      }
-                      onPress={clear}
-                    />
-                  )}
-                  <Label small>
-                    {loading ? 'Searching…' : `${count} matching transactions`}
-                    {view === 'calendar' ? ` · ${selectedDate ?? month}` : ''}
-                    {view === 'daily' ? ` · ${day}` : ''}
-                    {filters.sort && filters.sort !== 'newest' ? ` · ${filters.sort} first` : ''}
-                  </Label>
-                </View>
-              </View>
-            }
-            renderItem={renderTransaction}
-            ListEmptyComponent={
-              loading ? (
-                <ActivityIndicator color={c.accent} />
-              ) : error ? (
-                <>
-                  <Label>{error}</Label>
-                  <Button title="Retry search" onPress={() => setRetry((n) => n + 1)} />
-                </>
-              ) : (
-                <Empty
-                  title={
-                    view === 'daily' || selectedDate
-                      ? 'No transactions on this day'
-                      : 'No transactions found'
-                  }
-                  detail={
-                    view === 'daily'
-                      ? 'Choose another day or adjust your search and filters.'
-                      : selectedDate
-                        ? 'Choose another day, or tap the selected day again to view the month.'
-                        : 'Adjust your search or clear the filters to explore other entries.'
-                  }
-                />
-              )
-            }
-            ListFooterComponent={
-              rows.length > 0 ? (
-                <View>
-                  {error && (
-                    <>
-                      <Label>{error}</Label>
-                      <Button title="Retry loading" onPress={() => setRetry((n) => n + 1)} />
-                    </>
-                  )}
-                  {loading ? (
-                    <ActivityIndicator color={c.accent} />
-                  ) : rows.length < count ? (
-                    <Button
-                      secondary
-                      title={`Load more (${rows.length} of ${count})`}
-                      onPress={() => setPage((p) => p + 1)}
-                    />
-                  ) : null}
-                </View>
-              ) : null
-            }
-          />
+                )
+              }
+              ListFooterComponent={
+                rows.length > 0 ? (
+                  <View>
+                    {error && (
+                      <>
+                        <Label>{error}</Label>
+                        <Button title="Retry loading" onPress={() => setRetry((n) => n + 1)} />
+                      </>
+                    )}
+                    {loading ? (
+                      <ActivityIndicator color={c.accent} />
+                    ) : rows.length < count ? (
+                      <Button
+                        secondary
+                        title={`Load more (${rows.length} of ${count})`}
+                        onPress={() => setPage((p) => p + 1)}
+                      />
+                    ) : null}
+                  </View>
+                ) : null
+              }
+            />
           </KeyboardFocusProvider>
           {sheet && (
             <TransactionFilterSheet

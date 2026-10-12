@@ -1,6 +1,5 @@
 import { memo } from 'react';
 import { MotionPressable } from './Motion';
-import { DepthIcon } from './Depth';
 import { Text, View } from 'react-native';
 import { CategoryIcon } from './CategoryIcon';
 import { useRouter } from 'expo-router';
@@ -18,6 +17,7 @@ export const TransactionItem = memo(function TransactionItem({
   const c = useTheme();
   const router = useRouter();
   const categoryName = useFinance((s) => s.categories.find((x) => x.id === item.category_id)?.name);
+  const categoryIcon = useFinance((s) => s.categories.find((x) => x.id === item.category_id)?.icon);
   const accountName = useFinance((s) => s.accounts.find((x) => x.id === item.account_id)?.name);
   const destinationName = useFinance(
     (s) => s.accounts.find((x) => x.id === item.destination_account_id)?.name
@@ -30,9 +30,21 @@ export const TransactionItem = memo(function TransactionItem({
         styles.row,
         { paddingVertical: 12, borderBottomWidth: divider ? 1 : 0, borderColor: c.border },
       ]}>
-      <DepthIcon colors={c}>
-        <CategoryIcon name={categoryName ?? ''} transfer={item.type === 'transfer'} />
-      </DepthIcon>
+      <View
+        style={{
+          width: 42,
+          height: 42,
+          borderRadius: 12,
+          backgroundColor: c.soft,
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}>
+        <CategoryIcon
+          name={categoryName ?? ''}
+          icon={categoryIcon}
+          transfer={item.type === 'transfer'}
+        />
+      </View>
       <View style={{ flex: 1, minWidth: 0 }}>
         <Text numberOfLines={2} style={{ color: c.text, fontWeight: '600', fontSize: 15 }}>
           {item.description}

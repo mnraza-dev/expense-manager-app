@@ -3,14 +3,8 @@
     "name": "Settler",
     "slug": "settler",
     "version": "1.3.0",
-    "scheme": [
-      "settler",
-      "pocketbook"
-    ],
-    "platforms": [
-      "ios",
-      "android"
-    ],
+    "scheme": ["settler", "pocketbook"],
+    "platforms": ["ios", "android"],
     "web": {
       "bundler": "metro",
       "output": "static",
@@ -45,9 +39,7 @@
         {
           "microphonePermission": "Allow Settler to listen while you dictate expense entries.",
           "speechRecognitionPermission": "Allow Settler to recognize your spoken expenses on this device.",
-          "androidSpeechServicePackages": [
-            "com.google.android.as"
-          ]
+          "androidSpeechServicePackages": ["com.google.android.as"]
         }
       ],
       [
@@ -73,9 +65,7 @@
       "resizeMode": "contain",
       "backgroundColor": "#F3F5F3"
     },
-    "assetBundlePatterns": [
-      "**/*"
-    ],
+    "assetBundlePatterns": ["**/*"],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.razatechlabs.settler",
