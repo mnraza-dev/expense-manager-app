@@ -1,3 +1,4 @@
+import { useRequiredUpdate } from '../updates/service';
 import * as SecureStore from 'expo-secure-store';
 import * as Crypto from 'expo-crypto';
 import * as LocalAuthentication from 'expo-local-authentication';
@@ -99,17 +100,23 @@ export const useLock = create<{
 
 export async function waitForForegroundAccess() {
   const allowed = () =>
-    useLock.getState().ready && !useLock.getState().locked && AppState.currentState === 'active';
+    useLock.getState().ready &&
+    !useLock.getState().locked &&
+    useRequiredUpdate.getState().ready &&
+    !useRequiredUpdate.getState().required &&
+    AppState.currentState === 'active';
   if (allowed()) return;
   await new Promise<void>((resolve) => {
     const finish = () => {
       if (allowed()) {
         unsubscribe();
+        offUpdate();
         listener.remove();
         resolve();
       }
     };
     const unsubscribe = useLock.subscribe(finish);
+    const offUpdate = useRequiredUpdate.subscribe(finish);
     const listener = AppState.addEventListener('change', finish);
     finish();
   });

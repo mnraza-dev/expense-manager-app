@@ -30,15 +30,17 @@ export class DataRepository extends AdvancedRepository {
         values.push(filters.account, filters.account);
       }
       if (filters.category) {
-        where.push('t.category_id=?');
-        values.push(filters.category);
+        where.push(
+          '(t.category_id=? OR EXISTS(SELECT 1 FROM expense_splits s WHERE s.transaction_id=t.id AND s.category_id=?))'
+        );
+        values.push(filters.category, filters.category);
       }
       if (filters.type) {
         where.push('t.type=?');
         values.push(filters.type);
       }
       const rows = await this.db.getAllAsync<ExportRow>(
-        `SELECT t.id,t.date,t.type,t.description,t.amount,a.currency,a.name account,d.name destination,c.name category,t.notes,t.created_at FROM active_transactions t JOIN accounts a ON a.id=t.account_id LEFT JOIN accounts d ON d.id=t.destination_account_id LEFT JOIN categories c ON c.id=t.category_id ${where.length ? 'WHERE ' + where.join(' AND ') : ''} ORDER BY t.date,t.id LIMIT 50001`,
+        `SELECT t.id,t.date,t.type,t.description,t.effective_amount amount,t.refund_of_id,a.currency,a.name account,d.name destination,CASE WHEN t.split_count>0 THEN (SELECT group_concat(sc.name || ' INR ' || printf('%.2f',s.amount/100.0),'; ') FROM expense_splits s JOIN categories sc ON sc.id=s.category_id WHERE s.transaction_id=t.id) ELSE c.name END category,t.notes,t.created_at FROM active_transactions t JOIN accounts a ON a.id=t.account_id LEFT JOIN accounts d ON d.id=t.destination_account_id LEFT JOIN categories c ON c.id=t.category_id ${where.length ? 'WHERE ' + where.join(' AND ') : ''} ORDER BY t.date,t.id LIMIT 50001`,
         ...values
       );
       if (rows.length > 50000)
@@ -90,7 +92,27 @@ export class DataRepository extends AdvancedRepository {
       ],
       [
         'transaction_ledger_mismatch',
-        `SELECT count(*) n FROM active_transactions t JOIN transaction_journals tj ON tj.transaction_id=t.id AND tj.version=(SELECT MAX(version) FROM transaction_journals WHERE transaction_id=t.id) JOIN ledger_journals j ON j.id=tj.journal_id WHERE j.transaction_id IS NOT t.id OR j.date<>t.date OR (SELECT count(*) FROM ledger_lines WHERE journal_id=j.id)<>2 OR NOT EXISTS(SELECT 1 FROM ledger_lines l JOIN ledger_accounts a ON a.id=l.ledger_account_id WHERE l.journal_id=j.id AND l.debit=t.amount AND ((t.type='expense' AND a.category_id=t.category_id) OR (t.type='income' AND a.account_id=t.account_id) OR (t.type='transfer' AND a.account_id=t.destination_account_id))) OR NOT EXISTS(SELECT 1 FROM ledger_lines l JOIN ledger_accounts a ON a.id=l.ledger_account_id WHERE l.journal_id=j.id AND l.credit=t.amount AND ((t.type='income' AND a.category_id=t.category_id) OR (t.type<>'income' AND a.account_id=t.account_id)))`,
+        `SELECT count(*) n FROM active_transactions t JOIN transaction_journals tj ON tj.transaction_id=t.id AND tj.version=(SELECT MAX(version) FROM transaction_journals WHERE transaction_id=t.id) JOIN ledger_journals j ON j.id=tj.journal_id WHERE j.transaction_id IS NOT t.id OR j.date<>t.date OR (SELECT count(*) FROM ledger_lines WHERE journal_id=j.id)<>(SELECT count(*) FROM expected_transaction_lines WHERE transaction_id=t.id) OR EXISTS(SELECT ledger_account_id,debit,credit,currency FROM expected_transaction_lines WHERE transaction_id=t.id EXCEPT SELECT ledger_account_id,debit,credit,currency FROM ledger_lines WHERE journal_id=j.id) OR EXISTS(SELECT ledger_account_id,debit,credit,currency FROM ledger_lines WHERE journal_id=j.id EXCEPT SELECT ledger_account_id,debit,credit,currency FROM expected_transaction_lines WHERE transaction_id=t.id)`,
+      ],
+      [
+        'expense_splits',
+        `SELECT count(*) n FROM transactions t WHERE EXISTS(SELECT 1 FROM expense_splits WHERE transaction_id=t.id) AND (t.type<>'expense' OR t.component<>'standard' OR (SELECT count(*) FROM expense_splits WHERE transaction_id=t.id) NOT BETWEEN 2 AND 20 OR (SELECT sum(amount) FROM expense_splits WHERE transaction_id=t.id)<>t.amount OR NOT EXISTS(SELECT 1 FROM expense_splits WHERE transaction_id=t.id AND category_id=t.category_id))`,
+      ],
+      [
+        'split_categories',
+        `SELECT count(*) n FROM expense_splits s JOIN categories c ON c.id=s.category_id WHERE c.type<>'expense'`,
+      ],
+      [
+        'refund_links',
+        `SELECT count(*) n FROM active_transactions r LEFT JOIN transactions o ON o.id=r.refund_of_id WHERE r.refund_of_id IS NOT NULL AND (o.id IS NULL OR o.status<>'posted' OR o.refund_of_id IS NOT NULL OR o.type<>'expense' OR o.component<>'standard' OR o.loan_id IS NOT NULL OR r.loan_id IS NOT NULL OR r.type<>'expense' OR r.component<>'standard' OR r.account_id<>o.account_id OR r.date<o.date)`,
+      ],
+      [
+        'refund_limits',
+        `SELECT count(*) n FROM (SELECT r.refund_of_id,c.category_id,sum(-c.amount) refunded FROM category_activity c JOIN active_transactions r ON r.id=c.transaction_id WHERE r.refund_of_id IS NOT NULL GROUP BY r.refund_of_id,c.category_id) x WHERE x.refunded>COALESCE((SELECT amount FROM category_activity WHERE transaction_id=x.refund_of_id AND category_id=x.category_id),0)`,
+      ],
+      [
+        'goal_balance',
+        `SELECT count(*) n FROM savings_goals g WHERE COALESCE((SELECT sum(CASE WHEN direction='add' THEN amount ELSE -amount END) FROM goal_contributions WHERE goal_id=g.id),0) NOT BETWEEN 0 AND 1000000000000`,
       ],
       [
         'reversal_mismatch',
@@ -158,6 +180,7 @@ export class DataRepository extends AdvancedRepository {
       money = 0;
     const moneyNames = new Set([
       'opening_balance',
+      'target_amount',
       'amount',
       'debit',
       'credit',
@@ -277,7 +300,9 @@ export class DataRepository extends AdvancedRepository {
       try {
         await this.db.withTransactionAsync(async () => {
           for (const table of [...TABLES].reverse()) await this.db.execAsync(`DROP TABLE ${table}`);
-          await this.db.execAsync('DROP VIEW active_transactions; DELETE FROM schema_migrations;');
+          await this.db.execAsync(
+            'DROP VIEW IF EXISTS expected_transaction_lines; DROP VIEW IF EXISTS category_activity; DROP VIEW active_transactions; DELETE FROM schema_migrations;'
+          );
           await this.db.execAsync(
             'UPDATE sync_config SET owner=NULL,enabled=0,checkpoint=0,last_success=NULL; DELETE FROM sync_outbox;DELETE FROM sync_mappings;DELETE FROM sync_remote;DELETE FROM sync_dirty;DELETE FROM sync_conflicts;'
           );

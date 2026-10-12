@@ -34,3 +34,11 @@ Foreground network/resume events and local mutation signals retry sync. A 30-sec
 Session ciphertext lives in AsyncStorage using AES-GCM; only its 32-byte key is stored in SecureStore. Cloud data is not end-to-end encrypted. SQLite remains the local financial store with the security limits described in SECURITY.md. Offline account deletion cannot be completed remotely; the local dataset is retained.
 
 Automated tests run these migrations against PostgreSQL via PGlite with mocked Auth/Storage schemas and exercise real SQLite outboxes. They cover atomicity, idempotency, independent device merge, conflict retention, RLS ownership, forged references, entitlement write denial, expired-access recovery, encrypted session storage and public-key guards. These tests are not a deployed Supabase Auth/Storage/Edge Function or billing integration test. Deno and a provisioned project are unavailable here; deployment and native integration remain to be verified.
+
+## MVP v4 schema upgrade
+
+Settler 1.3.0 uses financial and sync schema 5. Deploy `supabase/migrations/202610120001_mvp4.sql` before enabling the updated client. The migration adds splits, refund links, savings goals/contributions and manual bills, including server validation for aggregate refund limits and goal balances. Older schema-3/4 financial backups remain recoverable. Device notification preferences and receipt files remain local. Upgrade all sync devices together; earlier clients cannot consume schema-5 snapshots. See [MVP_V4.md](MVP_V4.md) for behavior and acceptance checks.
+
+## Required app updates
+
+Deploy `202610120002_release_policy.sql` to expose read-only public Android/iOS minimum-version metadata independently of login and financial sync. Release policies are administrator-controlled and seeded disabled; activate only after the replacement download is available. See [UPDATES.md](UPDATES.md) for activation SQL, offline behavior and the first-upgrade limitation of existing binaries without a checker.

@@ -29,7 +29,7 @@ export async function remoteSnapshot(checkpoint = 0) {
   const data = result.data as CloudSnapshot;
   if (
     data.owner_id !== owner ||
-    data.schema_version !== 4 ||
+    data.schema_version !== 5 ||
     !Array.isArray(data.records) ||
     data.records.length > 10000
   )

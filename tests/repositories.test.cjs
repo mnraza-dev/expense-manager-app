@@ -74,7 +74,7 @@ test('empty database, migrations and idempotent seeding', async () => {
   assert.deepEqual(summary([], '2026-10'), { income: 0, expense: 0, net: 0, count: 0, rows: [] });
   await r.initialize();
   assert.equal((await r.snapshot()).categories.length, 18);
-  assert.equal(native.prepare('SELECT COUNT(*) n FROM schema_migrations').get().n, 4);
+  assert.equal(native.prepare('SELECT COUNT(*) n FROM schema_migrations').get().n, 5);
   assert.equal(native.prepare('PRAGMA foreign_keys').get().foreign_keys, 1);
   native.close();
 });

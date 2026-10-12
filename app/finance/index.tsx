@@ -4,7 +4,9 @@ export default function FinanceTools() {
   const router = useRouter();
   return (
     <Screen title="Finance tools" subtitle="Your accounts, commitments and financial history" back>
-      <Button title="Credit cards & statements" onPress={() => router.push('/card')} />
+      <Button title="Bills & payment reminders" onPress={() => router.push('/bills')} />
+      <Button secondary title="Savings goals" onPress={() => router.push('/goal')} />
+      <Button secondary title="Credit cards & statements" onPress={() => router.push('/card')} />
       <Button secondary title="Recurring transactions" onPress={() => router.push('/recurring')} />
       <Button secondary title="Loans, debts & money lent" onPress={() => router.push('/loan')} />
       <Button secondary title="Net worth over time" onPress={() => router.push('/net-worth')} />

@@ -22,6 +22,7 @@ export function transactionWorkbook(rows: ExportRow[]): Uint8Array {
       'Category',
       'Notes',
       'Created at',
+      'Refund of transaction',
     ],
     ...rows.map((r) => [
       r.id,
@@ -35,6 +36,7 @@ export function transactionWorkbook(rows: ExportRow[]): Uint8Array {
       r.category,
       r.notes,
       r.created_at,
+      r.refund_of_id ?? null,
     ]),
   ]);
   for (let i = 1; i <= rows.length; i++) sheet[XLSX.utils.encode_cell({ r: i, c: 4 })].z = '0.00';

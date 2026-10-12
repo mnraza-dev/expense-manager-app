@@ -43,7 +43,7 @@ export function expenseGroups(
   >();
   for (const row of rows) {
     if (row.type !== 'expense') continue;
-    if (!Number.isSafeInteger(row.amount) || row.amount <= 0)
+    if (!Number.isSafeInteger(row.amount) || row.amount === 0)
       throw new Error('Invalid expense amount in export.');
     const keyDate =
       period === 'monthly' ? row.date.slice(0, 7) : expensePeriodRange(period, row.date).start!;
@@ -61,7 +61,7 @@ export function expenseGroups(
   return [...groups.values()]
     .sort((a, b) => a.period.localeCompare(b.period) || a.currency.localeCompare(b.currency))
     .map((g) => {
-      if (g.amount > BigInt(Number.MAX_SAFE_INTEGER))
+      if (g.amount > BigInt(Number.MAX_SAFE_INTEGER) || g.amount < -BigInt(Number.MAX_SAFE_INTEGER))
         throw new Error('Expense totals exceed supported precision. Select a smaller range.');
       return { ...g, amount: Number(g.amount) };
     });
@@ -72,7 +72,7 @@ export function expenseCurrencyTotals(rows: ExportRow[]) {
     if (row.type === 'expense')
       groups.set(row.currency, (groups.get(row.currency) ?? 0n) + BigInt(row.amount));
   return [...groups].map(([currency, amount]) => {
-    if (amount > BigInt(Number.MAX_SAFE_INTEGER))
+    if (amount > BigInt(Number.MAX_SAFE_INTEGER) || amount < -BigInt(Number.MAX_SAFE_INTEGER))
       throw new Error('Expense totals exceed supported precision. Select a smaller range.');
     return { currency, amount: Number(amount) };
   });

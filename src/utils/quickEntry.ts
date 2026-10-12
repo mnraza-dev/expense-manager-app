@@ -18,6 +18,9 @@ export function recentEntryTemplates(
         t.type !== type ||
         t.status === 'void' ||
         t.loan_id ||
+        t.refund_of_id ||
+        t.split_count ||
+        t.splits?.length ||
         (accountId && t.account_id !== accountId) ||
         !Number.isSafeInteger(t.amount) ||
         t.amount <= 0 ||

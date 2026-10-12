@@ -192,6 +192,7 @@ export function possibleReceiptDuplicates(
     .filter(
       (t) =>
         t.type === 'expense' &&
+        !t.refund_of_id &&
         t.status !== 'void' &&
         t.amount === amount &&
         t.date === input.date &&

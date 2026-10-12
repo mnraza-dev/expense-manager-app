@@ -25,7 +25,10 @@ export const references: Partial<Record<Table, Record<string, Table>>> = {
     destination_account_id: 'accounts',
     category_id: 'categories',
     loan_id: 'loans',
+    refund_of_id: 'transactions',
   },
+  expense_splits: { transaction_id: 'transactions', category_id: 'categories' },
+  goal_contributions: { goal_id: 'savings_goals' },
   budget_categories: { budget_id: 'budgets', category_id: 'categories' },
   card_statements: { account_id: 'credit_cards' },
   ledger_journals: { transaction_id: 'transactions', reversal_of: 'ledger_journals' },
@@ -108,6 +111,8 @@ export function materialize(
   };
   for (const record of active) {
     const row = { ...record.data! };
+    if (record.entity === 'transactions' && !Object.hasOwn(row, 'refund_of_id'))
+      row.refund_of_id = null;
     if (Object.hasOwn(row, 'id')) row.id = find(record.entity, record.id);
     for (const [column, target] of Object.entries(references[record.entity] ?? {}))
       if (

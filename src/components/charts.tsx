@@ -118,11 +118,29 @@ export function ExpenseBreakdownChart({
   const { width } = useWindowDimensions();
   const [selected, setSelected] = useState<CategoryTotal | null>(null);
   const total = categories.reduce((s, x) => s + x.amount, 0);
-  if (!total) return <Empty title={title} detail="No matching category activity in this range." />;
+  if (!total && !categories.some((cat) => cat.amount))
+    return <Empty title={title} detail="No matching category activity in this range." />;
   const select = (cat: CategoryTotal) => {
     setSelected(cat);
     onSelect?.(cat.id);
   };
+  if (categories.some((cat) => cat.amount < 0))
+    return (
+      <Card>
+        <Label>{title}</Label>
+        <Label small>
+          Net spending by category. Refunds reduce spending on their recorded date.
+        </Label>
+        {categories.map((cat) => (
+          <Pressable key={cat.id} accessibilityRole="button" onPress={() => select(cat)}>
+            <Label small>
+              {cat.name} · {money(cat.amount)}
+            </Label>
+          </Pressable>
+        ))}
+        <Label>Net total {money(total)}</Label>
+      </Card>
+    );
   const radius = Math.min(108, (width - 96) / 2);
   return (
     <Card>

@@ -160,7 +160,7 @@ test('complete backup round trip preserves cards, loans, budgets, occurrence his
   });
   const original = await r.backup(),
     backup = validateBackup(original);
-  assert.equal(backup.payload.schemaVersion, 4);
+  assert.equal(backup.payload.schemaVersion, 5);
   assert.ok(backup.payload.tables.ledger_lines.length);
   assert.equal(Object.hasOwn(backup.payload.tables, 'lock'), false);
   const stage = new DatabaseSync(':memory:');
@@ -307,7 +307,7 @@ test('each supported schema upgrades without removing records; future versions f
     });
     await repo.initialize();
     assert.equal((await repo.snapshot()).accounts[0].ledger_balance, 123);
-    assert.equal(n.prepare('SELECT count(*) n FROM schema_migrations').get().n, 4);
+    assert.equal(n.prepare('SELECT count(*) n FROM schema_migrations').get().n, 5);
     n.prepare('INSERT INTO schema_migrations VALUES (?,?)').run(99, 'future');
     await assert.rejects(repo.initialize(), /Unsupported/);
     assert.equal((await repo.snapshot()).accounts[0].name, 'Preserved');

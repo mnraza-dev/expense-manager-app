@@ -60,6 +60,9 @@ export default function Reports() {
           <Card>
             <Label>Income {money(report.income)}</Label>
             <Label>Expenses {money(report.expense)}</Label>
+            <Label small>
+              Refunds reduce spending on the refund date and do not count as income.
+            </Label>
             <Label>Net cash flow {money(report.net)}</Label>
             <Label small>{report.count} transactions · Transfers excluded from cash flow</Label>
             <Label small>Average daily expenses {money(report.dailyAverage)}</Label>

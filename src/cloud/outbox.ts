@@ -89,7 +89,7 @@ export async function captureOutbox(db: DB) {
     });
   }
   const id = (await db.getFirstAsync<{ id: string }>(`SELECT ${uuidSQL} id`))!.id;
-  const op: Operation = { id, changes, schema_version: 4 };
+  const op: Operation = { id, changes, schema_version: 5 };
   await db.runAsync(
     'INSERT INTO sync_outbox(id,owner,payload,created_at) VALUES(?,?,?,?)',
     id,

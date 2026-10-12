@@ -1,5 +1,5 @@
 import { AnalyticsRepository } from './analyticsRepository';
-import type { Account, Transaction } from '../types';
+import type { ExpenseSplit, Account, Transaction } from '../types';
 import type { Journal, LedgerLine, LedgerLineInput, LedgerKind, NetWorth } from '../typesAdvanced';
 import { localDate, MAX_MONEY, validDate } from '../utils/finance';
 export class LedgerRepository extends AnalyticsRepository {
@@ -166,18 +166,31 @@ export class LedgerRepository extends AnalyticsRepository {
     const t = await this.db.getFirstAsync<Transaction>('SELECT * FROM transactions WHERE id=?', id);
     if (!t || t.status === 'void') throw new Error('Transaction cannot be posted.');
     const a = await this.accountLedger(t.account_id);
-    let debit: number, credit: number;
+    const lines: LedgerLineInput[] = [];
+    const line = (ledger_account_id: number, amount: number, debit: boolean) => ({
+      ledger_account_id,
+      debit: debit ? amount : 0,
+      credit: debit ? 0 : amount,
+      currency: a.currency,
+    });
     if (t.type === 'transfer') {
       const d = await this.accountLedger(t.destination_account_id!);
       if (a.currency !== d.currency)
         throw new Error('Cross-currency transfers require an explicit conversion rate.');
-      debit = d.id;
-      credit = a.id;
-    } else {
-      const c = await this.categoryLedger(t.category_id!);
-      debit = t.type === 'expense' ? c.id : a.id;
-      credit = t.type === 'expense' ? a.id : c.id;
-    }
+      lines.push(line(a.id, t.amount, false), line(d.id, t.amount, true));
+    } else if (t.type === 'expense') {
+      const parts = await this.db.getAllAsync<ExpenseSplit>(
+        'SELECT category_id,amount FROM expense_splits WHERE transaction_id=?',
+        id
+      );
+      for (const p of parts.length ? parts : [{ category_id: t.category_id!, amount: t.amount }])
+        lines.push(line((await this.categoryLedger(p.category_id)).id, p.amount, !t.refund_of_id));
+      lines.push(line(a.id, t.amount, Boolean(t.refund_of_id)));
+    } else
+      lines.push(
+        line(a.id, t.amount, true),
+        line((await this.categoryLedger(t.category_id!)).id, t.amount, false)
+      );
     const previous = await this.db.getFirstAsync<{ version: number }>(
       'SELECT MAX(version) version FROM transaction_journals WHERE transaction_id=?',
       id
@@ -198,10 +211,7 @@ export class LedgerRepository extends AnalyticsRepository {
       kind: t.component === 'standard' || !t.component ? t.type : t.component,
       transaction_id: id,
       payload: t,
-      lines: [
-        { ledger_account_id: debit, debit: t.amount, credit: 0, currency: a.currency },
-        { ledger_account_id: credit, debit: 0, credit: t.amount, currency: a.currency },
-      ],
+      lines,
     });
     await this.db.runAsync('INSERT INTO transaction_journals VALUES (?,?,?)', id, journal, version);
     return id;

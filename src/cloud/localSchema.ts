@@ -29,8 +29,9 @@ CREATE TABLE IF NOT EXISTS sync_dirty(entity TEXT NOT NULL,local_key TEXT NOT NU
 CREATE TABLE IF NOT EXISTS sync_outbox(id TEXT PRIMARY KEY,owner TEXT NOT NULL,payload TEXT NOT NULL,status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','conflict')),created_at TEXT NOT NULL,attempts INTEGER NOT NULL DEFAULT 0,error_code TEXT);
 CREATE TABLE IF NOT EXISTS sync_remote(id TEXT PRIMARY KEY,entity TEXT NOT NULL,data TEXT,revision INTEGER NOT NULL,deleted INTEGER NOT NULL DEFAULT 0);
 CREATE TABLE IF NOT EXISTS sync_conflicts(id TEXT PRIMARY KEY,operation_id TEXT NOT NULL,proposal TEXT NOT NULL,created_at TEXT NOT NULL);
-` +
-  entities
+` + syncTriggers(entities);
+export function syncTriggers(entities: string[]) {
+  return entities
     .map((entity) =>
       ['INSERT', 'UPDATE', 'DELETE']
         .map((event) => {
@@ -48,3 +49,4 @@ CREATE TABLE IF NOT EXISTS sync_conflicts(id TEXT PRIMARY KEY,operation_id TEXT 
         .join('\n')
     )
     .join('\n');
+}

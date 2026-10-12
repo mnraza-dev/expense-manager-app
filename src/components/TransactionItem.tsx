@@ -36,8 +36,12 @@ export function TransactionItem({
           {item.description}
         </Text>
         <Text numberOfLines={2} style={{ color: c.muted, fontSize: 12, marginTop: 5 }}>
-          {categories.find((x) => x.id === item.category_id)?.name ?? 'Transfer'} ·{' '}
-          {accounts.find((x) => x.id === item.account_id)?.name}
+          {item.refund_of_id
+            ? 'Refund'
+            : item.split_count
+              ? 'Split expense'
+              : (categories.find((x) => x.id === item.category_id)?.name ?? 'Transfer')}{' '}
+          · {accounts.find((x) => x.id === item.account_id)?.name}
           {item.destination_account_id
             ? ` → ${accounts.find((x) => x.id === item.destination_account_id)?.name}`
             : ''}
@@ -59,7 +63,7 @@ export function TransactionItem({
           fontWeight: '600',
           fontVariant: ['tabular-nums'],
         }}>
-        {item.type === 'income' ? '+' : item.type === 'expense' ? '−' : '↔'}
+        {item.type === 'income' || item.refund_of_id ? '+' : item.type === 'expense' ? '−' : '↔'}
         {money(item.amount)}
       </Text>
     </MotionPressable>

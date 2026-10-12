@@ -2,17 +2,25 @@ import { View } from 'react-native';
 import { Card, Label, useTheme } from '../components/ui';
 import { useFinance } from '../store/useFinance';
 import type { Transaction } from '../types';
+import { allocations, expenseAmount } from '../utils/expenseAllocations';
 import { money } from '../utils/finance';
 export function Breakdown({ rows }: { rows: Transaction[] }) {
   const categories = useFinance((s) => s.categories);
   const c = useTheme();
-  const total = rows.filter((t) => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
+  const total = rows.filter((t) => t.type === 'expense').reduce((s, t) => s + expenseAmount(t), 0);
   const data = categories
     .map((cat) => ({
       ...cat,
       amount: rows
-        .filter((t) => t.type === 'expense' && t.category_id === cat.id)
-        .reduce((s, t) => s + t.amount, 0),
+        .filter((t) => t.type === 'expense')
+        .reduce(
+          (s, t) =>
+            s +
+            allocations(t)
+              .filter((p) => p.category_id === cat.id)
+              .reduce((n, p) => n + (t.refund_of_id ? -p.amount : p.amount), 0),
+          0
+        ),
     }))
     .filter((x) => x.amount > 0)
     .sort((a, b) => b.amount - a.amount);

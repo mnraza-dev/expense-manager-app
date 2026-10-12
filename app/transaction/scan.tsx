@@ -1,6 +1,7 @@
 import { requireOptionalNativeModule } from 'expo';
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useRequiredUpdate } from '../../src/updates/service';
 import { AppState, Platform, View } from 'react-native';
 import type { CameraView } from 'expo-camera';
 import { Button, Card, Choices, InlineFeedback, Label, Screen } from '../../src/components/ui';
@@ -123,7 +124,8 @@ export default function ScanReceipt() {
   const [camera, setCamera] = useState<typeof import('expo-camera') | null>(null);
   const [accepted, setAccepted] = useState<ReceiptScanDraft | null>(null);
   const [foreground, setForeground] = useState(AppState.currentState === 'active');
-  const locked = useLock((s) => s.enabled && s.locked);
+  const updateRequired = useRequiredUpdate((s) => s.required);
+  const locked = useLock((s) => s.enabled && s.locked) || updateRequired;
   const focused = useRef(false),
     generation = useRef(0),
     inFlight = useRef(false);
@@ -134,12 +136,16 @@ export default function ScanReceipt() {
       setForeground(state === 'active');
       if (state !== 'active') setCamera(null);
     });
+    const update = useRequiredUpdate.subscribe((state) => {
+      if (state.required) setCamera(null);
+    });
     const lock = useLock.subscribe((state) => {
       if (state.enabled && state.locked) setCamera(null);
     });
     return () => {
       app.remove();
       lock();
+      update();
     };
   }, []);
   useFocusEffect(

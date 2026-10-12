@@ -1,3 +1,4 @@
+import { mvp4Migration } from './mvp4Schema';
 import { syncMigration } from '../cloud/localSchema';
 export const migrations = [
   `CREATE TABLE accounts (
@@ -84,7 +85,7 @@ CREATE TRIGGER loan_category_preserve BEFORE UPDATE OF type ON categories WHEN E
 
 `,
 ];
-migrations.push(syncMigration);
+migrations.push(syncMigration, mvp4Migration);
 export const defaults = {
   expense: [
     'Food & Dining',

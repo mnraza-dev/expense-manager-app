@@ -1,6 +1,7 @@
 import { requireOptionalNativeModule } from 'expo';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useFocusEffect } from 'expo-router';
+import { useRequiredUpdate } from '../updates/service';
 import { AppState, Platform } from 'react-native';
 import { useLock, waitForForegroundAccess } from '../security/lock';
 import { startOfflineSpeech } from '../services/offlineSpeech';
@@ -47,7 +48,8 @@ export function useVoiceEntry(
                 active.current &&
                 accepting.current &&
                 AppState.currentState === 'active' &&
-                !useLock.getState().locked
+                !useLock.getState().locked &&
+                !useRequiredUpdate.getState().required
               ) {
                 const text = event.results[0]?.transcript ?? '';
                 transcript.current(text);
@@ -82,6 +84,9 @@ export function useVoiceEntry(
       const app = AppState.addEventListener('change', (state) => {
         if (state !== 'active') cancel();
       });
+      const update = useRequiredUpdate.subscribe((state) => {
+        if (state.required) cancel();
+      });
       const lock = useLock.subscribe((state) => {
         if (state.enabled && state.locked) cancel();
       });
@@ -93,6 +98,7 @@ export function useVoiceEntry(
         listeners.forEach((l) => l.remove());
         app.remove();
         lock();
+        update();
       };
     }, [])
   );

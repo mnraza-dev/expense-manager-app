@@ -1,4 +1,4 @@
-import { DataRepository } from './dataRepository';
+import { PlanningRepository } from './planningRepository';
 import { readDataset, mapDataset } from '../cloud/outbox';
 import {
   canonicalize,
@@ -10,7 +10,7 @@ import {
 import { uuidSQL } from '../cloud/localSchema';
 import { serializeBackup, validateBackup } from '../services/backup';
 import { migrations } from './migrations';
-export class SyncRepository extends DataRepository {
+export class SyncRepository extends PlanningRepository {
   markSyncSuccess(checkpoint: number) {
     return this.write(() =>
       this.db.runAsync(
@@ -83,7 +83,7 @@ export class SyncRepository extends DataRepository {
           'INSERT INTO sync_outbox(id,owner,payload,created_at) VALUES(?,?,?,?)',
           id,
           owner,
-          JSON.stringify({ id, changes, schema_version: 4 }),
+          JSON.stringify({ id, changes, schema_version: 5 }),
           new Date().toISOString()
         );
       })
@@ -174,7 +174,9 @@ export class SyncRepository extends DataRepository {
     await this.db.runAsync('UPDATE sync_config SET applying=1 WHERE id=1');
     for (const table of Object.keys(result.tables).reverse())
       await this.db.execAsync(`DROP TABLE ${table}`);
-    await this.db.execAsync('DROP VIEW active_transactions');
+    await this.db.execAsync(
+      'DROP VIEW IF EXISTS expected_transaction_lines; DROP VIEW IF EXISTS category_activity; DROP VIEW active_transactions'
+    );
     for (const migration of migrations) await this.db.execAsync(migration);
     await this.importCore(backup);
     await this.db.execAsync(

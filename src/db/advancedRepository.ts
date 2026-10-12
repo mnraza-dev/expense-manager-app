@@ -218,7 +218,7 @@ export class AdvancedRepository extends LedgerRepository {
         fees: number;
         payments: number;
       }>(
-        `SELECT COALESCE(SUM(CASE WHEN type='expense' AND component='standard' THEN amount ELSE 0 END),0) purchases,COALESCE(SUM(CASE WHEN type='expense' AND component='interest' THEN amount ELSE 0 END),0) interest,COALESCE(SUM(CASE WHEN type='expense' AND component='fee' THEN amount ELSE 0 END),0) fees,COALESCE(SUM(CASE WHEN type='transfer' AND destination_account_id=? THEN amount ELSE 0 END),0) payments FROM active_transactions WHERE (account_id=? OR destination_account_id=?) AND date BETWEEN ? AND ?`,
+        `SELECT COALESCE(SUM(CASE WHEN type='expense' AND refund_of_id IS NULL AND component='standard' THEN amount ELSE 0 END),0) purchases,COALESCE(SUM(CASE WHEN type='expense' AND refund_of_id IS NULL AND component='interest' THEN amount ELSE 0 END),0) interest,COALESCE(SUM(CASE WHEN type='expense' AND refund_of_id IS NULL AND component='fee' THEN amount ELSE 0 END),0) fees,COALESCE(SUM(CASE WHEN type='transfer' AND destination_account_id=? THEN amount ELSE 0 END),0) payments FROM active_transactions WHERE (account_id=? OR destination_account_id=?) AND date BETWEEN ? AND ?`,
         row.account_id,
         row.account_id,
         row.account_id,
@@ -226,7 +226,8 @@ export class AdvancedRepository extends LedgerRepository {
         row.period_end
       );
       const paid = await this.db.getFirstAsync<{ amount: number }>(
-        `SELECT COALESCE(SUM(amount),0) amount FROM active_transactions WHERE type='transfer' AND destination_account_id=? AND date>? AND date<=?`,
+        `SELECT COALESCE(SUM(amount),0) amount FROM active_transactions WHERE ((type='transfer' AND destination_account_id=?) OR (refund_of_id IS NOT NULL AND account_id=?)) AND date>? AND date<=?`,
+        row.account_id,
         row.account_id,
         row.period_end,
         localDate()

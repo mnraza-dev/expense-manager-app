@@ -7,6 +7,7 @@ export type ExportFilters = {
   type?: string;
 };
 export type ExportRow = {
+  refund_of_id?: number | null;
   id: number;
   date: string;
   type: string;
@@ -50,6 +51,7 @@ export function transactionCSV(rows: ExportRow[]) {
     'Category',
     'Notes',
     'Created at',
+    'Refund of transaction',
   ];
   const lines = rows.map((r) =>
     [
@@ -64,6 +66,7 @@ export function transactionCSV(rows: ExportRow[]) {
       r.category,
       r.notes,
       r.created_at,
+      r.refund_of_id ?? null,
     ]
       .map(csvCell)
       .join(',')

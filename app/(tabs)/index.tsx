@@ -191,6 +191,8 @@ export default function Home() {
           />
         </MotionPressable>
       ) : null}
+      <Button secondary title="Bills & payment reminders" onPress={() => router.push('/bills')} />
+      <Button secondary title="Savings goals" onPress={() => router.push('/goal')} />
       <View style={home.sectionHeading}>
         <Text
           accessibilityRole="header"

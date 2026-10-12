@@ -25,7 +25,15 @@ export interface Category {
   created_at: string;
   updated_at: string;
 }
+export interface ExpenseSplit {
+  category_id: number;
+  amount: number;
+}
 export interface Transaction {
+  refund_of_id?: number | null;
+  effective_amount?: number;
+  split_count?: number;
+  splits?: ExpenseSplit[];
   receipt_count?: number;
   status?: 'posted' | 'void';
   component?: 'standard' | 'interest' | 'fee' | 'principal';

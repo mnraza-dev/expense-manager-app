@@ -1,3 +1,5 @@
+import { ExpenseSplitEditor, splitDrafts, type SplitDraft } from '../components/ExpenseSplitEditor';
+import { remainingRefundParts } from '../utils/expenseAllocations';
 import { useSafeBack } from '../hooks/useSafeBack';
 import { Reveal, MotionPressable } from '../components/Motion';
 import { useEffect, useRef, useState } from 'react';
@@ -74,12 +76,14 @@ export function TransactionForm({
   initialAccount,
   initialDestination,
   initialScan,
+  initialRefundId,
 }: {
   id?: number;
   initialType?: TransactionType;
   initialAccount?: number;
   initialDestination?: number;
   initialScan?: ReceiptScanDraft;
+  initialRefundId?: number;
 }) {
   const router = useRouter();
   const goBack = useSafeBack('/(tabs)/transactions');
@@ -91,6 +95,18 @@ export function TransactionForm({
   const [saveError, setSaveError] = useState<string | null>(null);
   const { transactions, accounts, categories, mutate } = useFinance();
   const existing = transactions.find((t) => t.id === id);
+  const original = transactions.find((t) => t.id === (existing?.refund_of_id ?? initialRefundId));
+  const refundOf = existing?.refund_of_id ?? initialRefundId;
+  const remaining = original
+    ? remainingRefundParts(
+        original,
+        transactions.filter((t) => t.id !== id)
+      )
+    : [];
+  const refundAmount = remaining.reduce((s, p) => s + p.amount, 0);
+  const [splits, setSplits] = useState<SplitDraft[]>(() =>
+    splitDrafts(existing?.splits ?? (initialRefundId && remaining.length > 1 ? remaining : []))
+  );
   const active = accounts.filter((a) => !a.archived && a.subtype === 'standard');
   const latest = recentEntryTemplates(
     transactions,
@@ -160,16 +176,31 @@ export function TransactionForm({
     resolver: zodResolver(schema),
     defaultValues: {
       type: existing?.type ?? initialType,
-      amount: existing ? (existing.amount / 100).toFixed(2) : (initialScan?.amount ?? ''),
-      account: existing?.account_id ?? initialAccount ?? latest?.account_id ?? active[0]?.id ?? 0,
+      amount: existing
+        ? (existing.amount / 100).toFixed(2)
+        : initialRefundId
+          ? (refundAmount / 100).toFixed(2)
+          : (initialScan?.amount ?? ''),
+      account:
+        existing?.account_id ??
+        original?.account_id ??
+        initialAccount ??
+        latest?.account_id ??
+        active[0]?.id ??
+        0,
       destination: existing?.destination_account_id ?? initialDestination ?? null,
       category: initialScan
         ? initialScan.category
         : (existing?.category_id ??
+          (initialRefundId ? remaining[0]?.category_id : undefined) ??
           latest?.category_id ??
           categories.find((c) => !c.archived && c.type === initialType)?.id ??
           null),
-      description: existing?.description ?? initialScan?.merchant ?? '',
+      description:
+        existing?.description ??
+        (initialRefundId ? `Refund: ${original?.description ?? ''}` : undefined) ??
+        initialScan?.merchant ??
+        '',
       date: existing?.date ?? initialScan?.date ?? localDate(),
       notes: existing?.notes ?? '',
       component: existing?.component ?? 'standard',
@@ -178,6 +209,7 @@ export function TransactionForm({
   const type = useWatch({ control, name: 'type' });
   const date = useWatch({ control, name: 'date' });
   const selectedAccount = useWatch({ control, name: 'account' });
+  const selectedCategory = useWatch({ control, name: 'category' });
   const amount = useWatch({ control, name: 'amount' });
   const duplicates =
     scanActive && type === 'expense'
@@ -196,6 +228,12 @@ export function TransactionForm({
   useEffect(() => {
     if (!selectedAccount && active.length) setValue('account', active[0].id);
   }, [selectedAccount, active, setValue]);
+  if (refundOf !== undefined && refundOf !== null && (!original || (!id && !refundAmount)))
+    return (
+      <Screen title="Refund unavailable" back backTo="/(tabs)/transactions">
+        <Label>This purchase is unavailable or has already been fully refunded.</Label>
+      </Screen>
+    );
   if (id && !existing)
     return (
       <Screen title="Transaction not found" back backTo="/(tabs)/transactions">
@@ -205,7 +243,10 @@ export function TransactionForm({
   const selectable = accounts.filter(
     (a) =>
       !a.subtype?.startsWith('loan_') &&
-      (!a.archived || a.id === existing?.account_id || a.id === existing?.destination_account_id)
+      (!a.archived ||
+        a.id === existing?.account_id ||
+        a.id === original?.account_id ||
+        a.id === existing?.destination_account_id)
   );
   const sourceOptions = selectable.filter((a) => a.kind !== 'liability' || type === 'expense');
   if (existing?.loan_id)
@@ -224,7 +265,13 @@ export function TransactionForm({
       </Screen>
     );
   const available = categories.filter(
-    (c) => c.type === type && (!c.archived || c.id === existing?.category_id)
+    (c) =>
+      c.type === type &&
+      (refundOf
+        ? remaining.some((p) => p.category_id === c.id)
+        : !c.archived ||
+          c.id === existing?.category_id ||
+          existing?.splits?.some((p) => p.category_id === c.id))
   );
   const addReceipt = async () => {
     if (picking.current || saving.current || drafts.current.length >= MAX_RECEIPTS) return;
@@ -264,7 +311,12 @@ export function TransactionForm({
             amount: minor(v.amount),
             account_id: v.account,
             destination_account_id: v.type === 'transfer' ? v.destination : null,
-            category_id: v.type === 'transfer' ? null : v.category,
+            category_id: v.type === 'transfer' ? null : (splits[0]?.category_id ?? v.category),
+            splits:
+              v.type === 'expense'
+                ? splits.map((p) => ({ category_id: p.category_id, amount: minor(p.amount) }))
+                : [],
+            refund_of_id: refundOf ?? null,
             description:
               v.description || categories.find((c) => c.id === v.category)?.name || 'Transfer',
             date: v.date,
@@ -282,6 +334,7 @@ export function TransactionForm({
       notify(id ? 'Transaction updated' : 'Transaction saved');
       if (mounted.current && another && !id) {
         setScanActive(false);
+        setSplits([]);
         setReceipts([]);
         reset({ ...v, amount: '', description: '', notes: '' });
         setDetails(false);
@@ -300,10 +353,51 @@ export function TransactionForm({
   const [y, m, d] = date.split('-').map(Number);
   return (
     <Screen
-      title={id ? 'Edit transaction' : 'New transaction'}
+      title={
+        refundOf
+          ? id
+            ? 'Edit refund'
+            : 'Record refund'
+          : id
+            ? 'Edit transaction'
+            : 'New transaction'
+      }
       back
       backTo="/(tabs)/transactions"
-      headerActions={!id ? <VoiceEntryButton compact /> : undefined}>
+      headerActions={!id && !refundOf ? <VoiceEntryButton compact /> : undefined}>
+      {refundOf && original && (
+        <Card>
+          <Label>Refund for {original.description}</Label>
+          <Label small>
+            Returns money to {accounts.find((a) => a.id === original.account_id)?.name} and reduces
+            spending on the refund date. Up to {money(refundAmount)} remains refundable.
+          </Label>
+          <Label small>Original purchase: {original.date}. Use its original categories.</Label>
+        </Card>
+      )}
+      {existing?.type === 'expense' &&
+        !refundOf &&
+        !existing.loan_id &&
+        existing.component === 'standard' && (
+          <Button
+            secondary
+            title="Record a full or partial refund"
+            onPress={() =>
+              router.push({ pathname: '/transaction/refund', params: { original: existing.id } })
+            }
+          />
+        )}
+      {existing &&
+        transactions
+          .filter((t) => t.refund_of_id === existing.id)
+          .map((t) => (
+            <Button
+              key={t.id}
+              secondary
+              title={`View refund · ${t.date} · ${money(t.amount)}`}
+              onPress={() => router.push({ pathname: '/transaction/[id]', params: { id: t.id } })}
+            />
+          ))}
       {scanActive && initialScan && (
         <Card>
           <Label>Receipt scan draft · review before saving</Label>
@@ -364,7 +458,7 @@ export function TransactionForm({
           )}
         </Card>
       )}
-      {!id && !scanActive && selectable.length > 0 && <ReceiptScanButton />}
+      {!id && !refundOf && !scanActive && selectable.length > 0 && <ReceiptScanButton />}
       {!selectable.length ? (
         <>
           <Empty
@@ -402,7 +496,7 @@ export function TransactionForm({
               />
             )}
           />
-          {!id && !scanActive && templates.length > 0 && (
+          {!id && !refundOf && !scanActive && templates.length > 0 && (
             <View style={{ gap: 8 }}>
               <Label small>Use recent details · review before saving</Label>
               <ScrollView
@@ -418,6 +512,7 @@ export function TransactionForm({
                     disabled={busy}
                     onPress={() => {
                       setScanActive(false);
+                      setSplits([]);
                       reset(entryFromTemplate(t));
                       setDetails(true);
                       setSaveError(null);
@@ -444,52 +539,56 @@ export function TransactionForm({
               </ScrollView>
             </View>
           )}
-          <Controller
-            control={control}
-            name="type"
-            render={({ field }) => (
-              <Choices
-                label="Transaction type"
-                value={field.value}
-                options={[
-                  { value: 'expense', label: '− Expense' },
-                  { value: 'income', label: '+ Income' },
-                  { value: 'transfer', label: '↔ Transfer' },
-                ]}
-                onChange={(v) => {
-                  field.onChange(v);
-                  setValue('destination', null);
-                  setValue('component', 'standard');
-                  if (
-                    v !== 'expense' &&
-                    accounts.find((a) => a.id === selectedAccount)?.kind === 'liability'
-                  )
-                    setValue('account', active[0]?.id ?? 0);
-                  setValue(
-                    'category',
-                    v === 'transfer'
-                      ? null
-                      : (recentEntryTemplates(
-                          transactions,
-                          accounts,
-                          categories,
-                          v,
-                          initialAccount
-                        )[0]?.category_id ??
-                          categories.find((c) => !c.archived && c.type === v)?.id ??
-                          null)
-                  );
-                }}
-              />
-            )}
-          />
+          {!refundOf && (
+            <Controller
+              control={control}
+              name="type"
+              render={({ field }) => (
+                <Choices
+                  label="Transaction type"
+                  value={field.value}
+                  options={[
+                    { value: 'expense', label: '− Expense' },
+                    { value: 'income', label: '+ Income' },
+                    { value: 'transfer', label: '↔ Transfer' },
+                  ]}
+                  onChange={(v) => {
+                    field.onChange(v);
+                    setSplits([]);
+                    setValue('destination', null);
+                    setValue('component', 'standard');
+                    if (
+                      v !== 'expense' &&
+                      accounts.find((a) => a.id === selectedAccount)?.kind === 'liability'
+                    )
+                      setValue('account', active[0]?.id ?? 0);
+                    setValue(
+                      'category',
+                      v === 'transfer'
+                        ? null
+                        : (recentEntryTemplates(
+                            transactions,
+                            accounts,
+                            categories,
+                            v,
+                            initialAccount
+                          )[0]?.category_id ??
+                            categories.find((c) => !c.archived && c.type === v)?.id ??
+                            null)
+                    );
+                  }}
+                />
+              )}
+            />
+          )}
           {type === 'income' && (
             <Label small>
-              Refunds are not supported in this version. An income entry does not reduce reported
-              spending.
+              For a refund, open the original purchase and choose Record refund. Income entries do
+              not reduce spending.
             </Label>
           )}
           {type === 'expense' &&
+            !refundOf &&
             accounts.find((a) => a.id === selectedAccount)?.subtype === 'credit_card' && (
               <Controller
                 control={control}
@@ -498,7 +597,10 @@ export function TransactionForm({
                   <Choices
                     label="Card charge type"
                     value={field.value}
-                    onChange={field.onChange}
+                    onChange={(value) => {
+                      field.onChange(value);
+                      if (value !== 'standard') setSplits([]);
+                    }}
                     options={[
                       { value: 'standard', label: 'Purchase' },
                       { value: 'interest', label: 'Interest' },
@@ -508,7 +610,7 @@ export function TransactionForm({
                 )}
               />
             )}
-          {type !== 'transfer' && (
+          {type !== 'transfer' && !splits.length && (
             <Reveal key={type}>
               <Controller
                 control={control}
@@ -536,14 +638,65 @@ export function TransactionForm({
               <Choices
                 label={type === 'transfer' ? 'From account' : 'Account'}
                 value={field.value}
-                options={sourceOptions.map((a) => ({
+                options={(refundOf
+                  ? sourceOptions.filter((a) => a.id === original?.account_id)
+                  : sourceOptions
+                ).map((a) => ({
                   value: a.id,
                   label: a.name + (a.archived ? ' (archived)' : ''),
                 }))}
-                onChange={field.onChange}
+                onChange={(value) => {
+                  if (!refundOf && !busy) field.onChange(value);
+                }}
               />
             )}
           />
+          {type === 'expense' && (
+            <>
+              {splits.length > 0 ? (
+                <>
+                  <ExpenseSplitEditor
+                    parts={splits}
+                    categories={available}
+                    busy={busy}
+                    onChange={(parts) => {
+                      setSplits(parts);
+                      setValue('category', parts[0]?.category_id ?? null);
+                      setValue('component', 'standard');
+                    }}
+                  />
+                  <Button
+                    secondary
+                    title="Use one category"
+                    disabled={busy}
+                    onPress={() => {
+                      setValue('category', splits[0].category_id);
+                      setSplits([]);
+                    }}
+                  />
+                </>
+              ) : (
+                available.length > 1 && (
+                  <Button
+                    secondary
+                    title="Split across categories"
+                    disabled={busy}
+                    onPress={() => {
+                      setValue('component', 'standard');
+                      const first =
+                        available.find((c) => c.id === selectedCategory) ?? available[0];
+                      const second = available.find((c) => c.id !== first.id)!;
+                      setValue('category', first.id);
+                      setSplits([
+                        { category_id: first.id, amount: '' },
+                        { category_id: second.id, amount: '' },
+                      ]);
+                    }}
+                  />
+                )
+              )}
+            </>
+          )}
           {errors.account && <Label small>{errors.account.message}</Label>}
           {type === 'transfer' ? (
             <>
@@ -654,7 +807,7 @@ export function TransactionForm({
             disabled={Boolean(receiptError) || duplicateBlocked}
             onPress={() => void save()}
           />
-          {!id && (
+          {!id && !refundOf && (
             <Button
               secondary
               title="Save & add another"

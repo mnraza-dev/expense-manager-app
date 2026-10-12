@@ -10,6 +10,10 @@ export const TABLES = [
   'credit_cards',
   'loans',
   'transactions',
+  'expense_splits',
+  'savings_goals',
+  'goal_contributions',
+  'bill_reminders',
   'budgets',
   'budget_categories',
   'card_statements',
@@ -42,7 +46,7 @@ export type Backup = {
 export const MAX_BACKUP_BYTES = 20000000;
 export function serializeBackup(tables: Dataset): string {
   const payload: BackupPayload = {
-    appVersion: '1.2.0',
+    appVersion: '1.3.0',
     schemaVersion: migrations.length,
     createdAt: new Date().toISOString(),
     currency: 'INR',
@@ -72,7 +76,7 @@ export function validateBackup(text: string): Backup {
   if (
     b?.format !== 'pocketbook-backup' ||
     b.formatVersion !== 1 ||
-    ![3, migrations.length].includes(b.payload?.schemaVersion)
+    ![3, 4, migrations.length].includes(b.payload?.schemaVersion)
   )
     throw new Error(
       'Unsupported backup format or database version. Open it with its original app version and re-export.'
@@ -92,6 +96,27 @@ export function validateBackup(text: string): Backup {
     digest(JSON.stringify(p)) !== b.sha256
   )
     throw new Error('Corrupted backup metadata or integrity checksum.');
+  // Check the legacy checksum before upgrading its dataset in memory.
+  if (p.schemaVersion < 5) {
+    const legacy = TABLES.filter(
+      (t) =>
+        !['expense_splits', 'savings_goals', 'goal_contributions', 'bill_reminders'].includes(t)
+    );
+    if (
+      Object.keys(p.tables).length !== legacy.length ||
+      legacy.some((t) => !Array.isArray(p.tables[t]))
+    )
+      throw new Error('Backup must contain the complete legacy dataset.');
+    for (const t of ['expense_splits', 'savings_goals', 'goal_contributions', 'bill_reminders'])
+      p.tables[t] = [];
+    for (const t of p.tables.transactions) {
+      if (Object.hasOwn(t, 'refund_of_id'))
+        throw new Error('Unexpected legacy transaction columns.');
+      t.refund_of_id = null;
+    }
+    p.schemaVersion = migrations.length;
+    b.sha256 = digest(JSON.stringify(p));
+  }
   if (
     Object.keys(p.tables).length !== TABLES.length ||
     TABLES.some((t) => !Array.isArray(p.tables[t]))

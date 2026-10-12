@@ -2,7 +2,7 @@
 
 Settler was previously named Pocketbook. Existing database names, secure-storage keys, backup formats and cloud record identifiers retain their legacy names. Both native platforms now use `com.razatechlabs.settler` as the application identifier. The app accepts both `settler://` and legacy `pocketbook://` links; cloud authentication retains its existing callback URL.
 
-An Android/iOS personal finance app with local accounting, budgets, reports, optional cloud backup/sync and [on-device receipt scanning](MVP_V3.md), plus [MVP v2 receipts, faster and private voice entry, and expense exports](MVP_V2.md), built with Expo SDK 57, React Native, strict TypeScript and Expo Router. SQLite is the source of truth; Zustand holds a refreshed view of the database. Financial records stay local unless cloud backup or sync is enabled. Receipt attachments remain device-local.
+An Android/iOS personal finance app with local accounting, budgets, reports, optional cloud backup/sync, [MVP v4 payment reminders, savings goals, refunds and split expenses](MVP_V4.md), and [on-device receipt scanning](MVP_V3.md), plus [MVP v2 receipts, faster and private voice entry, and expense exports](MVP_V2.md), built with Expo SDK 57, React Native, strict TypeScript and Expo Router. SQLite is the source of truth; Zustand holds a refreshed view of the database. Financial records stay local unless cloud backup or sync is enabled. Receipt attachments remain device-local.
 
 ## Install and run
 
@@ -35,6 +35,8 @@ Use `bun install --frozen-lockfile` to reproduce the checked-in Bun versions.
 
 ## Implemented
 
+- [MVP v4](MVP_V4.md): local payment notifications, savings targets and contribution history, linked full/partial refunds, and split-category purchases with consistent budgets, reports, exports and recovery.
+- Required native updates: a remote minimum-version/build policy blocks outdated checker-enabled releases and opens the configured update destination. See [UPDATES.md](UPDATES.md) for rollout and the limitation of older installs without the checker.
 - Four tabs: Home, Transactions, Accounts and Budgets. Reports and Settings are reachable from Home.
 - [MVP v3](MVP_V3.md): photograph or select a receipt, create an editable expense draft with its image attached, review uncertain values and possible duplicates, then save. Recognition stays on-device.
 - [MVP v2](MVP_V2.md): device-local JPEG/PNG/PDF receipt attachments with image previews and sharing, recent transaction shortcuts, remembered account/category, Save & add another, on-device English/Hindi/Urdu voice drafts, and historical daily/weekly/monthly PDF/Excel expense reports.
@@ -171,7 +173,7 @@ Charts use [React Native Gifted Charts](https://github.com/Abhinandan-Kushwaha/r
 
 For reports with partial budget months, comparisons show the **full monthly allocation** against **only spending in the selected report range**. Limits are not prorated; the screen explains this. Report category percentages use the corresponding range's total, and expense category sums equal the expense summary.
 
-Refunds/reversals are not supported. The income editor explicitly explains that income does not reduce expenses. A future implementation should add linked reversal records and update centralized expense aggregation rather than reclassifying refunds as income.
+MVP v4 adds linked refunds and split-category expenses. Refunds reduce expenses on their own dates without counting as income; category allocations feed the centralized spending queries. See [MVP_V4.md](MVP_V4.md).
 
 ### Search, filters and refresh
 
@@ -253,11 +255,11 @@ Complete format-1 JSON backups preserve every supported financial table, audit h
 
 The app lock uses SecureStore, a salted PBKDF2 passcode verifier, persisted attempt throttling, an enrollment-bound biometric token and a global navigation gate. Cold launches lock; background content is hidden immediately, with configurable relock timing. Forgotten credentials have no destructive reset shortcut: retain an external backup. This does not encrypt the financial SQLite database. Native builds include Face ID permission configuration.
 
-No schema-4 transformation is needed: schema 3 remains the current financial schema. Migration history now rejects unknown/gapped versions, checks references and creates a native SQLite pre-upgrade recovery copy before upgrading existing installations. Initialization failure provides retry and recovery-copy sharing, without resetting the database. Integrity diagnostics report foreign keys, journal balance/currency, transaction-to-ledger consistency, reversal integrity, loan balances/components, recurring duplicates/links, statement references, dates, monetary precision and budget allocations. They never silently repair records.
+Phase 4 used financial schema 3; optional cloud added metadata in schema 4, and MVP v4 now upgrades to schema 5. Migration history now rejects unknown/gapped versions, checks references and creates a native SQLite pre-upgrade recovery copy before upgrading existing installations. Initialization failure provides retry and recovery-copy sharing, without resetting the database. Integrity diagnostics report foreign keys, journal balance/currency, transaction-to-ledger consistency, reversal integrity, loan balances/components, recurring duplicates/links, statement references, dates, monetary precision and budget allocations. They never silently repair records.
 
 Validation: **40 automated tests pass**, including all prior phases, selected export, real workbook parsing, backup round trips, corrupted/unsupported files, reference validation, recovery-write failure, interrupted replacement rollback, encryption authentication, passcode verification/throttling/change, unavailable biometrics, relock policy, restore cancellation and read-only diagnostics. TypeScript and ESLint pass; both iOS and Android production Hermes exports compile. These checks do not replace real-device testing.
 
-Limits: backups support the exact current schema, up to 20 MB and 250,000 records; CSV/workbook exports support 50,000 selected transactions. Merge, bank connections and currency conversion are not implemented; optional cloud recovery is described in CLOUD.md. Receipt attachments are device-local and excluded from financial backups/exports. Progress screens prevent navigation during data operations. Shared-file cache older than 24 hours is pruned on later exports; recipient copies and persistent recovery files remain sensitive.
+Limits: backups support schema 5 and validated upgrades from schema 3/4, up to 20 MB and 250,000 records; CSV/workbook exports support 50,000 selected transactions. Merge, bank connections and currency conversion are not implemented; optional cloud recovery is described in CLOUD.md. Receipt attachments are device-local and excluded from financial backups/exports. Progress screens prevent navigation during data operations. Shared-file cache older than 24 hours is pruned on later exports; recipient copies and persistent recovery files remain sensitive.
 
 See [SECURITY.md](SECURITY.md) for format, cryptography, credential recovery, storage/privacy assumptions and dependency advisories. The dependency audit currently reports 34 advisories (12 moderate, 22 high); SDK-compatible updates and native regression testing are still needed before release.
 
@@ -279,4 +281,4 @@ Cloud backup/authentication/sync implementation and deployment instructions are 
 
 The four-tab interface, design decisions, preserved secondary workflows and device QA checklist are in [DESIGN.md](DESIGN.md). Native visual/performance verification remains outstanding without a usable simulator or attached device.
 
-For a signed Android App Bundle, keep `release.keystore` locally and set `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, and `ANDROID_KEY_PASSWORD` in `.env` (or the process environment). From the project root, run `bun run android:aab` (or `npm run android:aab`). The command sets `NODE_ENV=production`, regenerates Android resources, builds all four Android architectures with limited native compiler parallelism and release signing, verifies the signature against the keystore, and copies the result to `builds/settler-1.2.0.aab`. Node.js, Android SDK and Java must be installed. Run only one build at a time. Keystores and bundle output are ignored by Git.
+For a signed Android App Bundle, keep `release.keystore` locally and set `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, and `ANDROID_KEY_PASSWORD` in `.env` (or the process environment). From the project root, run `bun run android:aab` (or `npm run android:aab`). The command sets `NODE_ENV=production`, regenerates Android resources, builds all four Android architectures with limited native compiler parallelism and release signing, verifies the signature against the keystore, and copies the result to `builds/settler-1.3.0.aab`. Node.js, Android SDK and Java must be installed. Run only one build at a time. Keystores and bundle output are ignored by Git.

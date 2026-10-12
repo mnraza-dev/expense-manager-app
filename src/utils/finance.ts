@@ -24,7 +24,11 @@ export function balance(account: Account, transactions: Transaction[]): number {
   return transactions.reduce(
     (sum, t) =>
       sum +
-      (t.account_id === account.id ? (t.type === 'income' ? t.amount : -t.amount) : 0) +
+      (t.account_id === account.id
+        ? t.type === 'income' || t.refund_of_id
+          ? t.amount
+          : -t.amount
+        : 0) +
       (t.type === 'transfer' && t.destination_account_id === account.id ? t.amount : 0),
     account.opening_balance
   );
@@ -32,6 +36,8 @@ export function balance(account: Account, transactions: Transaction[]): number {
 export function summary(transactions: Transaction[], month: string) {
   const rows = transactions.filter((t) => t.date.slice(0, 7) === month);
   const income = rows.filter((t) => t.type === 'income').reduce((s, t) => s + t.amount, 0);
-  const expense = rows.filter((t) => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
+  const expense = rows
+    .filter((t) => t.type === 'expense')
+    .reduce((s, t) => s + (t.refund_of_id ? -t.amount : t.amount), 0);
   return { income, expense, net: income - expense, count: rows.length, rows };
 }

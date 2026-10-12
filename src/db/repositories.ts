@@ -1,4 +1,5 @@
-import type { Account, Category, Snapshot, Transaction } from '../types';
+import { allocations, validateSplits } from '../utils/expenseAllocations';
+import type { ExpenseSplit, Account, Category, Snapshot, Transaction } from '../types';
 import { defaults, migrations } from './migrations';
 import { MAX_MONEY, validDate, localDate } from '../utils/finance';
 import { SyncRepository } from './syncRepository';
@@ -88,6 +89,13 @@ export class Repositories extends SyncRepository {
           await this.db.getAllAsync<{ key: string; value: string }>('SELECT * FROM app_settings')
         ).map((r) => [r.key, r.value])
       );
+      const splits = await this.db.getAllAsync<ExpenseSplit & { transaction_id: number }>(
+        'SELECT * FROM expense_splits ORDER BY id'
+      );
+      for (const t of transactions)
+        t.splits = splits
+          .filter((s) => s.transaction_id === t.id)
+          .map(({ category_id, amount }) => ({ category_id, amount }));
       return { accounts, categories, transactions, settings };
     });
   }
@@ -278,6 +286,18 @@ export class Repositories extends SyncRepository {
       : null;
     if (id && (!previous || previous.status === 'void'))
       throw new Error('Transaction no longer exists.');
+    if (
+      id &&
+      (await this.db.getFirstAsync('SELECT id FROM active_transactions WHERE refund_of_id=?', id))
+    )
+      throw new Error('Reverse linked refunds before editing this expense.');
+    const refundOf = input.refund_of_id ?? previous?.refund_of_id ?? null;
+    if (
+      refundOf &&
+      (input.type !== 'expense' ||
+        (input.component ?? previous?.component ?? 'standard') !== 'standard')
+    )
+      throw new Error('Refunds must be standard expenses linked to their original purchase.');
     if (previous?.loan_id || input.loan_id)
       throw new Error('Manage loan events from the loan details screen.');
     const role = await this.db.getFirstAsync<{ kind: string; subtype: string }>(
@@ -294,7 +314,7 @@ export class Repositories extends SyncRepository {
       'SELECT * FROM accounts WHERE id=?',
       input.account_id
     );
-    if (!account || (account.archived && previous?.account_id !== account.id))
+    if (!account || (account.archived && previous?.account_id !== account.id && !refundOf))
       throw new Error('Select an active account.');
     if (input.type === 'transfer') {
       const dest = await this.db.getFirstAsync<Account>(
@@ -323,10 +343,83 @@ export class Repositories extends SyncRepository {
       if (
         !category ||
         category.type !== input.type ||
-        (category.archived && previous?.category_id !== category.id) ||
+        (category.archived && previous?.category_id !== category.id && !refundOf) ||
         input.destination_account_id !== null
       )
         throw new Error('Choose a compatible active category.');
+    }
+    const parts =
+      input.splits ??
+      (id
+        ? await this.db.getAllAsync<ExpenseSplit>(
+            'SELECT category_id,amount FROM expense_splits WHERE transaction_id=?',
+            id
+          )
+        : []);
+    if (parts.length) {
+      if (
+        input.type !== 'expense' ||
+        (input.component ?? previous?.component ?? 'standard') !== 'standard'
+      )
+        throw new Error('Only standard expenses can be split.');
+      validateSplits(input.amount, parts);
+      if (!parts.some((part) => part.category_id === input.category_id))
+        throw new Error('Select one of the split categories as the transaction category.');
+      for (const part of parts) {
+        const cat = await this.db.getFirstAsync<Category>(
+          'SELECT * FROM categories WHERE id=?',
+          part.category_id
+        );
+        const retained =
+          id &&
+          (await this.db.getFirstAsync(
+            'SELECT id FROM expense_splits WHERE transaction_id=? AND category_id=?',
+            id,
+            part.category_id
+          ));
+        if (
+          !cat ||
+          cat.type !== 'expense' ||
+          (cat.archived && !retained && previous?.category_id !== cat.id && !refundOf)
+        )
+          throw new Error('Splits require active expense categories.');
+      }
+    }
+    if (refundOf) {
+      const original = await this.db.getFirstAsync<Transaction>(
+        'SELECT * FROM active_transactions WHERE id=?',
+        refundOf
+      );
+      if (
+        !original ||
+        original.refund_of_id ||
+        original.loan_id ||
+        original.component !== 'standard' ||
+        original.type !== 'expense' ||
+        original.id === id ||
+        original.account_id !== input.account_id ||
+        input.date < original.date
+      )
+        throw new Error(
+          'Refunds require a posted purchase, its original account and a date on or after the purchase.'
+        );
+      const originalParts = await this.db.getAllAsync<ExpenseSplit>(
+        'SELECT category_id,amount FROM expense_splits WHERE transaction_id=?',
+        refundOf
+      );
+      original.splits = originalParts;
+      for (const part of allocations({ ...input, splits: parts })) {
+        const limit =
+          allocations(original).find((p) => p.category_id === part.category_id)?.amount ?? 0;
+        const used = await this.db.getFirstAsync<{ amount: number }>(
+          'SELECT COALESCE(SUM(c.amount*-1),0) amount FROM category_activity c JOIN active_transactions r ON r.id=c.transaction_id WHERE r.refund_of_id=? AND r.id<>? AND c.category_id=?',
+          refundOf,
+          id ?? 0,
+          part.category_id
+        );
+        if (part.amount + (used?.amount ?? 0) > limit)
+          throw new Error('The refund exceeds the remaining amount in this purchase category.');
+      }
     }
     await this.checkPrecision('transaction', input.amount, id);
     const now = new Date().toISOString();
@@ -357,6 +450,26 @@ export class Repositories extends SyncRepository {
       );
     const transactionId =
       id ?? (await this.db.getFirstAsync<{ id: number }>('SELECT last_insert_rowid() id'))!.id;
+    await this.db.runAsync(
+      'UPDATE transactions SET refund_of_id=? WHERE id=?',
+      refundOf,
+      transactionId
+    );
+    // Preserve unchanged split IDs so synchronization does not resurrect tombstones.
+    const oldParts = await this.db.getAllAsync<ExpenseSplit & { id: number }>(
+      'SELECT * FROM expense_splits WHERE transaction_id=?',
+      transactionId
+    );
+    for (const old of oldParts)
+      if (!parts.some((p) => p.category_id === old.category_id))
+        await this.db.runAsync('DELETE FROM expense_splits WHERE id=?', old.id);
+    for (const part of parts)
+      await this.db.runAsync(
+        'INSERT INTO expense_splits(transaction_id,category_id,amount) VALUES (?,?,?) ON CONFLICT(transaction_id,category_id) DO UPDATE SET amount=excluded.amount',
+        transactionId,
+        part.category_id,
+        part.amount
+      );
     await this.postTransactionCore(transactionId);
     if (receipts !== undefined) await replaceTransactionReceipts(this.db, transactionId, receipts);
     return transactionId;
@@ -370,6 +483,10 @@ export class Repositories extends SyncRepository {
           id
         );
         if (!t) throw new Error('Transaction no longer exists.');
+        if (
+          await this.db.getFirstAsync('SELECT id FROM active_transactions WHERE refund_of_id=?', id)
+        )
+          throw new Error('Reverse linked refunds before deleting this expense.');
         if (t.loan_id) throw new Error('Reverse loan payments from the loan details screen.');
         removed = await transactionReceipts(this.db, id);
         await this.reverseTransactionCore(id, 'Transaction deleted');
