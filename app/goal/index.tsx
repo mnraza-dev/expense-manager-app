@@ -9,7 +9,7 @@ export default function Goals() {
   const router = useRouter(),
     query = useDatabaseQuery(
       useCallback(() => repo().goals(), []),
-      'ledger'
+      'planning'
     );
   return (
     <Screen

@@ -137,7 +137,12 @@ export function startReminderObservers() {
     if (!stopped) await reconcile();
   });
   const off = useFinance.subscribe((s, p) => {
-    if (s.revision !== p.revision || s.budgetRevision !== p.budgetRevision) schedule();
+    if (
+      s.revision !== p.revision ||
+      s.budgetRevision !== p.budgetRevision ||
+      s.planningRevision !== p.planningRevision
+    )
+      schedule();
   });
   const app = AppState.addEventListener('change', (s) => {
     if (s === 'active') schedule();

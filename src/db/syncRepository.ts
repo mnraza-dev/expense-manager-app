@@ -1,7 +1,10 @@
+import { performanceIndexes } from './performanceIndexes';
 import { PlanningRepository } from './planningRepository';
 import { readDataset, mapDataset } from '../cloud/outbox';
 import {
   canonicalize,
+  mappingResolver,
+  localKey,
   materialize,
   type CanonicalRecord,
   type Mapping,
@@ -53,22 +56,12 @@ export class SyncRepository extends PlanningRepository {
           throw new Error('Resolve local integrity issues before synchronization.');
         const dataset = await readDataset(this.db),
           mappings = await mapDataset(this.db, dataset);
+        const resolve = mappingResolver(mappings);
         const changes = Object.entries(dataset).flatMap(([entity, rows]) =>
           rows.map((row) => ({
-            id: mappings.find(
-              (m) =>
-                m.entity === entity &&
-                m.local_key ===
-                  (entity === 'app_settings'
-                    ? String(row.key)
-                    : entity === 'account_roles' || entity === 'credit_cards'
-                      ? String(row.account_id)
-                      : entity === 'transaction_journals'
-                        ? `${row.transaction_id}:${row.version}`
-                        : String(row.id))
-            )!.global_id,
+            id: resolve(entity as Mapping['entity'], localKey(entity as Mapping['entity'], row)),
             entity,
-            data: canonicalize(entity as Mapping['entity'], row, mappings),
+            data: canonicalize(entity as Mapping['entity'], row, resolve),
             deleted: false,
             expected_revision: 0,
           }))
@@ -178,6 +171,7 @@ export class SyncRepository extends PlanningRepository {
       'DROP VIEW IF EXISTS expected_transaction_lines; DROP VIEW IF EXISTS category_activity; DROP VIEW active_transactions'
     );
     for (const migration of migrations) await this.db.execAsync(migration);
+    await this.db.execAsync(performanceIndexes);
     await this.importCore(backup);
     await this.db.execAsync(
       'DELETE FROM sync_mappings;DELETE FROM sync_remote;DELETE FROM sync_dirty;'
@@ -283,19 +277,13 @@ export class SyncRepository extends PlanningRepository {
     return this.read(async () => {
       const data = await readDataset(this.db),
         mappings = await mapDataset(this.db, data);
+      const resolve = mappingResolver(mappings);
       return Object.entries(data).flatMap(([entity, rows]) =>
         rows.map((row) => {
-          const mapped = canonicalize(entity as Mapping['entity'], row, mappings);
-          const key =
-            entity === 'app_settings'
-              ? String(row.key)
-              : entity === 'account_roles' || entity === 'credit_cards'
-                ? String(row.account_id)
-                : entity === 'transaction_journals'
-                  ? `${row.transaction_id}:${row.version}`
-                  : String(row.id);
+          const mapped = canonicalize(entity as Mapping['entity'], row, resolve);
+          const key = localKey(entity as Mapping['entity'], row);
           return {
-            id: mappings.find((m) => m.entity === entity && m.local_key === key)!.global_id,
+            id: resolve(entity as Mapping['entity'], key),
             entity,
             data: mapped,
           };

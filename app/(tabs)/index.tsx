@@ -13,11 +13,12 @@ import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { useFinance } from '../../src/store/useFinance';
-import { balance, localDate, money, summary } from '../../src/utils/finance';
+import { localDate, money } from '../../src/utils/finance';
 import { Button, Screen, useTheme } from '../../src/components/ui';
 import { TransactionItem } from '../../src/components/TransactionItem';
 import { BudgetProgressCard } from '../../src/components/BudgetProgressCard';
 import { useDatabaseQuery } from '../../src/hooks/useDatabaseQuery';
+import { QueryState } from '../../src/components/QueryState';
 import { repo } from '../../src/db/database';
 import { VoiceEntryButton } from '../../src/components/VoiceEntryButton';
 import { ReceiptScanButton } from '../../src/components/ReceiptScanButton';
@@ -25,12 +26,16 @@ import { ReceiptScanButton } from '../../src/components/ReceiptScanButton';
 export default function Home() {
   const router = useRouter();
   const c = useTheme();
-  const { accounts, transactions } = useFinance();
+  const accounts = useFinance((s) => s.accounts);
   const [month] = useState(() => localDate().slice(0, 7));
-  const totals = summary(transactions, month);
+  const overview = useDatabaseQuery(
+    useCallback(() => repo().dashboard(month), [month]),
+    'ledger'
+  );
+  const totals = overview.data;
   const active = accounts.filter((a) => !a.archived && a.kind !== 'liability');
   const hasAccount = accounts.some((account) => !account.archived);
-  const recent = transactions.slice(0, 5);
+  const recent = totals?.recent ?? [];
   const loadBudget = useCallback(() => repo().budgetProgress(month), [month]);
   const budget = useDatabaseQuery(loadBudget);
   return (
@@ -81,7 +86,7 @@ export default function Home() {
                 adjustsFontSizeToFit
                 minimumFontScale={0.5}
                 style={[home.balanceAmount, { color: c.onHero }]}>
-                {money(active.reduce((sum, account) => sum + balance(account, transactions), 0))}
+                {money(active.reduce((sum, account) => sum + (account.ledger_balance ?? 0), 0))}
               </Text>
               <MotionPressable
                 accessibilityRole="button"
@@ -96,20 +101,21 @@ export default function Home() {
             </LinearGradient>
           </DepthSurface>
         </Reveal>
+        <QueryState {...overview} />
         <View style={home.balanceSpacer} />
         <View style={home.stats}>
           {(
             [
               {
                 label: 'Income this month',
-                amount: totals.income,
+                amount: totals?.income,
                 Icon: ArrowDownLeft,
                 art: 'coins',
                 color: c.positive,
               },
               {
                 label: 'Spent this month',
-                amount: totals.expense,
+                amount: totals?.expense,
                 Icon: ArrowUpRight,
                 art: 'receipt',
                 color: c.negative,
@@ -136,7 +142,7 @@ export default function Home() {
                   adjustsFontSizeToFit
                   minimumFontScale={0.6}
                   style={[home.statAmount, { color: c.text }]}>
-                  {money(amount)}
+                  {amount === undefined ? '…' : money(amount)}
                 </Text>
               </DepthSurface>
             </Reveal>
@@ -217,7 +223,7 @@ export default function Home() {
               <TransactionItem item={transaction} divider={index < recent.length - 1} />
             </Reveal>
           ))
-        ) : (
+        ) : !overview.loading && !overview.error ? (
           <View style={home.emptyActivity}>
             <FinanceArt kind="receipt" colors={c} size={88} />
             <Text style={{ color: c.text, fontSize: 15, fontWeight: '600' }}>No activity yet</Text>
@@ -227,7 +233,7 @@ export default function Home() {
                 : 'Add an account, then record your first transaction.'}
             </Text>
           </View>
-        )}
+        ) : null}
       </DepthSurface>
     </Screen>
   );

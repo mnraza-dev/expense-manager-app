@@ -1,6 +1,6 @@
 import { useSafeBack } from '../hooks/useSafeBack';
 import { notify } from '../store/useFeedback';
-import { useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { useRouter } from 'expo-router';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -9,7 +9,9 @@ import { Button, Choices, Field, Label, Screen, confirm, showError } from '../co
 import { TransactionItem } from '../components/TransactionItem';
 import { useFinance } from '../store/useFinance';
 import { repo } from '../db/database';
-import { balance, minor, money } from '../utils/finance';
+import { useDatabaseQuery } from '../hooks/useDatabaseQuery';
+import { QueryState } from '../components/QueryState';
+import { minor, money } from '../utils/finance';
 const schema = z.object({
   name: z.string().trim().min(1, 'Account name is required.').max(80),
   type: z.enum(['cash', 'bank', 'savings', 'wallet', 'other']),
@@ -27,7 +29,17 @@ type Values = z.infer<typeof schema>;
 export function AccountForm({ id }: { id?: number }) {
   const router = useRouter();
   const goBack = useSafeBack('/(tabs)/accounts');
-  const { accounts, transactions, mutate } = useFinance();
+  const { accounts, mutate } = useFinance();
+  const history = useDatabaseQuery(
+    useCallback(
+      () =>
+        id
+          ? repo().searchTransactions({ account_id: id }, 0, 50)
+          : Promise.resolve({ rows: [], count: 0 }),
+      [id]
+    ),
+    'ledger'
+  );
   const account = accounts.find((a) => a.id === id);
   const [busy, setBusy] = useState(false);
   const saving = useRef(false);
@@ -54,7 +66,7 @@ export function AccountForm({ id }: { id?: number }) {
     return (
       <Screen title={account.name} back backTo="/(tabs)/accounts">
         <Label>
-          {account.kind} · Balance {money(balance(account, transactions))}
+          {account.kind} · Balance {money(account.ledger_balance ?? 0)}
         </Label>
         <Button
           title={account.subtype === 'credit_card' ? 'Open card details' : 'Open loans & debts'}
@@ -98,7 +110,7 @@ export function AccountForm({ id }: { id?: number }) {
       subtitle="Start with the balance you have today"
       back
       backTo="/(tabs)/accounts">
-      {account && <Label>Current balance {money(balance(account, transactions))}</Label>}
+      {account && <Label>Current balance {money(account.ledger_balance ?? 0)}</Label>}
       <Controller
         control={control}
         name="name"
@@ -189,13 +201,19 @@ export function AccountForm({ id }: { id?: number }) {
             }
           />
           <Label>Account transactions</Label>
-          {transactions
-            .filter((t) => t.account_id === id || t.destination_account_id === id)
-            .map((t) => (
-              <TransactionItem item={t} key={t.id} />
-            ))}
-          {!transactions.some((t) => t.account_id === id || t.destination_account_id === id) && (
-            <Label small>No transactions for this account.</Label>
+          <QueryState {...history} />
+          {history.data?.rows.map((t) => (
+            <TransactionItem item={t} key={t.id} />
+          ))}
+          {history.data?.count === 0 && <Label small>No transactions for this account.</Label>}
+          {!!history.data?.count && (
+            <Button
+              secondary
+              title={`View all ${history.data.count} account transactions`}
+              onPress={() =>
+                router.push({ pathname: '/(tabs)/transactions', params: { account: String(id) } })
+              }
+            />
           )}
         </>
       )}

@@ -1,14 +1,13 @@
 import React, { useState } from 'react';
 import { useRouter } from 'expo-router';
 import { useFinance } from '../../src/store/useFinance';
-import { balance } from '../../src/utils/finance';
 import { Button, Choices, Empty, Label, Screen, useTheme } from '../../src/components/ui';
 import { FinanceArt } from '../../src/components/Depth';
 import { AccountRow } from '../../src/components/AccountRow';
 export default function Accounts() {
   const router = useRouter();
   const c = useTheme();
-  const { accounts, transactions } = useFinance();
+  const accounts = useFinance((s) => s.accounts);
   const [mode, setMode] = useState('active');
   const rows = accounts.filter((a) => Boolean(a.archived) === (mode === 'archived'));
   return (
@@ -31,7 +30,7 @@ export default function Accounts() {
           <React.Fragment key={kind}>
             <Label>{kind === 'asset' ? 'Assets' : 'Liabilities'}</Label>
             {group.map((a) => (
-              <AccountRow key={a.id} account={a} balance={balance(a, transactions)} />
+              <AccountRow key={a.id} account={a} balance={a.ledger_balance ?? 0} />
             ))}
           </React.Fragment>
         ) : null;

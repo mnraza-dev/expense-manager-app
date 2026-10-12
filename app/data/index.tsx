@@ -69,11 +69,10 @@ export default function DataScreen() {
       async () => {
         await waitForForegroundAccess();
         useDataOperation.getState().setMessage('Saving recovery copy and restoring data…');
-        await mutate(() => replaceFromBackup(prepared.text, password));
+        await mutate(() => replaceFromBackup(prepared.text, password), 'all');
       }
     );
     if (!replaced) return;
-    useFinance.setState((s) => ({ budgetRevision: s.budgetRevision + 1 }));
     Alert.alert(
       'Restore complete',
       'The validated backup was restored. Your prior data is available in the recovery backup.'

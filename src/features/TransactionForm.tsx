@@ -2,11 +2,11 @@ import { ExpenseSplitEditor, splitDrafts, type SplitDraft } from '../components/
 import { remainingRefundParts } from '../utils/expenseAllocations';
 import { useSafeBack } from '../hooks/useSafeBack';
 import { Reveal, MotionPressable } from '../components/Motion';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ReceiptAttachments } from '../components/ReceiptAttachments';
 import { VoiceEntryButton } from '../components/VoiceEntryButton';
 import { ReceiptScanButton } from '../components/ReceiptScanButton';
-import { possibleReceiptDuplicates, type ReceiptScanDraft } from '../utils/receiptScan';
+import { type ReceiptScanDraft } from '../utils/receiptScan';
 import {
   deleteWithReceipts,
   discardReceiptDraft,
@@ -25,6 +25,9 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { notify } from '../store/useFeedback';
 import { CategoryGrid } from '../components/CategoryGrid';
+import { useDatabaseQuery } from '../hooks/useDatabaseQuery';
+import { QueryState } from '../components/QueryState';
+import type { TransactionContext } from '../db/transactionViews';
 import type { TransactionType } from '../types';
 import {
   Button,
@@ -70,20 +73,67 @@ const schema = z
       ctx.addIssue({ code: 'custom', path: ['category'], message: 'Choose a category.' });
   });
 type Values = z.infer<typeof schema>;
-export function TransactionForm({
-  id,
-  initialType = 'expense',
-  initialAccount,
-  initialDestination,
-  initialScan,
-  initialRefundId,
-}: {
+interface TransactionFormProps {
   id?: number;
   initialType?: TransactionType;
   initialAccount?: number;
   initialDestination?: number;
   initialScan?: ReceiptScanDraft;
   initialRefundId?: number;
+}
+const emptyContext: TransactionContext = { existing: null, original: null, refunds: [] };
+export function TransactionForm(props: TransactionFormProps) {
+  const globalTemplates = useFinance((s) => s.templates);
+  const needsRecord = props.id !== undefined || props.initialRefundId !== undefined;
+  const needsLoad = needsRecord || props.initialAccount !== undefined;
+  const load = useCallback(
+    async () => ({
+      context: needsRecord
+        ? await repo().transactionContext(props.id, props.initialRefundId)
+        : emptyContext,
+      templates:
+        props.initialAccount === undefined ? [] : await repo().entryTemplates(props.initialAccount),
+    }),
+    [needsRecord, props.id, props.initialRefundId, props.initialAccount]
+  );
+  const query = useDatabaseQuery(load, 'ledger');
+  const context = needsLoad ? query.data?.context : emptyContext;
+  if (!context)
+    return (
+      <Screen title="Transaction" back backTo="/(tabs)/transactions">
+        <QueryState {...query} />
+      </Screen>
+    );
+  return (
+    <TransactionFields
+      key={`${props.id ?? 'new'}:${props.initialRefundId ?? ''}:${props.initialAccount ?? ''}`}
+      {...props}
+      context={context}
+      contextError={needsLoad ? query.error : null}
+      retryContext={query.retry}
+      entryHistory={
+        props.initialAccount === undefined ? globalTemplates : (query.data?.templates ?? [])
+      }
+    />
+  );
+}
+
+function TransactionFields({
+  id,
+  initialType = 'expense',
+  initialAccount,
+  initialDestination,
+  initialScan,
+  initialRefundId,
+  context,
+  contextError,
+  retryContext,
+  entryHistory,
+}: TransactionFormProps & {
+  context: TransactionContext;
+  contextError: string | null;
+  retryContext: () => void;
+  entryHistory: import('../types').Transaction[];
 }) {
   const router = useRouter();
   const goBack = useSafeBack('/(tabs)/transactions');
@@ -93,9 +143,10 @@ export function TransactionForm({
   const [showScanText, setShowScanText] = useState(false);
   const [duplicateAcknowledgement, setDuplicateAcknowledgement] = useState('');
   const [saveError, setSaveError] = useState<string | null>(null);
-  const { transactions, accounts, categories, mutate } = useFinance();
-  const existing = transactions.find((t) => t.id === id);
-  const original = transactions.find((t) => t.id === (existing?.refund_of_id ?? initialRefundId));
+  const { accounts, categories, mutate } = useFinance();
+  const existing = context.existing;
+  const original = context.original;
+  const transactions = context.refunds;
   const refundOf = existing?.refund_of_id ?? initialRefundId;
   const remaining = original
     ? remainingRefundParts(
@@ -109,7 +160,7 @@ export function TransactionForm({
   );
   const active = accounts.filter((a) => !a.archived && a.subtype === 'standard');
   const latest = recentEntryTemplates(
-    transactions,
+    entryHistory,
     accounts,
     categories,
     initialType,
@@ -211,15 +262,29 @@ export function TransactionForm({
   const selectedAccount = useWatch({ control, name: 'account' });
   const selectedCategory = useWatch({ control, name: 'category' });
   const amount = useWatch({ control, name: 'amount' });
-  const duplicates =
-    scanActive && type === 'expense'
-      ? possibleReceiptDuplicates(transactions, { amount, date, account: selectedAccount })
-      : [];
+  const duplicateQuery = useDatabaseQuery(
+    useCallback(() => {
+      if (!scanActive || type !== 'expense') return Promise.resolve([]);
+      let amountMinor = 0;
+      try {
+        amountMinor = minor(amount);
+      } catch {
+        /* Incomplete amount; no duplicate query yet. */
+      }
+      return repo().receiptDuplicates(amountMinor, date, selectedAccount);
+    }, [scanActive, type, amount, date, selectedAccount]),
+    'ledger'
+  );
+  const duplicates = duplicateQuery.data ?? [];
+  const duplicateChecking =
+    scanActive &&
+    type === 'expense' &&
+    (duplicateQuery.loading || duplicateQuery.refreshing || !!duplicateQuery.error);
   const duplicateKey = duplicates.length
     ? `${amount}|${date}|${selectedAccount}|${duplicates.map((t) => t.id).join(',')}`
     : '';
   const duplicateBlocked = Boolean(duplicateKey && duplicateAcknowledgement !== duplicateKey);
-  const templates = recentEntryTemplates(transactions, accounts, categories, type, initialAccount);
+  const templates = recentEntryTemplates(entryHistory, accounts, categories, type, initialAccount);
   useEffect(() => {
     if (!focusRequest) return;
     const timer = setTimeout(() => setFocus('amount'), 50);
@@ -296,6 +361,10 @@ export function TransactionForm({
   };
   const submit = async (v: Values, another = false) => {
     if (saving.current || picking.current || receiptLoading || receiptError) return;
+    if (contextError || duplicateChecking) {
+      setSaveError(contextError ?? 'Wait for duplicate review to finish, or retry the check.');
+      return;
+    }
     if (duplicateBlocked) {
       setSaveError('Review the possible duplicate expenses before saving.');
       return;
@@ -365,6 +434,8 @@ export function TransactionForm({
       back
       backTo="/(tabs)/transactions"
       headerActions={!id && !refundOf ? <VoiceEntryButton compact /> : undefined}>
+      {contextError && <QueryState loading={false} error={contextError} retry={retryContext} />}
+      {scanActive && <QueryState {...duplicateQuery} />}
       {refundOf && original && (
         <Card>
           <Label>Refund for {original.description}</Label>
@@ -567,7 +638,7 @@ export function TransactionForm({
                       v === 'transfer'
                         ? null
                         : (recentEntryTemplates(
-                            transactions,
+                            entryHistory,
                             accounts,
                             categories,
                             v,
@@ -804,7 +875,12 @@ export function TransactionForm({
           <Button
             title="Save transaction"
             busy={busy || receiptBusy || receiptLoading}
-            disabled={Boolean(receiptError) || duplicateBlocked}
+            disabled={
+              Boolean(receiptError) ||
+              Boolean(contextError) ||
+              duplicateBlocked ||
+              duplicateChecking
+            }
             onPress={() => void save()}
           />
           {!id && !refundOf && (
@@ -812,7 +888,12 @@ export function TransactionForm({
               secondary
               title="Save & add another"
               busy={busy || receiptBusy || receiptLoading}
-              disabled={Boolean(receiptError) || duplicateBlocked}
+              disabled={
+                Boolean(receiptError) ||
+                Boolean(contextError) ||
+                duplicateBlocked ||
+                duplicateChecking
+              }
               onPress={() => void save(true)}
             />
           )}

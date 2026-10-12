@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Text } from 'react-native';
+import { Linking, Text } from 'react-native';
 import { Mic, Square } from 'lucide-react-native';
 import {
   Button,
@@ -9,6 +9,7 @@ import {
   InlineFeedback,
   Label,
   Screen,
+  showError,
   useTheme,
 } from '../../src/components/ui';
 import { CategoryGrid } from '../../src/components/CategoryGrid';
@@ -25,11 +26,11 @@ import { notify } from '../../src/store/useFeedback';
 
 export default function VoiceExpenses() {
   const c = useTheme();
-  const { accounts, categories, transactions, mutate } = useFinance();
+  const { accounts, categories, templates, mutate } = useFinance();
   const eligible = accounts.filter((a) => !a.archived && !a.subtype?.startsWith('loan_'));
   const [account, setAccount] = useState(
     () =>
-      recentEntryTemplates(transactions, accounts, categories, 'expense')[0]?.account_id ??
+      recentEntryTemplates(templates, accounts, categories, 'expense')[0]?.account_id ??
       eligible[0]?.id ??
       0
   );
@@ -75,7 +76,15 @@ export default function VoiceExpenses() {
     }
   }, 0);
   const save = async () => {
-    if (saving.current || voice.listening || voice.starting || stale || !drafts.length) return;
+    if (
+      saving.current ||
+      voice.listening ||
+      voice.starting ||
+      voice.downloading ||
+      stale ||
+      !drafts.length
+    )
+      return;
     setError(null);
     try {
       if (!eligible.some((a) => a.id === account))
@@ -146,7 +155,10 @@ export default function VoiceExpenses() {
           value={language}
           options={[...VOICE_LANGUAGES]}
           onChange={(locale) => {
-            if (!voice.listening && !voice.starting) setLanguage(locale);
+            if (!voice.listening && !voice.starting && !voice.downloading) {
+              setLanguage(locale);
+              voice.clearSetup();
+            }
           }}
         />
         <MotionPressable
@@ -154,7 +166,7 @@ export default function VoiceExpenses() {
           accessibilityLabel={
             voice.listening ? 'Stop listening and review expenses' : 'Start private voice entry'
           }
-          disabled={busy || voice.starting}
+          disabled={busy || voice.starting || voice.downloading}
           onPress={() => (voice.listening ? voice.stop() : void voice.start(language))}
           style={{
             backgroundColor: voice.listening ? c.negative : c.accent,
@@ -182,6 +194,29 @@ export default function VoiceExpenses() {
           </Text>
         </MotionPressable>
         {voice.error && <InlineFeedback message={voice.error} />}
+        {voice.recovery?.action === 'download' && (
+          <>
+            <Label small>
+              The language model needs a one-time download. Your speech stays on this device.
+            </Label>
+            <Button
+              secondary
+              title="Download speech language"
+              busy={voice.downloading}
+              disabled={busy || voice.starting || voice.listening}
+              onPress={() => void voice.download(language)}
+            />
+          </>
+        )}
+        {voice.recovery?.action && (
+          <Button
+            secondary
+            title="Open device settings"
+            disabled={busy || voice.starting || voice.listening || voice.downloading}
+            onPress={() => void Linking.openSettings().catch(showError)}
+          />
+        )}
+        {voice.setupMessage && <Label small>{voice.setupMessage}</Label>}
         <Field
           label="Dictation or typed expenses"
           value={text}
@@ -189,13 +224,13 @@ export default function VoiceExpenses() {
           placeholder="Biryani 140 rupees and tea 15 rupees today"
           multiline
           maxLength={4000}
-          editable={!busy && !voice.listening && !voice.starting}
+          editable={!busy && !voice.listening && !voice.starting && !voice.downloading}
           style={{ minHeight: 110, textAlignVertical: 'top' }}
         />
         <Button
           secondary
           title="Build review list"
-          busy={busy || voice.starting}
+          busy={busy || voice.starting || voice.downloading}
           disabled={voice.listening}
           onPress={() => review(text)}
         />
@@ -276,7 +311,7 @@ export default function VoiceExpenses() {
       {drafts.length > 0 && (
         <Button
           title={`Save ${drafts.length} reviewed expenses`}
-          busy={busy || voice.starting}
+          busy={busy || voice.starting || voice.downloading}
           disabled={voice.listening || stale}
           onPress={() => void save()}
         />

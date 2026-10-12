@@ -109,8 +109,7 @@ async function syncRun() {
     }
     await useFinance
       .getState()
-      .mutate(() => repo().applyRemote(snapshot.records, snapshot.revision, owner, false));
-    useFinance.setState((s) => ({ budgetRevision: s.budgetRevision + 1 }));
+      .mutate(() => repo().applyRemote(snapshot.records, snapshot.revision, owner, false), 'all');
     useSync.setState({ status: 'synced', error: null });
     await refreshSyncState();
   } catch {
@@ -144,8 +143,9 @@ export async function adoptCloud() {
   if (!snapshot.record_count) throw new Error('This cloud account has no synchronized records.');
   await useFinance
     .getState()
-    .mutate(() =>
-      repo().applyRemote(snapshot.records, snapshot.revision, owner, true, saveCloudRecovery)
+    .mutate(
+      () => repo().applyRemote(snapshot.records, snapshot.revision, owner, true, saveCloudRecovery),
+      'all'
     );
   const resolution = await cloudClient().rpc('resolve_cloud_conflicts');
   if (resolution.error) {
@@ -154,10 +154,8 @@ export async function adoptCloud() {
       error:
         'Cloud data was restored locally; server conflict history could not be marked resolved. Retry once connected.',
     });
-    useFinance.setState((s) => ({ budgetRevision: s.budgetRevision + 1 }));
     throw new Error('Local cloud restore completed, but server conflict history needs retry.');
   }
-  useFinance.setState((s) => ({ budgetRevision: s.budgetRevision + 1 }));
   await refreshSyncState();
   useSync.setState({ status: 'synced' });
 }
@@ -180,7 +178,12 @@ export function startSyncObservers() {
     else useSync.setState({ status: 'offline' });
   });
   const offFinance = useFinance.subscribe((s, p) => {
-    if (s.revision !== p.revision || s.budgetRevision !== p.budgetRevision) schedule();
+    if (
+      s.revision !== p.revision ||
+      s.budgetRevision !== p.budgetRevision ||
+      s.planningRevision !== p.planningRevision
+    )
+      schedule();
   });
   const app = AppState.addEventListener('change', (state) => {
     if (state === 'active') schedule();

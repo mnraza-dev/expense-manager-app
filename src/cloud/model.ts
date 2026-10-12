@@ -59,13 +59,18 @@ export function localKey(entity: Table, row: Row) {
         ? `${row.transaction_id}:${row.version}`
         : String(row.id);
 }
-export function canonicalize(entity: Table, row: Row, mappings: Mapping[]): Row {
-  const result = { ...row };
-  const find = (target: Table, key: string) => {
-    const m = mappings.find((m) => m.entity === target && m.local_key === key);
-    if (!m) throw new Error(`Missing stable mapping for ${target}.`);
-    return m.global_id;
+export type MappingResolver = (entity: Table, key: string) => string;
+export function mappingResolver(mappings: Mapping[]): MappingResolver {
+  const index = new Map(mappings.map((m) => [m.entity + '\0' + m.local_key, m.global_id]));
+  return (entity, key) => {
+    const id = index.get(entity + '\0' + key);
+    if (!id) throw new Error(`Missing stable mapping for ${entity}.`);
+    return id;
   };
+}
+export function canonicalize(entity: Table, row: Row, mappings: Mapping[] | MappingResolver): Row {
+  const result = { ...row };
+  const find = typeof mappings === 'function' ? mappings : mappingResolver(mappings);
   if (Object.hasOwn(result, 'id')) result.id = find(entity, localKey(entity, row));
   for (const [column, target] of Object.entries(references[entity] ?? {}))
     if (entity === 'loan_schedules' && column === 'payment_id_baseline' && row[column] === 0)
@@ -86,27 +91,25 @@ export function materialize(
   const active = records.filter((r) => !r.deleted && r.data !== null),
     mappings = existing.map((m) => ({ ...m }));
   const tables = Object.fromEntries(TABLES.map((t) => [t, []])) as unknown as Dataset;
-  const next = new Map<Table, number>();
-  for (const entity of TABLES)
-    next.set(
-      entity,
-      Math.max(
-        0,
-        ...mappings
-          .filter((m) => m.entity === entity && /^\d+$/.test(m.local_key))
-          .map((m) => Number(m.local_key))
-      ) + 1
-    );
-  // Assign numeric IDs before resolving references, including cycles.
-  for (const record of active)
-    if (Object.hasOwn(record.data!, 'id') && !mappings.some((m) => m.global_id === record.id)) {
+  const byGlobal = new Map(mappings.map((m) => [m.global_id, m]));
+  const next = new Map<Table, number>(TABLES.map((t) => [t, 1]));
+  for (const m of mappings)
+    if (/^\d+$/.test(m.local_key))
+      next.set(m.entity, Math.max(next.get(m.entity) ?? 1, Number(m.local_key) + 1));
+  for (const record of active) {
+    if (!TABLES.includes(record.entity)) throw new Error('Unsupported cloud entity.');
+    if (Object.hasOwn(record.data!, 'id') && !byGlobal.has(record.id)) {
       const key = String(next.get(record.entity)!);
       next.set(record.entity, next.get(record.entity)! + 1);
-      mappings.push({ entity: record.entity, local_key: key, global_id: record.id });
+      const mapping = { entity: record.entity, local_key: key, global_id: record.id };
+      mappings.push(mapping);
+      byGlobal.set(record.id, mapping);
     }
+  }
   const find = (target: Table, id: string) => {
-    const m = mappings.find((m) => m.entity === target && m.global_id === id);
-    if (!m) throw new Error('Cloud record contains an unresolved reference.');
+    const m = byGlobal.get(id);
+    if (!m || m.entity !== target)
+      throw new Error('Cloud record contains an unresolved reference.');
     return Number(m.local_key);
   };
   for (const record of active) {
@@ -130,8 +133,11 @@ export function materialize(
     }
     tables[record.entity].push(row);
     const key = localKey(record.entity, row);
-    if (!mappings.some((m) => m.global_id === record.id))
-      mappings.push({ entity: record.entity, local_key: key, global_id: record.id });
+    if (!byGlobal.has(record.id)) {
+      const m = { entity: record.entity, local_key: key, global_id: record.id };
+      mappings.push(m);
+      byGlobal.set(record.id, m);
+    }
   }
   return { tables, mappings };
 }

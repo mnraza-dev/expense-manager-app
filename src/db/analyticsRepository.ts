@@ -250,20 +250,31 @@ export class AnalyticsRepository {
       limit > 100
     )
       throw new Error('Invalid page size.');
+    return this.read(() => this.transactionPageCore(filters, offset, limit));
+  }
+  transactionWindow(filters: TransactionFilters, limit: number): Promise<TransactionPage> {
+    if (!Number.isSafeInteger(limit) || limit < 1 || limit > 250000)
+      throw new Error('Invalid history window.');
+    return this.read(() => this.transactionPageCore(filters, 0, limit));
+  }
+  private async transactionPageCore(
+    filters: TransactionFilters,
+    offset: number,
+    limit: number
+  ): Promise<TransactionPage> {
     const { join, where, params } = this.transactionQuery(filters);
-    return this.read(async () => {
-      const count = await this.db.getFirstAsync<{ count: number }>(
-        `SELECT COUNT(*) count${join}${where}`,
-        ...params
-      );
-      const rows = await this.db.getAllAsync<Transaction>(
-        `SELECT t.*,${receiptCountSQL}${join}${where} ORDER BY ${orders[filters.sort ?? 'newest']} LIMIT ? OFFSET ?`,
-        ...params,
-        limit,
-        offset
-      );
-      return { rows, count: count?.count ?? 0 };
-    });
+
+    const count = await this.db.getFirstAsync<{ count: number }>(
+      `SELECT COUNT(*) count${join}${where}`,
+      ...params
+    );
+    const rows = await this.db.getAllAsync<Transaction>(
+      `SELECT t.*,${receiptCountSQL}${join}${where} ORDER BY ${orders[filters.sort ?? 'newest']} LIMIT ? OFFSET ?`,
+      ...params,
+      limit,
+      offset
+    );
+    return { rows, count: count?.count ?? 0 };
   }
   transactionCalendar(month: string, filters: TransactionFilters = {}): Promise<TransactionDay[]> {
     const range = monthRange(month);

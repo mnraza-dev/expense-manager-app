@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { MotionPressable } from './Motion';
 import { DepthIcon } from './Depth';
 import { Text, View } from 'react-native';
@@ -7,7 +8,7 @@ import type { Transaction } from '../types';
 import { useFinance } from '../store/useFinance';
 import { money } from '../utils/finance';
 import { styles, useTheme } from './ui';
-export function TransactionItem({
+export const TransactionItem = memo(function TransactionItem({
   item,
   divider = true,
 }: {
@@ -16,7 +17,11 @@ export function TransactionItem({
 }) {
   const c = useTheme();
   const router = useRouter();
-  const { accounts, categories } = useFinance();
+  const categoryName = useFinance((s) => s.categories.find((x) => x.id === item.category_id)?.name);
+  const accountName = useFinance((s) => s.accounts.find((x) => x.id === item.account_id)?.name);
+  const destinationName = useFinance(
+    (s) => s.accounts.find((x) => x.id === item.destination_account_id)?.name
+  );
   return (
     <MotionPressable
       accessibilityRole="button"
@@ -26,10 +31,7 @@ export function TransactionItem({
         { paddingVertical: 12, borderBottomWidth: divider ? 1 : 0, borderColor: c.border },
       ]}>
       <DepthIcon colors={c}>
-        <CategoryIcon
-          name={categories.find((x) => x.id === item.category_id)?.name ?? ''}
-          transfer={item.type === 'transfer'}
-        />
+        <CategoryIcon name={categoryName ?? ''} transfer={item.type === 'transfer'} />
       </DepthIcon>
       <View style={{ flex: 1, minWidth: 0 }}>
         <Text numberOfLines={2} style={{ color: c.text, fontWeight: '600', fontSize: 15 }}>
@@ -40,11 +42,9 @@ export function TransactionItem({
             ? 'Refund'
             : item.split_count
               ? 'Split expense'
-              : (categories.find((x) => x.id === item.category_id)?.name ?? 'Transfer')}{' '}
-          · {accounts.find((x) => x.id === item.account_id)?.name}
-          {item.destination_account_id
-            ? ` → ${accounts.find((x) => x.id === item.destination_account_id)?.name}`
-            : ''}
+              : (categoryName ?? 'Transfer')}{' '}
+          · {accountName}
+          {item.destination_account_id ? ` → ${destinationName}` : ''}
         </Text>
         <Text style={{ color: c.muted, fontSize: 12, marginTop: 3 }}>
           {item.date}
@@ -68,4 +68,4 @@ export function TransactionItem({
       </Text>
     </MotionPressable>
   );
-}
+});

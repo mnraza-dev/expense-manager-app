@@ -111,7 +111,7 @@ Transfers are excluded from income and expense totals. Dashboard totals use acti
 
 Transaction dates are `YYYY-MM-DD` local calendar dates, never UTC-converted instants. Creation/update audit timestamps use UTC ISO strings. Reports compare the calendar month of the transaction date. Currency is intentionally INR-only in Phase 1; conversion and mixed-currency totals are not implemented.
 
-Repository writes are serialized, transactional where validation and mutations must remain consistent, and followed by a fresh SQLite snapshot. The database interface is injectable for tests and leaves room for a later ledger or sync layer without coupling SQL to screens.
+Repository writes are serialized and transactional where validation and mutations must remain consistent. Ledger writes refresh account/category references, settings, transaction count and at most 18 reusable entry templates; focused screens query the records or SQL totals they need. The database interface is injectable for tests without coupling SQL to screens. See [PERFORMANCE.md](PERFORMANCE.md) for the implemented optimizations and benchmark results.
 
 ## Validation
 
@@ -141,7 +141,7 @@ TypeScript, ESLint and all 18 tests pass. Both iOS and Android development bundl
 
 - No authentication, cloud sync, bank connections, subscriptions, lock screen, export or backup. Uninstalling may delete the local database. Local storage does not protect against device compromise.
 - Native device smoke testing remains outstanding. Production bundles do not prove native runtime correctness.
-- Phase 2 history is paginated and virtualized; report/budget data uses SQL aggregation. The retained Phase 1 dashboard/account state still loads a full ledger snapshot and should be optimized before scaling to very large ledgers.
+- History is paginated and virtualized; dashboard/report/budget totals use SQL aggregation. Global state holds references and bounded templates. Native startup, scrolling and memory measurements remain pending; local benchmark results are in [PERFORMANCE.md](PERFORMANCE.md).
 - Compatible dependency security fixes removed the initial critical finding. The final npm audit still reports 31 advisories (21 high, 10 moderate) in the Expo/React Native tooling tree (including advisories without a compatible patched upstream version). Review these before release; forced downgrades or an untested SDK migration were not applied.
 - Passcode/biometric protection and immutable double-entry audit journals are implemented; see SECURITY.md and the later phase sections below.
 
@@ -181,7 +181,7 @@ Transactions search descriptions, notes, category names, source accounts and tra
 
 The filter modal supports inclusive amount/date bounds and combined type/account/category filters, Apply, Cancel and Clear all. Active filters have removable indicators. Newest, oldest, highest and lowest sort orders include stable date/ID tie-breakers. Lists load 50 records per page and preserve search/filter state when opening and returning from an editor.
 
-Focused report/budget queries use independent ledger and budget invalidation revisions. Budget mutations refresh derived views without loading the Phase 1 ledger snapshot; preference changes refresh settings only. Late responses are discarded after a query change or navigation. Errors show retry actions rather than charts based on unavailable data. If a committed Phase 1 change cannot refresh its snapshot, a visible retry banner distinguishes a saved change from a failed write.
+Focused queries use independent ledger, budget and planning invalidation revisions. Bill/goal changes invalidate planning queries; budget changes invalidate budget queries; preferences refresh settings only. Cloud adoption and data restore invalidate all domains. Same-query refreshes retain visible data, while query changes hide unrelated results and late responses are discarded. Transaction history preserves its loaded pages and refreshes that window after edits/deletions. Errors provide retry actions. If a committed ledger change cannot refresh its references, a visible retry banner distinguishes a saved change from a failed write.
 
 ### Phase 2 file map
 

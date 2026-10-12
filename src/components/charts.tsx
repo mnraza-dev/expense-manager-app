@@ -1,318 +1,575 @@
-import { useState } from 'react';
-import { Pressable, Text, View, useWindowDimensions } from 'react-native';
-import { BarChart, LineChart, PieChart } from 'react-native-gifted-charts';
+import { useId, useMemo, useState } from 'react';
+import { ScrollView, Text, View, useWindowDimensions } from 'react-native';
+import Svg, {
+  Defs,
+  LinearGradient,
+  Stop,
+  Line,
+  Rect,
+  Circle,
+  G,
+  Text as SvgText,
+} from 'react-native-svg';
 import type { BudgetComparison, CategoryTotal, PeriodTotal } from '../types';
 import { money } from '../utils/finance';
-import { percentage } from '../utils/budgets';
-import { Button, Card, Empty, Label, styles, useTheme } from './ui';
-
-const compact = (v: string) =>
+import {
+  chartColors,
+  categoryRingSegments,
+  chartDomain,
+  chartPeriods,
+  curvePath,
+  type ChartPeriod,
+} from '../utils/chartData';
+import { Button, Empty, Label, useTheme } from './ui';
+import { MotionPressable } from './Motion';
+import {
+  AnimatedAmount,
+  AnimatedColumn,
+  AnimatedLine,
+  AnimatedTrack,
+  ChartSurface,
+} from './charting/AnimatedCharts';
+import { ThreeRingChart } from './charting/ThreeRingChart';
+const plotHeight = 168,
+  left = 52,
+  top = 12,
+  pitch = 46;
+const shortLabel = (period: string) =>
+  period.length === 10
+    ? `${period.slice(8)}/${period.slice(5, 7)}`
+    : `${period.slice(5, 7)}/${period.slice(2, 4)}`;
+const periodLabel = (row: ChartPeriod) =>
+  row.period === row.endPeriod ? row.period : `${row.period} – ${row.endPeriod}`;
+const compact = (minor: number) =>
   new Intl.NumberFormat('en-IN', {
     style: 'currency',
     currency: 'INR',
     notation: 'compact',
     maximumFractionDigits: 1,
-  }).format(Number(v));
-function useChartStyle() {
+  }).format(minor / 100);
+function Legend({ label, color }: { label: string; color: string }) {
   const c = useTheme();
-  const { width } = useWindowDimensions();
-  return {
-    width: Math.max(140, Math.min(560, width - 122)),
-    height: 180,
-    noOfSections: 4,
-    yAxisLabelWidth: 56,
-    yAxisColor: c.border,
-    xAxisColor: c.border,
-    rulesColor: c.border,
-    yAxisTextStyle: { color: c.muted, fontSize: 10 },
-    xAxisLabelTextStyle: { color: c.muted, fontSize: 10 },
-    formatYLabel: compact,
-    isAnimated: false,
-  };
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+      <View style={{ width: 8, height: 8, borderRadius: 3, backgroundColor: color }} />
+      <Text style={{ color: c.muted, fontSize: 12 }}>{label}</Text>
+    </View>
+  );
 }
-const shortLabel = (period: string) =>
-  period.length === 10
-    ? `${period.slice(8)}/${period.slice(5, 7)}`
-    : `${period.slice(5, 7)}/${period.slice(2, 4)}`;
 function DataTable({ rows }: { rows: { label: string; detail: string; onPress?: () => void }[] }) {
   const [show, setShow] = useState(false);
   return (
     <>
       <Button
         secondary
-        title={show ? 'Hide accessible data table' : 'View accessible data table'}
+        title={show ? 'Hide data table' : 'View exact values'}
         onPress={() => setShow(!show)}
       />
       {show &&
-        rows.map((r, i) => (
-          <Pressable accessibilityRole={r.onPress ? 'button' : 'text'} onPress={r.onPress} key={i}>
+        rows.map((row, index) => (
+          <MotionPressable
+            accessibilityRole={row.onPress ? 'button' : 'text'}
+            onPress={row.onPress}
+            key={`${row.label}-${index}`}
+            style={{ paddingVertical: 8 }}>
             <Label small>
-              {r.label} · {r.detail}
+              {row.label} · {row.detail}
             </Label>
-          </Pressable>
+          </MotionPressable>
         ))}
     </>
   );
 }
-export function IncomeExpenseChart({ periods }: { periods: PeriodTotal[] }) {
+function usePlot(periods: PeriodTotal[]) {
+  const { width } = useWindowDimensions();
+  const rows = useMemo(() => chartPeriods(periods), [periods]);
+  const available = Math.max(180, Math.min(640, width - 84));
+  const chartWidth = Math.max(available, left + rows.length * pitch + 16);
+  const step = rows.length > 1 ? (chartWidth - left - 24) / rows.length : pitch;
+  const x = (index: number) => left + step * index + step / 2;
+  return { rows, chartWidth, x };
+}
+function Grid({ domain, width }: { domain: ReturnType<typeof chartDomain>; width: number }) {
   const c = useTheme();
-  const expenseColor = c.negative;
-  const common = useChartStyle();
-  const [selection, setSelection] = useState<PeriodTotal | null>(null);
-  if (!periods.some((p) => p.income || p.expense))
-    return <Empty title="Income vs expenses" detail="No income or expenses in this period." />;
-  const skip = Math.max(1, Math.ceil(periods.length / 6));
-  const data = periods.flatMap((p, i) => [
-    {
-      value: p.income / 100,
-      label: i % skip === 0 ? shortLabel(p.period) : '',
-      frontColor: c.accent,
-      spacing: 3,
-      onPress: () => setSelection(p),
-    },
-    {
-      value: p.expense / 100,
-      frontColor: expenseColor,
-      spacing: 14,
-      onPress: () => setSelection(p),
-    },
-  ]);
   return (
-    <Card>
-      <Label>Income vs expenses</Label>
-      <Label small>Teal: income · Red: expenses · Tap a bar; swipe to explore.</Label>
-      <BarChart
-        {...common}
-        data={data}
-        barWidth={14}
-        initialSpacing={10}
-        barBorderTopLeftRadius={4}
-        barBorderTopRightRadius={4}
+    <>
+      {Array.from({ length: 5 }, (_, index) => {
+        const value = domain.max - ((domain.max - domain.min) * index) / 4;
+        const y = top + domain.y(value);
+        return (
+          <G key={index}>
+            <Line x1={left} x2={width - 8} y1={y} y2={y} stroke={c.border} strokeDasharray="3 6" />
+            <SvgText x={left - 8} y={y + 4} textAnchor="end" fill={c.muted} fontSize={10}>
+              {compact(value)}
+            </SvgText>
+          </G>
+        );
+      })}
+      <Line
+        x1={left}
+        x2={width - 8}
+        y1={top + domain.zero}
+        y2={top + domain.zero}
+        stroke={c.muted}
+        opacity={0.45}
+        strokeWidth={1}
       />
-      {selection && (
-        <Label small>
-          {selection.period} · Income {money(selection.income)} · Expenses{' '}
-          {money(selection.expense)}
-        </Label>
+    </>
+  );
+}
+export function IncomeExpenseChart({ periods }: { periods: PeriodTotal[] }) {
+  const c = useTheme(),
+    id = useId().replace(/:/g, '');
+  const plot = usePlot(periods),
+    [selected, setSelected] = useState<string | null>(null);
+  const selection = plot.rows.find((row) => row.period === selected);
+  const domain = chartDomain(
+    plot.rows.flatMap((row) => [row.income, row.expense]),
+    plotHeight
+  );
+  const net = periods.reduce((sum, row) => sum + row.income - row.expense, 0);
+  if (!periods.some((row) => row.income || row.expense))
+    return (
+      <Empty animate={false} title="Cash flow" detail="No income or spending in this period." />
+    );
+  return (
+    <ChartSurface
+      title="Cash flow"
+      subtitle="Income and net spending, side by side"
+      amount={net}
+      badge="NET FLOW">
+      <View style={{ flexDirection: 'row', gap: 16 }}>
+        <Legend label="Income" color={chartColors[0]} />
+        <Legend label="Spending" color={chartColors[2]} />
+      </View>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={{ marginHorizontal: -4 }}>
+        <Svg width={plot.chartWidth} height={222}>
+          <Defs>
+            <LinearGradient id={`${id}income`} x1="0" y1="0" x2="0" y2="1">
+              <Stop offset="0" stopColor="#48D9B7" />
+              <Stop offset="1" stopColor="#198675" />
+            </LinearGradient>
+            <LinearGradient id={`${id}expense`} x1="0" y1="0" x2="0" y2="1">
+              <Stop offset="0" stopColor="#F6C98F" />
+              <Stop offset="1" stopColor="#DE8A52" />
+            </LinearGradient>
+          </Defs>
+          <Grid domain={domain} width={plot.chartWidth} />
+          {plot.rows.map((row, index) => (
+            <BarPeriod
+              key={row.period}
+              row={row}
+              x={plot.x(index)}
+              domain={domain}
+              selected={selected === row.period}
+              incomeFill={`url(#${id}income)`}
+              expenseFill={`url(#${id}expense)`}
+              color={c.muted}
+              onSelect={() => setSelected(row.period)}
+            />
+          ))}
+        </Svg>
+      </ScrollView>
+      <View style={{ minHeight: 52, gap: 4 }}>
+        <Text style={{ color: c.text, fontSize: 13, fontWeight: '600' }}>
+          {selection ? periodLabel(selection) : 'Tap a bar to inspect a period'}
+        </Text>
+        <Text style={{ color: c.muted, fontSize: 12 }}>
+          {selection
+            ? `Income ${money(selection.income)} · Spent ${money(selection.expense)}`
+            : 'Swipe for more dates. Refunds appear below zero.'}
+        </Text>
+      </View>
+      {plot.rows.length < periods.length && (
+        <Label small>Adjacent periods are grouped; every amount is included.</Label>
       )}
       <DataTable
-        rows={periods.map((p) => ({
-          label: p.period,
-          detail: `Income ${money(p.income)}, Expenses ${money(p.expense)}`,
-          onPress: () => setSelection(p),
+        rows={periods.map((row) => ({
+          label: row.period,
+          detail: `Income ${money(row.income)} · Spent ${money(row.expense)}`,
         }))}
       />
-    </Card>
+    </ChartSurface>
+  );
+}
+function BarPeriod({
+  row,
+  x,
+  domain,
+  selected,
+  incomeFill,
+  expenseFill,
+  color,
+  onSelect,
+}: {
+  row: ChartPeriod;
+  x: number;
+  domain: ReturnType<typeof chartDomain>;
+  selected: boolean;
+  incomeFill: string;
+  expenseFill: string;
+  color: string;
+  onSelect: () => void;
+}) {
+  return (
+    <>
+      <Rect
+        x={x - 20}
+        y={top}
+        width={40}
+        height={plotHeight + 8}
+        fill={selected ? '#28B69C' : 'transparent'}
+        opacity={selected ? 0.08 : 1}
+        rx={8}
+      />
+      <AnimatedColumn
+        x={x - 14}
+        width={12}
+        y={top + domain.y(row.income)}
+        zero={top + domain.zero}
+        fill={incomeFill}
+      />
+      <AnimatedColumn
+        x={x + 3}
+        width={12}
+        y={top + domain.y(row.expense)}
+        zero={top + domain.zero}
+        fill={expenseFill}
+      />
+      <SvgText x={x} y={plotHeight + 36} textAnchor="middle" fill={color} fontSize={10}>
+        {shortLabel(row.period)}
+      </SvgText>
+      <Rect x={x - 22} y={0} width={44} height={222} fill="transparent" onPress={onSelect} />
+    </>
   );
 }
 export function ExpenseBreakdownChart({
   categories,
-  title = 'Spending by category',
+  title = 'Spending mix',
   onSelect,
 }: {
   categories: CategoryTotal[];
   title?: string;
   onSelect?: (id: number) => void;
 }) {
-  const c = useTheme();
-  const { width } = useWindowDimensions();
-  const [selected, setSelected] = useState<CategoryTotal | null>(null);
-  const total = categories.reduce((s, x) => s + x.amount, 0);
-  if (!total && !categories.some((cat) => cat.amount))
-    return <Empty title={title} detail="No matching category activity in this range." />;
-  const select = (cat: CategoryTotal) => {
-    setSelected(cat);
-    onSelect?.(cat.id);
+  const c = useTheme(),
+    [selected, setSelected] = useState<string | null>(null);
+  const segments = useMemo(() => categoryRingSegments(categories), [categories]);
+  const total = categories.reduce((sum, row) => sum + row.amount, 0),
+    signed = categories.some((row) => row.amount < 0);
+  const selectedCategory = categories.find((row) => String(row.id) === selected),
+    chosen = segments.find((row) => row.key === selected);
+  const scale = Math.max(1, ...categories.map((row) => Math.abs(row.amount)));
+  const select = (key: string) => {
+    setSelected(key);
+    const row = categories.find((row) => String(row.id) === key);
+    if (row) onSelect?.(row.id);
   };
-  if (categories.some((cat) => cat.amount < 0))
+  if (!categories.some((row) => row.amount))
     return (
-      <Card>
-        <Label>{title}</Label>
-        <Label small>
-          Net spending by category. Refunds reduce spending on their recorded date.
-        </Label>
-        {categories.map((cat) => (
-          <Pressable key={cat.id} accessibilityRole="button" onPress={() => select(cat)}>
-            <Label small>
-              {cat.name} · {money(cat.amount)}
-            </Label>
-          </Pressable>
-        ))}
-        <Label>Net total {money(total)}</Label>
-      </Card>
+      <Empty animate={false} title={title} detail="No matching category activity in this range." />
     );
-  const radius = Math.min(108, (width - 96) / 2);
   return (
-    <Card>
-      <Label>{title}</Label>
-      <View style={{ alignItems: 'center', padding: 12 }}>
-        <PieChart
-          donut
-          radius={radius}
-          innerRadius={radius * 0.68}
-          innerCircleColor={c.bg}
-          strokeWidth={2}
-          strokeColor={c.bg}
-          data={categories.map((cat) => ({
-            value: cat.amount,
-            color: ['#167461', '#527E72', '#7F9A8C', '#B2C4B9', '#667273', '#A7AEAA'][
-              categories.indexOf(cat) % 6
-            ],
-            onPress: () => select(cat),
-          }))}
-          centerLabelComponent={() => (
-            <View style={{ alignItems: 'center' }}>
-              <Text style={{ color: c.muted, fontSize: 11 }}>TOTAL</Text>
-              <Text style={{ color: c.text, fontWeight: '700', fontSize: 14 }}>{money(total)}</Text>
-            </View>
-          )}
+    <ChartSurface
+      title={title}
+      subtitle={
+        signed ? 'Net amounts include refund credits' : 'Where your money went · tap a category'
+      }
+      badge={signed ? 'NET SPENDING' : `${categories.length} CATEGORIES`}>
+      {!signed ? (
+        <ThreeRingChart
+          segments={segments}
+          selected={selected}
+          onSelect={select}
+          center={
+            <>
+              <Text numberOfLines={2} style={{ color: c.muted, textAlign: 'center', fontSize: 11 }}>
+                {selectedCategory?.name ?? chosen?.label ?? 'TOTAL'}
+              </Text>
+              <AnimatedAmount
+                amount={selectedCategory?.amount ?? chosen?.value ?? total}
+                size={21}
+              />
+            </>
+          }
         />
-      </View>
-      <Label small>Tap a slice or category to inspect its amount.</Label>
-      {selected && (
-        <Label>
-          {selected.name} · {money(selected.amount)} ·{' '}
-          {percentage(selected.amount, total).toFixed(1)}%
+      ) : (
+        <AnimatedAmount amount={total} size={30} />
+      )}
+      {categories.map((row, index) => {
+        const color =
+          segments.find((segment) => segment.key === String(row.id))?.color ??
+          chartColors[index % chartColors.length];
+        return (
+          <MotionPressable
+            key={row.id}
+            accessibilityRole="button"
+            accessibilityState={{ selected: selected === String(row.id) }}
+            accessibilityLabel={`${row.name}, ${money(row.amount)}`}
+            onPress={() => select(String(row.id))}
+            style={{
+              gap: 7,
+              paddingVertical: 10,
+              paddingHorizontal: 10,
+              borderRadius: 14,
+              backgroundColor: selected === String(row.id) ? c.soft : 'transparent',
+            }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <View style={{ width: 9, height: 9, borderRadius: 3, backgroundColor: color }} />
+              <Text style={{ color: c.text, fontSize: 13, fontWeight: '600', flex: 1 }}>
+                {row.name}
+              </Text>
+              <Text
+                style={{
+                  color: row.amount < 0 ? c.positive : c.text,
+                  fontSize: 13,
+                  fontWeight: '600',
+                  fontVariant: ['tabular-nums'],
+                }}>
+                {money(row.amount)}
+              </Text>
+            </View>
+            <AnimatedTrack
+              fraction={signed ? Math.abs(row.amount) / scale : row.amount / Math.max(1, total)}
+              color={row.amount < 0 ? chartColors[3] : color}
+              height={5}
+            />
+            <Text style={{ color: c.muted, fontSize: 11 }}>
+              {signed
+                ? row.amount < 0
+                  ? 'Net refund credit'
+                  : 'Net spending'
+                : `${((row.amount / total) * 100).toFixed(1)}% of total`}
+            </Text>
+          </MotionPressable>
+        );
+      })}
+      {signed && (
+        <Label small>
+          Refund credits retain their sign. A percentage ring is unavailable for negative net
+          spending.
         </Label>
       )}
-      {categories.map((cat) => (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`${cat.name}, ${money(cat.amount)}, ${percentage(cat.amount, total).toFixed(1)} percent`}
-          onPress={() => select(cat)}
-          key={cat.id}
-          style={[styles.row, { paddingVertical: 8 }]}>
-          <View
-            style={{
-              width: 12,
-              height: 12,
-              borderRadius: 4,
-              backgroundColor: ['#167461', '#527E72', '#7F9A8C', '#B2C4B9', '#667273', '#A7AEAA'][
-                categories.indexOf(cat) % 6
-              ],
-            }}
-          />
-          <View style={{ flex: 1 }}>
-            <Label small>{cat.name}</Label>
-          </View>
-          <Label small>
-            {money(cat.amount)} · {percentage(cat.amount, total).toFixed(1)}%
-          </Label>
-        </Pressable>
-      ))}
-    </Card>
+    </ChartSurface>
   );
 }
 export function SpendingTrendChart({
   periods,
-  title = 'Income & spending trends',
+  title = 'Spending rhythm',
   expensesOnly = false,
 }: {
   periods: PeriodTotal[];
   title?: string;
   expensesOnly?: boolean;
 }) {
-  const c = useTheme();
-  const expenseColor = c.negative;
-  const common = useChartStyle();
-  const [selected, setSelected] = useState<PeriodTotal | null>(null);
-  if (!periods.some((p) => p.expense || (!expensesOnly && p.income)))
-    return <Empty title={title} detail="No activity to plot for this period." />;
-  const skip = Math.max(1, Math.ceil(periods.length / 6));
-  const data = periods.map((p, i) => ({
-    value: p.expense / 100,
-    label: i % skip === 0 ? shortLabel(p.period) : '',
-    onPress: () => setSelected(p),
+  const c = useTheme(),
+    id = useId().replace(/:/g, '');
+  const plot = usePlot(periods),
+    [selected, setSelected] = useState<string | null>(null);
+  const selection = plot.rows.find((row) => row.period === selected);
+  const domain = chartDomain(
+    plot.rows.flatMap((row) => (expensesOnly ? [row.expense] : [row.expense, row.income])),
+    plotHeight
+  );
+  const points = plot.rows.map((row, index) => ({
+    x: plot.x(index),
+    y: top + domain.y(row.expense),
   }));
-  const income = periods.map((p) => ({ value: p.income / 100 }));
+  const incomePoints = plot.rows.map((row, index) => ({
+    x: plot.x(index),
+    y: top + domain.y(row.income),
+  }));
+  const path = curvePath(points),
+    incomePath = curvePath(incomePoints);
+  const area = points.length
+    ? `${path} L ${points[points.length - 1].x} ${top + domain.zero} L ${points[0].x} ${top + domain.zero} Z`
+    : '';
+  const length = points.reduce(
+    (sum, point, index) =>
+      index
+        ? sum + Math.hypot(point.x - points[index - 1].x, point.y - points[index - 1].y) * 1.3
+        : sum,
+    1
+  );
+  if (!periods.some((row) => row.expense || (!expensesOnly && row.income)))
+    return <Empty animate={false} title={title} detail="No activity to plot for this period." />;
   return (
-    <Card>
-      <Label>{title}</Label>
-      <Label small>
-        {expensesOnly ? 'Expenses' : 'Red: expenses · Teal: income'} · Tap a point; swipe to
-        explore.
-      </Label>
-      <LineChart
-        {...common}
-        data={data}
-        data2={expensesOnly ? undefined : income}
-        color={expenseColor}
-        color2={c.accent}
-        dataPointsColor={expenseColor}
-        dataPointsColor2={c.accent}
-        spacing={42}
-        initialSpacing={10}
-        thickness={2}
-        focusEnabled
-        onFocus={(_: unknown, index: number) => {
-          if (periods[index]) setSelected(periods[index]);
-        }}
-      />
-      {selected && (
-        <Label small>
-          {selected.period} · Expenses {money(selected.expense)}
-          {!expensesOnly ? ` · Income ${money(selected.income)}` : ''}
-        </Label>
-      )}
+    <ChartSurface title={title} subtitle="Explore the peaks and quieter periods" badge="TREND">
+      <View style={{ flexDirection: 'row', gap: 16 }}>
+        <Legend label="Spending" color={chartColors[1]} />
+        {!expensesOnly && <Legend label="Income" color={chartColors[0]} />}
+      </View>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+        <Svg width={plot.chartWidth} height={222}>
+          <Defs>
+            <LinearGradient id={id} x1="0" y1="0" x2="0" y2="1">
+              <Stop offset="0" stopColor={chartColors[1]} stopOpacity={1} />
+              <Stop offset="1" stopColor={chartColors[1]} stopOpacity={0} />
+            </LinearGradient>
+          </Defs>
+          <Grid domain={domain} width={plot.chartWidth} />
+          <AnimatedLine
+            path={path}
+            color={chartColors[1]}
+            length={length}
+            area={area}
+            gradient={`url(#${id})`}
+          />
+          {!expensesOnly && (
+            <AnimatedLine path={incomePath} color={chartColors[0]} length={Math.max(length, 300)} />
+          )}
+          {plot.rows.map((row, index) => (
+            <PlotPoint
+              key={row.period}
+              row={row}
+              x={plot.x(index)}
+              y={points[index].y}
+              selected={selected === row.period}
+              color={c.muted}
+              onSelect={() => setSelected(row.period)}
+            />
+          ))}
+        </Svg>
+      </ScrollView>
+      <View style={{ minHeight: 52, gap: 4 }}>
+        <Text style={{ color: c.text, fontWeight: '600', fontSize: 13 }}>
+          {selection ? periodLabel(selection) : 'Tap a point to explore'}
+        </Text>
+        <Text style={{ color: c.muted, fontSize: 12 }}>
+          {selection
+            ? `Spent ${money(selection.expense)}${expensesOnly ? '' : ` · Income ${money(selection.income)}`}`
+            : 'Exact signed amounts, including refunds.'}
+        </Text>
+      </View>
       <DataTable
-        rows={periods.map((p) => ({
-          label: p.period,
-          detail: `Expenses ${money(p.expense)}${!expensesOnly ? `, Income ${money(p.income)}` : ''}`,
-          onPress: () => setSelected(p),
+        rows={periods.map((row) => ({
+          label: row.period,
+          detail: `Expenses ${money(row.expense)}${expensesOnly ? '' : ` · Income ${money(row.income)}`}`,
         }))}
       />
-    </Card>
+    </ChartSurface>
   );
 }
-export function BudgetComparisonChart({ rows }: { rows: BudgetComparison[] }) {
-  const c = useTheme();
-  const expenseColor = c.negative;
-  const common = useChartStyle();
-  const [selected, setSelected] = useState<BudgetComparison | null>(null);
+function PlotPoint({
+  row,
+  x,
+  y,
+  selected,
+  color,
+  onSelect,
+}: {
+  row: ChartPeriod;
+  x: number;
+  y: number;
+  selected: boolean;
+  color: string;
+  onSelect: () => void;
+}) {
+  return (
+    <>
+      {selected && (
+        <Line
+          x1={x}
+          x2={x}
+          y1={top}
+          y2={top + plotHeight}
+          stroke={chartColors[1]}
+          strokeDasharray="3 4"
+          opacity={0.4}
+        />
+      )}
+      <Circle
+        cx={x}
+        cy={y}
+        r={selected ? 6 : 3.5}
+        fill={chartColors[1]}
+        stroke="#FFFFFF"
+        strokeWidth={2}
+      />
+      <SvgText x={x} y={plotHeight + 36} textAnchor="middle" fill={color} fontSize={10}>
+        {shortLabel(row.period)}
+      </SvgText>
+      <Rect x={x - 22} y={0} width={44} height={222} fill="transparent" onPress={onSelect} />
+    </>
+  );
+}
+export function BudgetComparisonChart({
+  rows,
+}: {
+  rows: BudgetComparison[];
+  animate?: boolean;
+}) {
+  const c = useTheme(),
+    [selectedKey, setSelectedKey] = useState<string | null>(null);
+  const maximum = Math.max(1, ...rows.flatMap((row) => [row.allocated, Math.abs(row.spent)]));
   if (!rows.length)
     return (
       <Empty
+        animate={false}
         title="Budget vs actual"
-        detail="Category allocations will appear here after you create a budget."
+        detail="Category comparisons will appear after you allocate a budget."
       />
     );
-  const data = rows.flatMap((r, i) => [
-    {
-      value: r.allocated / 100,
-      label: String(i + 1),
-      frontColor: c.accent,
-      spacing: 3,
-      onPress: () => setSelected(r),
-    },
-    {
-      value: r.spent / 100,
-      frontColor: r.spent > r.allocated ? c.negative : expenseColor,
-      spacing: 18,
-      onPress: () => setSelected(r),
-    },
-  ]);
   return (
-    <Card>
-      <Label>Category budget vs actual</Label>
-      <Label small>First bar: category limit · Second bar: spending. Tap a bar for details.</Label>
-      <BarChart {...common} data={data} barWidth={17} initialSpacing={10} />
-      {selected && (
-        <Label small>
-          {selected.month} · {selected.name} · Limit {money(selected.allocated)} · Spent{' '}
-          {money(selected.spent)}
-        </Label>
-      )}
-      {rows.map((r, i) => (
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => setSelected(r)}
-          key={`${r.budget_id}-${r.category_id}`}>
-          <Label small>
-            {i + 1}. {r.month} · {r.name} · {money(r.spent)} of {money(r.allocated)}
-            {r.spent > r.allocated ? ` · Exceeded by ${money(r.spent - r.allocated)}` : ''}
-          </Label>
-        </Pressable>
-      ))}
-    </Card>
+    <ChartSurface
+      title="Plan vs actual"
+      subtitle="Your category limits and net spending"
+      badge={`${rows.length} ALLOCATIONS`}>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 16 }}>
+        <Legend label="Allocated" color={chartColors[0]} />
+        <Legend label="Spent" color={chartColors[1]} />
+        <Legend label="Over limit" color={c.negative} />
+      </View>
+      {rows.map((row) => {
+        const key = `${row.budget_id}-${row.category_id}`,
+          over = row.spent > row.allocated;
+        return (
+          <MotionPressable
+            key={key}
+            accessibilityRole="button"
+            accessibilityState={{ selected: selectedKey === key }}
+            accessibilityLabel={`${row.month}, ${row.name}, limit ${money(row.allocated)}, spent ${money(row.spent)}`}
+            onPress={() => setSelectedKey(key)}
+            style={{
+              gap: 9,
+              padding: 12,
+              borderRadius: 15,
+              backgroundColor: selectedKey === key ? c.soft : c.card,
+            }}>
+            <View style={{ flexDirection: 'row', gap: 10, alignItems: 'flex-start' }}>
+              <View style={{ flex: 1, gap: 3 }}>
+                <Text style={{ color: c.text, fontWeight: '600', fontSize: 14 }}>{row.name}</Text>
+                <Text style={{ color: c.muted, fontSize: 11 }}>{row.month}</Text>
+              </View>
+              <Text
+                style={{
+                  color: over ? c.negative : c.text,
+                  fontWeight: '700',
+                  fontVariant: ['tabular-nums'],
+                }}>
+                {money(row.spent)}
+              </Text>
+            </View>
+            <AnimatedTrack fraction={row.allocated / maximum} color={chartColors[0]} height={6} />
+            <AnimatedTrack
+              fraction={Math.abs(row.spent) / maximum}
+              color={row.spent < 0 ? chartColors[3] : over ? c.negative : chartColors[1]}
+              height={6}
+            />
+            <Text style={{ color: c.muted, fontSize: 11 }}>
+              Limit {money(row.allocated)} ·{' '}
+              {row.spent < 0
+                ? 'Net refund credit'
+                : over
+                  ? `${money(row.spent - row.allocated)} over`
+                  : `${money(row.allocated - row.spent)} remaining`}
+            </Text>
+          </MotionPressable>
+        );
+      })}
+    </ChartSurface>
   );
 }

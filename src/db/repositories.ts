@@ -1,5 +1,15 @@
+import { performanceIndexes } from './performanceIndexes';
+import { attachSplits, type TransactionContext } from './transactionViews';
+import { monthRange } from '../utils/periods';
 import { allocations, validateSplits } from '../utils/expenseAllocations';
-import type { ExpenseSplit, Account, Category, Snapshot, Transaction } from '../types';
+import type {
+  ExpenseSplit,
+  Account,
+  Category,
+  Snapshot,
+  ReferenceSnapshot,
+  Transaction,
+} from '../types';
 import { defaults, migrations } from './migrations';
 import { MAX_MONEY, validDate, localDate } from '../utils/finance';
 import { SyncRepository } from './syncRepository';
@@ -49,6 +59,7 @@ export class Repositories extends SyncRepository {
           );
         }
       await this.db.execAsync(receiptSchema);
+      await this.db.execAsync(performanceIndexes);
       const now = new Date().toISOString();
       const seeded = await this.db.getFirstAsync<{ value: string }>(
         "SELECT value FROM app_settings WHERE key='categories_seeded'"
@@ -92,11 +103,130 @@ export class Repositories extends SyncRepository {
       const splits = await this.db.getAllAsync<ExpenseSplit & { transaction_id: number }>(
         'SELECT * FROM expense_splits ORDER BY id'
       );
-      for (const t of transactions)
-        t.splits = splits
-          .filter((s) => s.transaction_id === t.id)
-          .map(({ category_id, amount }) => ({ category_id, amount }));
+      attachSplits(transactions, splits);
       return { accounts, categories, transactions, settings };
+    });
+  }
+  private entryTemplatesCore(accountId?: number) {
+    return this.db.getAllAsync<Transaction>(
+      `
+      WITH eligible AS (
+        SELECT t.* FROM transactions t
+        JOIN accounts a ON a.id=t.account_id JOIN account_roles ar ON ar.account_id=a.id
+        LEFT JOIN categories c ON c.id=t.category_id
+        LEFT JOIN accounts d ON d.id=t.destination_account_id
+        LEFT JOIN account_roles dr ON dr.account_id=d.id
+        WHERE t.status='posted' AND t.refund_of_id IS NULL AND t.loan_id IS NULL
+          AND NOT EXISTS(SELECT 1 FROM expense_splits s WHERE s.transaction_id=t.id)
+          AND a.archived=0 AND ar.subtype NOT LIKE 'loan_%'
+          AND (ar.kind<>'liability' OR t.type='expense')
+          AND (? IS NULL OR t.account_id=?)
+          AND ((t.type='transfer' AND d.archived=0 AND d.id<>a.id AND d.currency=a.currency AND dr.subtype NOT LIKE 'loan_%')
+            OR (t.type<>'transfer' AND c.archived=0 AND c.type=t.type))
+      ), ranked AS (
+        SELECT id,type,ROW_NUMBER() OVER (PARTITION BY type,account_id,destination_account_id,category_id,component,description ORDER BY updated_at DESC,id DESC) template_rank FROM eligible
+      ), unique_rows AS (
+        SELECT t.id,ROW_NUMBER() OVER (PARTITION BY t.type ORDER BY t.updated_at DESC,t.id DESC) type_rank FROM eligible t JOIN ranked r ON r.id=t.id AND r.template_rank=1
+      ) SELECT t.* FROM eligible t JOIN unique_rows u ON u.id=t.id WHERE u.type_rank<=6 ORDER BY t.updated_at DESC,t.id DESC`,
+      accountId ?? null,
+      accountId ?? null
+    );
+  }
+  entryTemplates(accountId?: number) {
+    return this.read(() => this.entryTemplatesCore(accountId));
+  }
+  referenceSnapshot(): Promise<ReferenceSnapshot> {
+    return this.read(async () => ({
+      accounts: await this.accountSnapshotCore(),
+      categories: await this.db.getAllAsync<Category>(
+        'SELECT * FROM categories ORDER BY type,name'
+      ),
+      settings: Object.fromEntries(
+        (
+          await this.db.getAllAsync<{ key: string; value: string }>('SELECT * FROM app_settings')
+        ).map((r) => [r.key, r.value])
+      ),
+      templates: await this.entryTemplatesCore(),
+      transactionCount: (await this.db.getFirstAsync<{ count: number }>(
+        "SELECT COUNT(*) count FROM transactions WHERE status='posted'"
+      ))!.count,
+    }));
+  }
+  private async hydrateTransactionsCore(rows: Transaction[]) {
+    if (!rows.length) return rows;
+    const splits: (ExpenseSplit & { transaction_id: number })[] = [];
+    for (let i = 0; i < rows.length; i += 900) {
+      const ids = rows.slice(i, i + 900).map((t) => t.id);
+      splits.push(
+        ...(await this.db.getAllAsync<ExpenseSplit & { transaction_id: number }>(
+          `SELECT transaction_id,category_id,amount FROM expense_splits WHERE transaction_id IN (${ids.map(() => '?').join(',')}) ORDER BY id`,
+          ...ids
+        ))
+      );
+    }
+    return attachSplits(rows, splits);
+  }
+  transactionContext(id?: number, refundId?: number): Promise<TransactionContext> {
+    return this.read(async () => {
+      const existing =
+        id === undefined
+          ? null
+          : await this.db.getFirstAsync<Transaction>(
+              `SELECT t.*,${receiptCountSQL} FROM active_transactions t WHERE t.id=?`,
+              id
+            );
+      const parent = existing?.refund_of_id ?? refundId;
+      const original =
+        parent === undefined || parent === null
+          ? null
+          : await this.db.getFirstAsync<Transaction>(
+              `SELECT t.*,${receiptCountSQL} FROM active_transactions t WHERE t.id=?`,
+              parent
+            );
+      const purchase = original?.id ?? existing?.id;
+      const refunds =
+        purchase === undefined
+          ? []
+          : await this.db.getAllAsync<Transaction>(
+              'SELECT * FROM active_transactions WHERE refund_of_id=? ORDER BY date DESC,id DESC',
+              purchase
+            );
+      await this.hydrateTransactionsCore([
+        ...(existing ? [existing] : []),
+        ...(original ? [original] : []),
+        ...refunds,
+      ]);
+      return { existing, original, refunds };
+    });
+  }
+  receiptDuplicates(amount: number, date: string, accountId: number) {
+    return this.read(() =>
+      !Number.isSafeInteger(amount) || amount <= 0 || !validDate(date)
+        ? Promise.resolve([] as Transaction[])
+        : this.db.getAllAsync<Transaction>(
+            "SELECT * FROM transactions WHERE status='posted' AND type='expense' AND refund_of_id IS NULL AND amount=? AND date=? AND account_id=? ORDER BY date DESC,id DESC LIMIT 5",
+            amount,
+            date,
+            accountId
+          )
+    );
+  }
+  dashboard(month: string) {
+    const range = monthRange(month);
+    return this.read(async () => {
+      const totals = (await this.db.getFirstAsync<{
+        income: number;
+        expense: number;
+        count: number;
+      }>(
+        `SELECT COALESCE(SUM(CASE WHEN type='income' THEN effective_amount ELSE 0 END),0) income,COALESCE(SUM(CASE WHEN type='expense' THEN effective_amount ELSE 0 END),0) expense,COUNT(*) count FROM active_transactions WHERE date BETWEEN ? AND ?`,
+        range.start,
+        range.end
+      ))!;
+      const recent = await this.db.getAllAsync<Transaction>(
+        `SELECT t.*,${receiptCountSQL} FROM active_transactions t ORDER BY t.date DESC,t.id DESC LIMIT 5`
+      );
+      return { ...totals, net: totals.income - totals.expense, recent };
     });
   }
   saveAccount(

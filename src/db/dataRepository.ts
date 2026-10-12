@@ -1,3 +1,4 @@
+import { performanceIndexes } from './performanceIndexes';
 import { AdvancedRepository } from './advancedRepository';
 import { migrations } from './migrations';
 import {
@@ -286,6 +287,7 @@ export class DataRepository extends AdvancedRepository {
       // Intended for a fresh staging database. Never call this on the live dataset.
       await this.db.withTransactionAsync(async () => {
         for (const migration of migrations) await this.db.execAsync(migration);
+        await this.db.execAsync(performanceIndexes);
         await this.db.execAsync('PRAGMA defer_foreign_keys=ON');
         await this.importCore(backup);
       });
@@ -314,6 +316,7 @@ export class DataRepository extends AdvancedRepository {
               new Date().toISOString()
             );
           }
+          await this.db.execAsync(performanceIndexes);
           await this.importCore(backup);
         });
       } finally {

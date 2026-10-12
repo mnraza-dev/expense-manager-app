@@ -1,7 +1,12 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, Text, View } from 'react-native';
 import { CalendarDays, List, Sun } from 'lucide-react-native';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import {
+  transactionRequest,
+  retainTransactions,
+  type LoadedTransactions,
+} from '../../src/utils/transactionPages';
 import type { Transaction, TransactionFilters } from '../../src/types';
 import { useFinance } from '../../src/store/useFinance';
 import { Button, Empty, Field, Label, Screen, useTheme } from '../../src/components/ui';
@@ -19,6 +24,12 @@ import { repo } from '../../src/db/database';
 import { VoiceEntryButton } from '../../src/components/VoiceEntryButton';
 import { ReceiptScanButton } from '../../src/components/ReceiptScanButton';
 export default function Transactions() {
+  const params = useLocalSearchParams<{ account?: string }>();
+  const value = Number(params.account);
+  const accountId = Number.isSafeInteger(value) && value > 0 ? value : undefined;
+  return <TransactionList key={accountId ?? 'all'} accountId={accountId} />;
+}
+function TransactionList({ accountId }: { accountId?: number }) {
   const router = useRouter();
   const c = useTheme();
   const revision = useFinance((s) => s.revision);
@@ -26,10 +37,12 @@ export default function Transactions() {
     [debounced, setDebounced] = useState('');
   const [filters, setFilters] = useState<TransactionFilters>(() => ({
     sort: 'newest',
-    ...monthRange(localDate().slice(0, 7)),
+    ...(accountId !== undefined ? { account_id: accountId } : monthRange(localDate().slice(0, 7))),
   }));
   const [month, setMonth] = useState(() => localDate().slice(0, 7));
-  const [view, setView] = useState<'list' | 'calendar' | 'daily'>('list');
+  const [view, setView] = useState<'list' | 'calendar' | 'daily'>(() =>
+    accountId === undefined ? 'daily' : 'list'
+  );
   const [day, setDay] = useState(() => localDate());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [sheet, setSheet] = useState(false),
@@ -59,36 +72,39 @@ export default function Transactions() {
     }, 250);
     return () => clearTimeout(timer);
   }, [search]);
-  useFocusEffect(
-    useCallback(() => {
-      setPage(0);
-    }, [])
-  );
+  const previousQuery = useRef(queryFilters);
+  const loaded = useRef<LoadedTransactions | null>(null);
   useFocusEffect(
     useCallback(() => {
       let active = true;
       setLoading(true);
       setError(null);
-      if (page === 0) {
+      if (page === 0 && previousQuery.current !== queryFilters) {
         setRows([]);
         setCount(0);
       }
+      previousQuery.current = queryFilters;
+      const request = transactionRequest(queryFilters, page, revision, loaded.current);
+      if (request.page !== page) setPage(request.page);
       const query =
         queryFilters.start && queryFilters.end && queryFilters.start > queryFilters.end
           ? Promise.resolve({ rows: [] as Transaction[], count: 0 })
-          : Promise.resolve().then(() => repo().searchTransactions(queryFilters, page * 50, 50));
+          : Promise.resolve().then(() =>
+              request.append
+                ? repo().searchTransactions(queryFilters, request.offset, request.limit)
+                : repo().transactionWindow(queryFilters, request.limit)
+            );
       query
         .then((result) => {
           if (!active) return;
           setCount(result.count);
-          setRows((previous) =>
-            page === 0
-              ? result.rows
-              : [
-                  ...previous.filter((t) => !result.rows.some((next) => next.id === t.id)),
-                  ...result.rows,
-                ]
-          );
+          loaded.current = { key: queryFilters, page: request.page, revision };
+          setRows((previous) => {
+            const rows = retainTransactions(previous, result.rows);
+            if (!request.append) return rows;
+            const ids = new Set(rows.map((t) => t.id));
+            return [...previous.filter((t) => !ids.has(t.id)), ...rows];
+          });
           setLoading(false);
         })
         .catch(() => {
@@ -103,6 +119,15 @@ export default function Transactions() {
       // Ledger mutations and retry requests must invalidate the query even when filters are unchanged.
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [queryFilters, page, revision, retry])
+  );
+  const renderTransaction = useCallback(
+    ({ item, index }: { item: Transaction; index: number }) => (
+      <View>
+        {(index === 0 || rows[index - 1]?.date !== item.date) && <Label>{item.date}</Label>}
+        <TransactionItem item={item} />
+      </View>
+    ),
+    [rows]
   );
   const changeDay = (date: string) => {
     setDay(date);
@@ -272,12 +297,7 @@ export default function Transactions() {
                 </View>
               </View>
             }
-            renderItem={({ item, index }) => (
-              <View>
-                {(index === 0 || rows[index - 1]?.date !== item.date) && <Label>{item.date}</Label>}
-                <TransactionItem item={item} />
-              </View>
-            )}
+            renderItem={renderTransaction}
             ListEmptyComponent={
               loading ? (
                 <ActivityIndicator color={c.accent} />

@@ -161,16 +161,23 @@ export function Label({ children, small = false }: { children: React.ReactNode; 
     </Text>
   );
 }
-export function Card({ children }: { children: React.ReactNode }) {
+export function Card({
+  children,
+  animate = true,
+}: {
+  children: React.ReactNode;
+  animate?: boolean;
+}) {
   const c = useTheme();
+  const Wrapper = animate ? Reveal : View;
   return (
-    <Reveal>
+    <Wrapper>
       <DepthSurface
         edgeColor={c.border}
         faceStyle={[styles.card, { backgroundColor: c.card, borderColor: c.border }]}>
         {children}
       </DepthSurface>
-    </Reveal>
+    </Wrapper>
   );
 }
 export function Button({
@@ -298,14 +305,16 @@ export function Empty({
   title,
   detail,
   art = 'receipt',
+  animate = true,
 }: {
   title: string;
   detail: string;
   art?: FinanceArtKind;
+  animate?: boolean;
 }) {
   const c = useTheme();
   return (
-    <Card>
+    <Card animate={animate}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
         <FinanceArt kind={art} colors={c} size={72} />
         <View style={{ flex: 1, minWidth: 0 }}>

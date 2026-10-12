@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ChevronDown, ChevronRight, ChevronUp, Pencil, Plus } from 'lucide-react-native';
 import { Button, Card, Empty, Label, Screen, confirm, useTheme } from '../../src/components/ui';
@@ -43,22 +43,29 @@ export default function Budgets() {
     async () => ({
       month,
       progress: await repo().budgetProgress(month),
-      history: await repo().budgetHistory(),
     }),
     [month]
   );
-  const query = useDatabaseQuery(load);
-  const data = query.data?.month === month ? query.data : undefined;
+  const query = useDatabaseQuery(load, 'both', { keepPreviousData: true });
+  const historyQuery = useDatabaseQuery(
+    useCallback(() => repo().budgetHistory(), []),
+    'budget'
+  );
+  const data = query.data;
   const p = data?.progress;
+  const waiting = query.loading || query.refreshing || query.isPreviousData;
+  const displayedMonth = data?.month ?? month;
   const changeMonth = (value: string) => {
     setManage(false);
-    setComparison(false);
     setMonth(value);
   };
   const editBudget = () => {
-    if (p?.budget) router.push({ pathname: '/budget/[id]', params: { id: p.budget.id } });
+    if (!waiting && p?.budget)
+      router.push({ pathname: '/budget/[id]', params: { id: p.budget.id } });
   };
-  const createBudget = () => router.push({ pathname: '/budget/add', params: { month } });
+  const createBudget = () => {
+    if (!waiting) router.push({ pathname: '/budget/add', params: { month } });
+  };
   const currentMonth = localDate().slice(0, 7);
 
   return (
@@ -71,8 +78,13 @@ export default function Budgets() {
             depth
             accessibilityRole="button"
             accessibilityLabel={p.budget ? 'Edit monthly budget' : 'Create monthly budget'}
+            accessibilityState={{ disabled: waiting }}
+            disabled={waiting}
             onPress={p.budget ? editBudget : createBudget}
-            style={[budgetStyles.headerAction, { backgroundColor: c.accent }]}>
+            style={[
+              budgetStyles.headerAction,
+              { backgroundColor: c.accent, opacity: waiting ? 0.5 : 1 },
+            ]}>
             {p.budget ? (
               <Pencil size={20} color={c.onAccent} />
             ) : (
@@ -87,23 +99,38 @@ export default function Budgets() {
           radius={16}
           faceStyle={[budgetStyles.month, { backgroundColor: c.card, borderColor: c.border }]}>
           <MonthSelector month={month} onChange={changeMonth} />
+          <View style={budgetStyles.monthTools}>
+            <View style={budgetStyles.queryStatus} accessibilityLiveRegion="polite">
+              {(query.loading || query.refreshing) && (
+                <>
+                  <ActivityIndicator size="small" color={c.accent} />
+                  <Text style={{ color: c.muted, fontSize: 12 }}>Updating…</Text>
+                </>
+              )}
+            </View>
+            <MotionPressable
+              accessibilityRole="button"
+              accessibilityLabel="Return to this month's budget"
+              accessibilityState={{ disabled: month === currentMonth }}
+              disabled={month === currentMonth}
+              onPress={() => changeMonth(currentMonth)}
+              style={[
+                budgetStyles.thisMonth,
+                { backgroundColor: c.soft, opacity: month === currentMonth ? 0.5 : 1 },
+              ]}>
+              <Text style={{ color: c.accent, fontWeight: '600', fontSize: 12 }}>This month</Text>
+            </MotionPressable>
+          </View>
         </DepthSurface>
-        {month !== currentMonth && (
-          <MotionPressable
-            accessibilityRole="button"
-            accessibilityLabel="Return to this month's budget"
-            onPress={() => changeMonth(currentMonth)}
-            style={[budgetStyles.thisMonth, { backgroundColor: c.soft }]}>
-            <Text style={{ color: c.accent, fontWeight: '600' }}>Back to this month</Text>
-          </MotionPressable>
-        )}
-        <QueryState {...query} loading={query.loading || (!data && !query.error)} />
+        <QueryState {...query} refreshing={false} />
         {p && (
           <>
             {p.budget ? (
               <View style={budgetStyles.section}>
                 <BudgetProgressCard
                   art
+                  animate={false}
+                  period={monthLabel(displayedMonth)}
                   name={p.budget.name}
                   limit={p.budget.total_limit_minor}
                   spent={p.spent}
@@ -114,14 +141,21 @@ export default function Budgets() {
                 </Text>
                 <Button
                   secondary
+                  disabled={waiting}
                   title={manage ? 'Hide budget options' : 'Manage budget'}
                   onPress={() => setManage((value) => !value)}
                 />
                 {manage && (
                   <Reveal style={budgetStyles.section}>
-                    <Button secondary title="Edit this budget" onPress={editBudget} />
+                    <Button
+                      secondary
+                      title="Edit this budget"
+                      disabled={waiting}
+                      onPress={editBudget}
+                    />
                     <Button
                       danger
+                      disabled={waiting}
                       title="Delete this month's budget"
                       onPress={() => {
                         const id = p.budget!.id;
@@ -139,11 +173,16 @@ export default function Budgets() {
               <View style={budgetStyles.section}>
                 <Empty
                   art="chart"
+                  animate={false}
                   title="Plan this month's spending"
-                  detail={`You've spent ${money(p.spent)} in ${monthLabel(month)}. Set a monthly limit to track what's left.`}
+                  detail={`You've spent ${money(p.spent)} in ${monthLabel(displayedMonth)}. Set a monthly limit to track what's left.`}
                 />
                 <View style={budgetStyles.createAction}>
-                  <Button title="Create a monthly budget" onPress={createBudget} />
+                  <Button
+                    title="Create a monthly budget"
+                    disabled={waiting}
+                    onPress={createBudget}
+                  />
                 </View>
               </View>
             )}
@@ -163,6 +202,8 @@ export default function Budgets() {
                     {p.categories.map((row) => (
                       <BudgetProgressCard
                         key={row.category_id}
+                        animate={false}
+                        period={monthLabel(displayedMonth)}
                         name={row.name + (row.archived ? ' (archived)' : '')}
                         limit={row.allocated}
                         spent={row.spent}
@@ -173,30 +214,34 @@ export default function Budgets() {
                       title={comparison ? 'Hide comparison' : 'View budget vs actual'}
                       onPress={() => setComparison((value) => !value)}
                     />
-                    {comparison && <BudgetComparisonChart key={month} rows={p.categories} />}
+                    {comparison && <BudgetComparisonChart animate={false} rows={p.categories} />}
                   </>
                 ) : (
-                  <Card>
+                  <Card animate={false}>
                     <Label>No category limits yet</Label>
                     <Label small>
                       Your monthly limit is active. Add optional category allocations to see
                       individual progress.
                     </Label>
-                    <Button secondary title="Add category allocations" onPress={editBudget} />
+                    <Button
+                      secondary
+                      title="Add category allocations"
+                      disabled={waiting}
+                      onPress={editBudget}
+                    />
                   </Card>
                 )}
               </View>
             )}
             {p.unbudgeted.length > 0 && (
               <View style={budgetStyles.section}>
-                <Card>
+                <Card animate={false}>
                   <Label>
                     {p.budget ? 'Spending without a category limit' : 'Spending by category'}
                   </Label>
                   <Label small>
-                    {p.budget
-                      ? 'Included in your total monthly spending.'
-                      : 'These are your expenses for the selected month.'}
+                    Expenses for {monthLabel(displayedMonth)}.
+                    {p.budget ? ' Included in your total monthly spending.' : ''}
                   </Label>
                   {p.unbudgeted.map((row, index) => (
                     <View
@@ -231,9 +276,10 @@ export default function Budgets() {
                 )}
               </MotionPressable>
               {history && (
-                <Card>
-                  {data.history.length ? (
-                    data.history.map((row, index) => {
+                <Card animate={false}>
+                  <QueryState {...historyQuery} />
+                  {historyQuery.data?.length ? (
+                    historyQuery.data.map((row, index) => {
                       const savedMonth = row.period_start.slice(0, 7);
                       return (
                         <MotionPressable
@@ -263,9 +309,9 @@ export default function Budgets() {
                         </MotionPressable>
                       );
                     })
-                  ) : (
+                  ) : !historyQuery.loading && !historyQuery.error ? (
                     <Label small>No saved budgets yet.</Label>
-                  )}
+                  ) : null}
                 </Card>
               )}
             </View>
@@ -286,7 +332,17 @@ const budgetStyles = StyleSheet.create({
   },
   content: { paddingTop: 12, paddingBottom: 24, gap: 24 },
   month: { padding: 4, borderRadius: 16, borderWidth: 1 },
-  thisMonth: { alignSelf: 'center', paddingHorizontal: 16, paddingVertical: 12, borderRadius: 12 },
+  monthTools: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    paddingHorizontal: 8,
+    paddingBottom: 4,
+    minHeight: 44,
+  },
+  queryStatus: { flex: 1, minHeight: 24, flexDirection: 'row', alignItems: 'center', gap: 6 },
+  thisMonth: { paddingHorizontal: 12, paddingVertical: 10, borderRadius: 12 },
   section: { gap: 16 },
   sectionHeading: { gap: 6 },
   title: { fontSize: 17, fontWeight: '600' },

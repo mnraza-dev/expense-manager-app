@@ -1,11 +1,13 @@
-import { ActivityIndicator } from 'react-native';
+import { ActivityIndicator, View } from 'react-native';
 import { Button, Card, Label, useTheme } from './ui';
 export function QueryState({
   loading,
+  refreshing = false,
   error,
   retry,
 }: {
   loading: boolean;
+  refreshing?: boolean;
   error: string | null;
   retry: () => void;
 }) {
@@ -20,5 +22,10 @@ export function QueryState({
       <Label>{error}</Label>
       <Button title="Retry" onPress={retry} />
     </Card>
+  ) : refreshing ? (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+      <ActivityIndicator size="small" color={c.accent} />
+      <Label small>Updating your local records…</Label>
+    </View>
   ) : null;
 }

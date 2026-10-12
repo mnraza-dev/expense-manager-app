@@ -11,12 +11,12 @@ import { GoalForm } from '../../src/features/GoalForm';
 export default function GoalDetail() {
   const { id } = useLocalSearchParams<{ id: string }>(),
     goalId = Number(id),
-    mutate = useFinance((s) => s.mutate);
+    mutate = useFinance((s) => s.mutatePlanning);
   const [editing, setEditing] = useState(false),
     [adding, setAdding] = useState(false);
   const query = useDatabaseQuery(
       useCallback(() => repo().goal(goalId), [goalId]),
-      'ledger'
+      'planning'
     ),
     data = query.data;
   if (editing && data) return <GoalForm goal={data.goal} onDone={() => setEditing(false)} />;

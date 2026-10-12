@@ -7,7 +7,7 @@ import { minor } from '../utils/finance';
 import type { SavingsGoal } from '../typesMvp4';
 export function GoalForm({ goal, onDone }: { goal?: SavingsGoal; onDone?: () => void }) {
   const router = useRouter(),
-    mutate = useFinance((s) => s.mutate);
+    mutate = useFinance((s) => s.mutatePlanning);
   return (
     <Screen title={goal ? 'Edit savings goal' : 'New savings goal'} back backTo="/goal">
       <Label small>Track earmarked savings separately from your account balances.</Label>

@@ -21,7 +21,7 @@ import { configureReminders, refreshReminders, useReminders } from '../../src/se
 import type { BillReminder } from '../../src/typesMvp4';
 export default function Bills() {
   const router = useRouter(),
-    mutate = useFinance((s) => s.mutate),
+    mutate = useFinance((s) => s.mutatePlanning),
     notification = useReminders();
   const [form, setForm] = useState<BillReminder | 'new' | null>(null),
     [busy, setBusy] = useState(false);
@@ -30,7 +30,7 @@ export default function Bills() {
       async () => ({ bills: await repo().bills(), due: await repo().dueReminders() }),
       []
     ),
-    'ledger'
+    ['ledger', 'planning']
   );
   const configure = async (enabled: boolean, lead = notification.leadDays) => {
     if (busy) return;

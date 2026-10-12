@@ -4,7 +4,14 @@ import { useFocusEffect } from 'expo-router';
 import { useRequiredUpdate } from '../updates/service';
 import { AppState, Platform } from 'react-native';
 import { useLock, waitForForegroundAccess } from '../security/lock';
-import { startOfflineSpeech } from '../services/offlineSpeech';
+import {
+  startOfflineSpeech,
+  downloadOfflineSpeechModel,
+  OfflineSpeechError,
+  speechRecognitionError,
+  VoiceTranscript,
+  type SpeechRecovery,
+} from '../services/offlineSpeech';
 type SpeechModule = typeof import('expo-speech-recognition').ExpoSpeechRecognitionModule;
 const speech = requireOptionalNativeModule<SpeechModule>('ExpoSpeechRecognition');
 export function useVoiceEntry(
@@ -13,11 +20,26 @@ export function useVoiceEntry(
 ) {
   const [listening, setListening] = useState(false);
   const [starting, setStarting] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [recovery, setRecovery] = useState<{ action: SpeechRecovery; locale?: string } | null>(
+    null
+  );
+  const [setupMessage, setSetupMessage] = useState<string | null>(null);
   const active = useRef(false),
     requesting = useRef(false),
     accepting = useRef(false),
     generation = useRef(0);
+  const currentLocale = useRef('en-IN');
+  const received = useRef(new VoiceTranscript());
+  const fail = useCallback((cause: unknown) => {
+    setError(
+      cause instanceof Error ? cause.message : 'Voice entry is unavailable. Type expenses below.'
+    );
+    setRecovery(
+      cause instanceof OfflineSpeechError ? { action: cause.recovery, locale: cause.locale } : null
+    );
+  }, []);
   const transcript = useRef(onTranscript);
   const final = useRef(onFinal);
   useEffect(() => {
@@ -41,6 +63,14 @@ export function useVoiceEntry(
               if (active.current) {
                 setListening(false);
                 setStarting(false);
+                if (
+                  AppState.currentState === 'active' &&
+                  !useLock.getState().locked &&
+                  !useRequiredUpdate.getState().required
+                ) {
+                  const text = received.current.finish();
+                  if (text) final.current(text);
+                }
               }
             }),
             speech.addListener('result', (event) => {
@@ -51,18 +81,22 @@ export function useVoiceEntry(
                 !useLock.getState().locked &&
                 !useRequiredUpdate.getState().required
               ) {
-                const text = event.results[0]?.transcript ?? '';
-                transcript.current(text);
-                if (event.isFinal) final.current(text);
+                const result = received.current.receive(
+                  event.results[0]?.transcript ?? '',
+                  event.isFinal
+                );
+                if (result) {
+                  transcript.current(result.text);
+                  if (result.review) final.current(result.review);
+                }
               }
             }),
             speech.addListener('error', (event) => {
               if (!active.current || !accepting.current || event.error === 'aborted') return;
-              setError(
-                event.error === 'not-allowed'
-                  ? 'Microphone access is unavailable. Check device settings or type expenses below.'
-                  : 'On-device speech could not recognize this language or phrase. Check its offline model, try again, or type expenses below.'
+              fail(
+                speechRecognitionError(event.error, currentLocale.current, Platform.OS, event.code)
               );
+              received.current.reset();
               setListening(false);
               setStarting(false);
               accepting.current = false;
@@ -75,6 +109,7 @@ export function useVoiceEntry(
         generation.current++;
         accepting.current = false;
         requesting.current = false;
+        received.current.reset();
         speech?.abort();
         if (active.current) {
           setListening(false);
@@ -100,13 +135,16 @@ export function useVoiceEntry(
         lock();
         update();
       };
-    }, [])
+    }, [fail])
   );
   const start = async (locale: string) => {
     if (requesting.current || accepting.current) return;
     requesting.current = true;
     setStarting(true);
     setError(null);
+    setRecovery(null);
+    setSetupMessage(null);
+    currentLocale.current = locale;
     const token = ++generation.current;
     try {
       await startOfflineSpeech(
@@ -116,7 +154,9 @@ export function useVoiceEntry(
         locale,
         () => active.current && generation.current === token,
         waitForForegroundAccess,
-        () => {
+        (resolvedLocale) => {
+          currentLocale.current = resolvedLocale;
+          received.current.reset();
           accepting.current = true;
           transcript.current('');
           setListening(true);
@@ -126,9 +166,7 @@ export function useVoiceEntry(
       if (active.current && generation.current === token) {
         accepting.current = false;
         setListening(false);
-        setError(
-          e instanceof Error ? e.message : 'Voice entry is unavailable. Type expenses below.'
-        );
+        fail(e);
       }
     } finally {
       if (active.current && generation.current === token) {
@@ -137,5 +175,46 @@ export function useVoiceEntry(
       }
     }
   };
-  return { listening, starting, error, start, stop: () => speech?.stop() };
+  const download = async (selectedLocale: string) => {
+    if (requesting.current || accepting.current) return;
+    requesting.current = true;
+    setDownloading(true);
+    setError(null);
+    setSetupMessage(null);
+    const token = ++generation.current;
+    try {
+      const message = await downloadOfflineSpeechModel(
+        speech,
+        Platform.OS,
+        Number(Platform.Version),
+        recovery?.locale ?? selectedLocale,
+        () => active.current && generation.current === token,
+        waitForForegroundAccess
+      );
+      if (active.current && generation.current === token) setSetupMessage(message);
+    } catch (e) {
+      if (active.current && generation.current === token) fail(e);
+    } finally {
+      if (active.current && generation.current === token) {
+        requesting.current = false;
+        setDownloading(false);
+      }
+    }
+  };
+  return {
+    listening,
+    starting,
+    downloading,
+    error,
+    recovery,
+    setupMessage,
+    clearSetup: () => {
+      setError(null);
+      setRecovery(null);
+      setSetupMessage(null);
+    },
+    start,
+    download,
+    stop: () => speech?.stop(),
+  };
 }

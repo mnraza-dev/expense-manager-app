@@ -1,0 +1,135 @@
+{
+  "environment": "Node v24.20.0 / SQLite 3.53.4",
+  "scope": "Synthetic local repository timings; simulated established sync mappings, no network or device UI timings.",
+  "datasets": [
+    {
+      "transactions": 1000,
+      "before": {
+        "startup_read": {
+          "ms": 5.7,
+          "sql": 5,
+          "returned_rows": 1226,
+          "transaction_objects": 1000,
+          "json_bytes": 396034
+        },
+        "save_and_refresh": {
+          "ms": 7.4,
+          "sql": 31,
+          "returned_rows": 1243
+        },
+        "synced_save": {
+          "ms": 89.3,
+          "sql": 5408,
+          "returned_rows": 10714
+        },
+        "outbox_changes": 5
+      },
+      "after": {
+        "startup_read": {
+          "ms": 2.1,
+          "sql": 5,
+          "returned_rows": 31,
+          "transaction_objects": 6,
+          "json_bytes": 5518
+        },
+        "save_and_refresh": {
+          "ms": 4.2,
+          "sql": 31,
+          "returned_rows": 47
+        },
+        "synced_save": {
+          "ms": 2.4,
+          "sql": 56,
+          "returned_rows": 36
+        },
+        "outbox_changes": 5
+      }
+    },
+    {
+      "transactions": 10000,
+      "before": {
+        "startup_read": {
+          "ms": 530,
+          "sql": 5,
+          "returned_rows": 12026,
+          "transaction_objects": 10000,
+          "json_bytes": 3937386
+        },
+        "save_and_refresh": {
+          "ms": 499.7,
+          "sql": 31,
+          "returned_rows": 12043
+        },
+        "synced_save": {
+          "ms": 917.2,
+          "sql": 53108,
+          "returned_rows": 106114
+        },
+        "outbox_changes": 5
+      },
+      "after": {
+        "startup_read": {
+          "ms": 21.1,
+          "sql": 5,
+          "returned_rows": 31,
+          "transaction_objects": 6,
+          "json_bytes": 5526
+        },
+        "save_and_refresh": {
+          "ms": 23.1,
+          "sql": 31,
+          "returned_rows": 47
+        },
+        "synced_save": {
+          "ms": 3.5,
+          "sql": 56,
+          "returned_rows": 36
+        },
+        "outbox_changes": 5
+      }
+    },
+    {
+      "transactions": 50000,
+      "before": {
+        "startup_read": {
+          "ms": 954714.5,
+          "sql": 5,
+          "returned_rows": 60026,
+          "transaction_objects": 50000,
+          "json_bytes": 19716717
+        },
+        "save_and_refresh": {
+          "ms": 984662.1,
+          "sql": 31,
+          "returned_rows": 60043
+        },
+        "synced_save": {
+          "ms": 5754.1,
+          "sql": 265108,
+          "returned_rows": 530114
+        },
+        "outbox_changes": 5
+      },
+      "after": {
+        "startup_read": {
+          "ms": 153.1,
+          "sql": 5,
+          "returned_rows": 31,
+          "transaction_objects": 6,
+          "json_bytes": 5532
+        },
+        "save_and_refresh": {
+          "ms": 160.4,
+          "sql": 31,
+          "returned_rows": 47
+        },
+        "synced_save": {
+          "ms": 11.4,
+          "sql": 56,
+          "returned_rows": 36
+        },
+        "outbox_changes": 5
+      }
+    }
+  ]
+}

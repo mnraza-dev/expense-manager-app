@@ -7,7 +7,7 @@ import { migrations } from '../../src/db/migrations';
 export default function Settings() {
   const router = useRouter();
   const c = useTheme();
-  const { settings, accounts, transactions, mutatePreference } = useFinance();
+  const { settings, accounts, transactionCount, mutatePreference } = useFinance();
   return (
     <Screen
       back
@@ -65,7 +65,7 @@ export default function Settings() {
         <Label>Local database</Label>
         <Label small>SQLite · schema v{migrations.length}</Label>
         <Label small>
-          {accounts.length} accounts · {transactions.length} transactions
+          {accounts.length} accounts · {transactionCount} transactions
         </Label>
         <Label small>
           Your financial records stay on this device. No account, cloud sync or bank connection is

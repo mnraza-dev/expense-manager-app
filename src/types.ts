@@ -57,6 +57,11 @@ export interface Snapshot {
   settings: Record<string, string>;
 }
 
+export interface ReferenceSnapshot extends Omit<Snapshot, 'transactions'> {
+  templates: Transaction[];
+  transactionCount: number;
+}
+
 export interface DateRange {
   start: string;
   end: string;

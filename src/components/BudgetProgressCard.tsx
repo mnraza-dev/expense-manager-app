@@ -47,11 +47,15 @@ export function BudgetProgressCard({
   limit,
   spent,
   art = false,
+  period,
+  animate = true,
 }: {
   name: string;
   limit: number;
   spent: number;
   art?: boolean;
+  period?: string;
+  animate?: boolean;
 }) {
   const configuredWarning = Number(
     useFinance((s) => s.settings.budget_warning_percent) ?? DEFAULT_WARNING_PERCENT
@@ -73,7 +77,7 @@ export function BudgetProgressCard({
           ? 'On track'
           : 'No limit';
   return (
-    <Card>
+    <Card animate={animate}>
       <View style={cardStyles.header}>
         <View style={cardStyles.heading}>
           <Text style={[cardStyles.name, { color: c.text }]}>{name}</Text>
@@ -85,7 +89,9 @@ export function BudgetProgressCard({
         </View>
         {art && <FinanceArt kind="chart" colors={c} size={56} />}
       </View>
-      <Text style={{ color: c.muted, fontSize: 13, marginTop: 8 }}>Spent this month</Text>
+      <Text style={{ color: c.muted, fontSize: 13, marginTop: 8 }}>
+        {period ? `Spent in ${period}` : 'Spent this month'}
+      </Text>
       <Text
         numberOfLines={1}
         adjustsFontSizeToFit

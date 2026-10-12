@@ -1,43 +1,58 @@
 import { useCallback, useState } from 'react';
 import { useFocusEffect } from 'expo-router';
 import { useFinance } from '../store/useFinance';
+import {
+  beginDatabaseQuery,
+  databaseQueryView,
+  type DatabaseQueryState,
+} from '../utils/databaseQueryState';
+type Scope = 'ledger' | 'budget' | 'planning';
 export function useDatabaseQuery<T>(
   load: () => Promise<T>,
-  scope: 'ledger' | 'budget' | 'both' = 'both'
+  scope: Scope | 'both' | Scope[] = 'both',
+  { keepPreviousData = false }: { keepPreviousData?: boolean } = {}
 ) {
   const ledger = useFinance((s) => s.revision),
-    budgets = useFinance((s) => s.budgetRevision);
+    budgets = useFinance((s) => s.budgetRevision),
+    planning = useFinance((s) => s.planningRevision);
+  const scopes = Array.isArray(scope) ? scope : scope === 'both' ? ['ledger', 'budget'] : [scope];
+  const revision = scopes.includes('ledger') ? ledger : 0,
+    budgetRevision = scopes.includes('budget') ? budgets : 0,
+    planningRevision = scopes.includes('planning') ? planning : 0;
   const [retryKey, setRetryKey] = useState(0);
-  const [state, setState] = useState<{
-    data: T | undefined;
-    loading: boolean;
-    error: string | null;
-  }>({ data: undefined, loading: true, error: null });
-  const revision = scope === 'budget' ? 0 : ledger,
-    budgetRevision = scope === 'ledger' ? 0 : budgets;
+  const [state, setState] = useState<DatabaseQueryState<T>>({
+    key: load,
+    dataKey: null,
+    data: undefined,
+    pending: true,
+    error: null,
+  });
   useFocusEffect(
     useCallback(() => {
       let active = true;
-      setState({ data: undefined, loading: true, error: null });
+      setState((previous) => beginDatabaseQuery(previous, load, keepPreviousData));
       Promise.resolve()
         .then(load)
         .then((data) => {
-          if (active) setState({ data, loading: false, error: null });
+          if (active) setState({ key: load, dataKey: load, data, pending: false, error: null });
         })
         .catch(() => {
           if (active)
-            setState({
-              data: undefined,
-              loading: false,
+            setState((previous) => ({
+              ...beginDatabaseQuery(previous, load, keepPreviousData),
+              pending: false,
               error: 'Unable to load local records. Please retry.',
-            });
+            }));
         });
       return () => {
         active = false;
       };
-      // These revisions are invalidation signals, not editable financial aggregates.
+      // Revisions invalidate only selected domains. Keeping a previous query is explicit and labeled.
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [load, revision, budgetRevision, retryKey])
+    }, [load, revision, budgetRevision, planningRevision, retryKey, keepPreviousData])
   );
-  return { ...state, retry: () => setRetryKey((n) => n + 1) };
+  return {
+    ...databaseQueryView(state, load, keepPreviousData),
+    retry: () => setRetryKey((n) => n + 1),
+  };
 }
