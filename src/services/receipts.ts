@@ -52,7 +52,7 @@ export async function deleteWithReceipts(id: number) {
 export function receiptURI(receipt: ReceiptDraft) {
   return receipt.sourceUri ?? new File(directory(), receiptFileName(receipt)).uri;
 }
-function inspect(file: File) {
+export function inspectReceiptFile(file: File) {
   if (!file.exists) throw new Error('Receipt file is missing. Please select it again.');
   const size = file.size;
   if (size <= 0 || size > MAX_RECEIPT_BYTES)
@@ -83,7 +83,7 @@ export async function pickReceipt(): Promise<ReceiptDraft | null> {
   if (result.canceled) return null;
   const asset = result.assets[0];
   try {
-    const { size, mime_type } = inspect(new File(asset.uri));
+    const { size, mime_type } = inspectReceiptFile(new File(asset.uri));
     if (
       asset.mimeType &&
       asset.mimeType !== 'application/octet-stream' &&
@@ -110,7 +110,7 @@ export async function pickReceipt(): Promise<ReceiptDraft | null> {
 export async function shareReceipt(receipt: ReceiptDraft) {
   await waitForForegroundAccess();
   const file = new File(receiptURI(receipt));
-  inspect(file);
+  inspectReceiptFile(file);
   if (!(await Sharing.isAvailableAsync()))
     throw new Error('File sharing is unavailable on this device.');
   await Sharing.shareAsync(file.uri, {
@@ -136,7 +136,7 @@ export async function saveWithReceipts(
       verify: async (receipt) => {
         if (new File(directory(), receiptFileName(receipt)).exists)
           throw new Error('A receipt file already exists. Please select this receipt again.');
-        const info = inspect(new File(receipt.sourceUri!));
+        const info = inspectReceiptFile(new File(receipt.sourceUri!));
         if (info.size !== receipt.size || info.mime_type !== receipt.mime_type)
           throw new Error('The selected receipt changed. Remove it and select it again.');
       },
@@ -146,7 +146,7 @@ export async function saveWithReceipts(
         if (destination.exists)
           throw new Error('A receipt file already exists. Please select this receipt again.');
         await new File(receipt.sourceUri!).copy(destination);
-        const info = inspect(destination);
+        const info = inspectReceiptFile(destination);
         if (info.size !== receipt.size || info.mime_type !== receipt.mime_type)
           throw new Error('Could not copy the complete receipt. Check device storage.');
       },

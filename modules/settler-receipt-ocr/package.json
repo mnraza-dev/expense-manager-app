@@ -1,0 +1,7 @@
+{
+  "name": "settler-receipt-ocr",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Private on-device receipt text recognition for Settler",
+  "license": "MIT"
+}

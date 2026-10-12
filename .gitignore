@@ -19,6 +19,13 @@ expo-env.d.ts
 .env
 ios
 android
+!modules/settler-receipt-ocr/android/
+!modules/settler-receipt-ocr/android/**
+!modules/settler-receipt-ocr/ios/
+!modules/settler-receipt-ocr/ios/**
+modules/**/android/build/
+modules/**/android/.gradle/
+modules/**/ios/build/
 
 # macOS
 .DS_Store

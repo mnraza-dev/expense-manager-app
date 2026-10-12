@@ -3,6 +3,8 @@ import { Reveal, MotionPressable } from '../components/Motion';
 import { useEffect, useRef, useState } from 'react';
 import { ReceiptAttachments } from '../components/ReceiptAttachments';
 import { VoiceEntryButton } from '../components/VoiceEntryButton';
+import { ReceiptScanButton } from '../components/ReceiptScanButton';
+import { possibleReceiptDuplicates, type ReceiptScanDraft } from '../utils/receiptScan';
 import {
   deleteWithReceipts,
   discardReceiptDraft,
@@ -24,6 +26,7 @@ import { CategoryGrid } from '../components/CategoryGrid';
 import type { TransactionType } from '../types';
 import {
   Button,
+  Card,
   Choices,
   Empty,
   Field,
@@ -70,16 +73,21 @@ export function TransactionForm({
   initialType = 'expense',
   initialAccount,
   initialDestination,
+  initialScan,
 }: {
   id?: number;
   initialType?: TransactionType;
   initialAccount?: number;
   initialDestination?: number;
+  initialScan?: ReceiptScanDraft;
 }) {
   const router = useRouter();
   const goBack = useSafeBack('/(tabs)/transactions');
   const c = useTheme();
-  const [details, setDetails] = useState(Boolean(id));
+  const [details, setDetails] = useState(Boolean(id || initialScan));
+  const [scanActive, setScanActive] = useState(Boolean(initialScan));
+  const [showScanText, setShowScanText] = useState(false);
+  const [duplicateAcknowledgement, setDuplicateAcknowledgement] = useState('');
   const [saveError, setSaveError] = useState<string | null>(null);
   const { transactions, accounts, categories, mutate } = useFinance();
   const existing = transactions.find((t) => t.id === id);
@@ -94,8 +102,10 @@ export function TransactionForm({
   const [busy, setBusy] = useState(false);
   const saving = useRef(false);
   const mounted = useRef(false);
-  const [receipts, setReceipts] = useState<ReceiptDraft[]>([]);
-  const drafts = useRef<ReceiptDraft[]>([]);
+  const [receipts, setReceipts] = useState<ReceiptDraft[]>(() =>
+    initialScan ? [initialScan.receipt] : []
+  );
+  const drafts = useRef<ReceiptDraft[]>(receipts);
   const originalReceipts = useRef<Receipt[]>([]);
   const [receiptLoading, setReceiptLoading] = useState(Boolean(id));
   const [receiptError, setReceiptError] = useState<string | null>(null);
@@ -111,7 +121,9 @@ export function TransactionForm({
     mounted.current = true;
     return () => {
       mounted.current = false;
-      if (!saving.current) drafts.current.forEach(discardReceiptDraft);
+      queueMicrotask(() => {
+        if (!mounted.current && !saving.current) drafts.current.forEach(discardReceiptDraft);
+      });
     };
   }, []);
   useEffect(() => {
@@ -148,16 +160,17 @@ export function TransactionForm({
     resolver: zodResolver(schema),
     defaultValues: {
       type: existing?.type ?? initialType,
-      amount: existing ? (existing.amount / 100).toFixed(2) : '',
+      amount: existing ? (existing.amount / 100).toFixed(2) : (initialScan?.amount ?? ''),
       account: existing?.account_id ?? initialAccount ?? latest?.account_id ?? active[0]?.id ?? 0,
       destination: existing?.destination_account_id ?? initialDestination ?? null,
-      category:
-        existing?.category_id ??
-        latest?.category_id ??
-        categories.find((c) => !c.archived && c.type === initialType)?.id ??
-        null,
-      description: existing?.description ?? '',
-      date: existing?.date ?? localDate(),
+      category: initialScan
+        ? initialScan.category
+        : (existing?.category_id ??
+          latest?.category_id ??
+          categories.find((c) => !c.archived && c.type === initialType)?.id ??
+          null),
+      description: existing?.description ?? initialScan?.merchant ?? '',
+      date: existing?.date ?? initialScan?.date ?? localDate(),
       notes: existing?.notes ?? '',
       component: existing?.component ?? 'standard',
     },
@@ -165,6 +178,15 @@ export function TransactionForm({
   const type = useWatch({ control, name: 'type' });
   const date = useWatch({ control, name: 'date' });
   const selectedAccount = useWatch({ control, name: 'account' });
+  const amount = useWatch({ control, name: 'amount' });
+  const duplicates =
+    scanActive && type === 'expense'
+      ? possibleReceiptDuplicates(transactions, { amount, date, account: selectedAccount })
+      : [];
+  const duplicateKey = duplicates.length
+    ? `${amount}|${date}|${selectedAccount}|${duplicates.map((t) => t.id).join(',')}`
+    : '';
+  const duplicateBlocked = Boolean(duplicateKey && duplicateAcknowledgement !== duplicateKey);
   const templates = recentEntryTemplates(transactions, accounts, categories, type, initialAccount);
   useEffect(() => {
     if (!focusRequest) return;
@@ -227,6 +249,10 @@ export function TransactionForm({
   };
   const submit = async (v: Values, another = false) => {
     if (saving.current || picking.current || receiptLoading || receiptError) return;
+    if (duplicateBlocked) {
+      setSaveError('Review the possible duplicate expenses before saving.');
+      return;
+    }
     saving.current = true;
     setBusy(true);
     setSaveError(null);
@@ -255,6 +281,7 @@ export function TransactionForm({
       });
       notify(id ? 'Transaction updated' : 'Transaction saved');
       if (mounted.current && another && !id) {
+        setScanActive(false);
         setReceipts([]);
         reset({ ...v, amount: '', description: '', notes: '' });
         setDetails(false);
@@ -277,6 +304,67 @@ export function TransactionForm({
       back
       backTo="/(tabs)/transactions"
       headerActions={!id ? <VoiceEntryButton compact /> : undefined}>
+      {scanActive && initialScan && (
+        <Card>
+          <Label>Receipt scan draft · review before saving</Label>
+          <Label small>
+            Check the description, paid total, purchase date, category and account. The scanned
+            image is attached below.
+          </Label>
+          {initialScan.warnings.map((warning) => (
+            <InlineFeedback key={warning} message={warning} />
+          ))}
+          {initialScan.candidates.length > 1 && (
+            <Choices
+              label="Possible receipt totals (₹)"
+              value={amount}
+              options={[...new Set(initialScan.candidates.map((item) => item.amount))].map(
+                (value) => ({ value, label: `₹${value}` })
+              )}
+              onChange={(value) => {
+                if (!busy) setValue('amount', value, { shouldValidate: true });
+              }}
+            />
+          )}
+          {duplicates.length > 0 && (
+            <>
+              <InlineFeedback message="Possible duplicate: expenses with this amount, date and account already exist." />
+              {duplicates.map((t) => (
+                <Label small key={t.id}>
+                  {t.date} · {t.description} · {money(t.amount)}
+                </Label>
+              ))}
+              <Button
+                secondary
+                title={
+                  duplicateBlocked
+                    ? 'Confirm this is a separate expense'
+                    : 'Duplicate warning reviewed'
+                }
+                busy={busy}
+                onPress={() => {
+                  setDuplicateAcknowledgement(duplicateKey);
+                  setSaveError(null);
+                }}
+              />
+            </>
+          )}
+          {initialScan.text && (
+            <Button
+              secondary
+              title={showScanText ? 'Hide extracted text' : 'Show extracted text'}
+              onPress={() => setShowScanText(!showScanText)}
+            />
+          )}
+          {showScanText && (
+            <Label small>
+              {initialScan.text.slice(0, 4000)}
+              {initialScan.text.length > 4000 ? '\n[Preview limited to 4,000 characters]' : ''}
+            </Label>
+          )}
+        </Card>
+      )}
+      {!id && !scanActive && selectable.length > 0 && <ReceiptScanButton />}
       {!selectable.length ? (
         <>
           <Empty
@@ -298,7 +386,7 @@ export function TransactionForm({
                 value={field.value}
                 onChangeText={field.onChange}
                 error={errors.amount?.message}
-                autoFocus={!id}
+                autoFocus={!id && !initialScan}
                 style={{
                   fontSize: 32,
                   fontWeight: '600',
@@ -314,7 +402,7 @@ export function TransactionForm({
               />
             )}
           />
-          {!id && templates.length > 0 && (
+          {!id && !scanActive && templates.length > 0 && (
             <View style={{ gap: 8 }}>
               <Label small>Use recent details · review before saving</Label>
               <ScrollView
@@ -329,6 +417,7 @@ export function TransactionForm({
                     accessibilityLabel={`Reuse ${t.description}, ${money(t.amount)}`}
                     disabled={busy}
                     onPress={() => {
+                      setScanActive(false);
                       reset(entryFromTemplate(t));
                       setDetails(true);
                       setSaveError(null);
@@ -478,7 +567,18 @@ export function TransactionForm({
               )}
             </>
           ) : null}
-          <Button secondary title={`Date · ${date}`} onPress={() => setPicker(true)} />
+          <Button
+            secondary
+            title={`Date · ${date || 'Choose purchase date'}`}
+            onPress={() => setPicker(true)}
+          />
+          {scanActive && !date && (
+            <Button
+              secondary
+              title="Use today's date"
+              onPress={() => setValue('date', localDate(), { shouldValidate: true })}
+            />
+          )}
           {errors.date && (
             <InlineFeedback message={errors.date.message ?? 'Choose a valid date.'} />
           )}
@@ -551,7 +651,7 @@ export function TransactionForm({
           <Button
             title="Save transaction"
             busy={busy || receiptBusy || receiptLoading}
-            disabled={Boolean(receiptError)}
+            disabled={Boolean(receiptError) || duplicateBlocked}
             onPress={() => void save()}
           />
           {!id && (
@@ -559,7 +659,7 @@ export function TransactionForm({
               secondary
               title="Save & add another"
               busy={busy || receiptBusy || receiptLoading}
-              disabled={Boolean(receiptError)}
+              disabled={Boolean(receiptError) || duplicateBlocked}
               onPress={() => void save(true)}
             />
           )}

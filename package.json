@@ -10,10 +10,12 @@
     "@react-navigation/native": "^7.1.6",
     "@supabase/supabase-js": "^2.117.3",
     "expo": "57.0.0",
+    "expo-camera": "~57.0.6",
     "expo-constants": "~57.0.2",
     "expo-crypto": "~57.0.3",
     "expo-document-picker": "~57.0.3",
     "expo-file-system": "~57.0.7",
+    "expo-image-manipulator": "~57.0.21",
     "expo-linear-gradient": "~57.0.2",
     "expo-linking": "~57.0.1",
     "expo-local-authentication": "~57.0.3",
@@ -58,7 +60,7 @@
     "typescript": "~6.0.3"
   },
   "name": "settler",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "main": "expo-router/entry",
   "private": true,
   "scripts": {
@@ -70,7 +72,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint app src tests *.js scripts/*.cjs",
     "format": "prettier app src tests *.js *.json --write",
-    "test": "tsc src/types.ts src/typesAdvanced.ts src/utils/finance.ts src/utils/periods.ts src/utils/navigation.ts src/utils/budgets.ts src/utils/reports.ts src/utils/schedules.ts src/db/adapter.ts src/db/migrations.ts src/db/analyticsRepository.ts src/db/ledgerRepository.ts src/db/advancedRepository.ts src/db/dataRepository.ts src/services/backup.ts src/services/restorePolicy.ts src/utils/export.ts src/utils/workbook.ts src/security/crypto.ts src/security/lockCore.ts src/db/syncRepository.ts src/cloud/sessionStorage.ts src/cloud/model.ts src/cloud/localSchema.ts src/cloud/outbox.ts src/db/repositories.ts src/utils/quickEntry.ts src/services/receiptStorage.ts src/utils/voiceExpenses.ts src/services/offlineSpeech.ts src/utils/expensePDF.ts --outDir .test-build --module commonjs --target es2022 --strict --skipLibCheck --ignoreConfig && node --test tests/*.test.cjs",
+    "test": "tsc src/types.ts src/typesAdvanced.ts src/utils/finance.ts src/utils/periods.ts src/utils/navigation.ts src/utils/budgets.ts src/utils/reports.ts src/utils/schedules.ts src/db/adapter.ts src/db/migrations.ts src/db/analyticsRepository.ts src/db/ledgerRepository.ts src/db/advancedRepository.ts src/db/dataRepository.ts src/services/backup.ts src/services/restorePolicy.ts src/utils/export.ts src/utils/workbook.ts src/security/crypto.ts src/security/lockCore.ts src/db/syncRepository.ts src/cloud/sessionStorage.ts src/cloud/model.ts src/cloud/localSchema.ts src/cloud/outbox.ts src/db/repositories.ts src/utils/quickEntry.ts src/services/receiptStorage.ts src/utils/voiceExpenses.ts src/services/offlineSpeech.ts src/utils/expensePDF.ts src/utils/receiptScan.ts src/services/receiptScanCore.ts --outDir .test-build --module commonjs --target es2022 --strict --skipLibCheck --ignoreConfig && node --test tests/*.test.cjs",
     "postinstall": "node scripts/patch-expo-router.cjs && node scripts/patch-offline-speech.cjs"
   }
 }

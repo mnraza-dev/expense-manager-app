@@ -20,6 +20,7 @@ import { BudgetProgressCard } from '../../src/components/BudgetProgressCard';
 import { useDatabaseQuery } from '../../src/hooks/useDatabaseQuery';
 import { repo } from '../../src/db/database';
 import { VoiceEntryButton } from '../../src/components/VoiceEntryButton';
+import { ReceiptScanButton } from '../../src/components/ReceiptScanButton';
 
 export default function Home() {
   const router = useRouter();
@@ -159,6 +160,7 @@ export default function Home() {
         </MotionPressable>
       </View>
       {hasAccount && <VoiceEntryButton />}
+      {hasAccount && <ReceiptScanButton />}
       {!hasAccount && (
         <View style={[home.setupCard, { backgroundColor: c.soft }]}>
           <Text style={{ color: c.text, fontSize: 15, fontWeight: '600' }}>

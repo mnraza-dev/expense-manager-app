@@ -1,0 +1,21 @@
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+
+group = 'com.razatechlabs.receiptocr'
+version = '1.0.0'
+
+android {
+  namespace 'com.razatechlabs.receiptocr'
+  defaultConfig {
+    versionCode 1
+    versionName '1.0.0'
+  }
+}
+
+dependencies {
+  // Bundled models: recognition works from first launch without model downloads.
+  implementation 'com.google.mlkit:text-recognition:16.0.1'
+  implementation 'com.google.mlkit:text-recognition-devanagari:16.0.1'
+}

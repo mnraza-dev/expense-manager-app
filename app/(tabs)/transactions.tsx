@@ -17,6 +17,7 @@ import { monthRange } from '../../src/utils/periods';
 import { notify } from '../../src/store/useFeedback';
 import { repo } from '../../src/db/database';
 import { VoiceEntryButton } from '../../src/components/VoiceEntryButton';
+import { ReceiptScanButton } from '../../src/components/ReceiptScanButton';
 export default function Transactions() {
   const router = useRouter();
   const c = useTheme();
@@ -149,6 +150,7 @@ export default function Transactions() {
             ListHeaderComponent={
               <View style={{ gap: 12 }}>
                 {header}
+                <ReceiptScanButton />
                 <View style={{ paddingTop: 24, gap: 12 }}>
                   <View
                     accessibilityRole="tablist"

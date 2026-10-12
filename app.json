@@ -2,7 +2,7 @@
   "expo": {
     "name": "Settler",
     "slug": "settler",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "scheme": ["settler", "pocketbook"],
     "platforms": ["ios", "android"],
     "web": {
@@ -41,6 +41,15 @@
           "speechRecognitionPermission": "Allow Settler to recognize your spoken expenses on this device.",
           "androidSpeechServicePackages": ["com.google.android.as"]
         }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow Settler to photograph receipts for expense drafts.",
+          "microphonePermission": "Allow Settler to listen while you dictate expense entries.",
+          "recordAudioAndroid": false,
+          "barcodeScannerEnabled": false
+        }
       ]
     ],
     "experiments": {
@@ -67,7 +76,7 @@
         "backgroundColor": "#063E35"
       },
       "package": "com.razatechlabs.settler",
-      "versionCode": 3,
+      "versionCode": 4,
       "blockedPermissions": [
         "android.permission.READ_MEDIA_IMAGES",
         "android.permission.READ_MEDIA_VIDEO",
