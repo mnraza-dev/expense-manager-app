@@ -19,6 +19,12 @@ test('Android release manifest rejects automatic transfers and cleartext and dis
   assert.equal(application.$['android:usesCleartextTraffic'], 'false');
   assert.equal(application.$['android:fullBackupContent'], '@xml/settler_backup_rules');
   assert.equal(application.$['android:dataExtractionRules'], '@xml/settler_data_extraction_rules');
+  assert.equal(
+    application['meta-data'].find(
+      (item) => item.$['android:name'] === 'firebase_analytics_collection_enabled'
+    ).$['android:value'],
+    'false'
+  );
   assert.deepEqual(
     application['meta-data'].find(
       (item) => item.$['android:name'] === 'firebase_messaging_auto_init_enabled'

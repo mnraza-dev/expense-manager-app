@@ -4,6 +4,7 @@ import * as SecureStore from 'expo-secure-store';
 import * as Crypto from 'expo-crypto';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { secureSessionStorage } from './sessionStorage';
+import { cloudAccountsAvailable, publicReleaseAuth } from '../release/features';
 const sessionStorage = secureSessionStorage(
   AsyncStorage,
   {
@@ -19,10 +20,14 @@ const sessionStorage = secureSessionStorage(
 const url = process.env.EXPO_PUBLIC_SUPABASE_URL,
   key = process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 let client: SupabaseClient | null = null;
-export function cloudConfigured() {
+let releaseClient: SupabaseClient | null = null;
+export function updateBackendConfigured() {
   return !!url && !!key;
 }
-export function cloudClient() {
+export function cloudConfigured() {
+  return cloudAccountsAvailable(updateBackendConfigured());
+}
+function backendConfiguration() {
   if (!url || !key)
     throw new Error(
       'Cloud is not configured. Add the project URL and public publishable key from .env.example. Local finance remains available.'
@@ -39,8 +44,13 @@ export function cloudClient() {
     }
     if (role !== 'anon') throw new Error('Privileged Supabase keys are not permitted in this app.');
   }
+  return { url, key };
+}
+export function cloudClient() {
+  if (!cloudConfigured()) throw new Error('Online accounts are disabled in this local release.');
+  const backend = backendConfiguration();
   if (!client)
-    client = createClient(url, key, {
+    client = createClient(backend.url, backend.key, {
       auth: {
         storage: sessionStorage,
         autoRefreshToken: true,
@@ -50,5 +60,11 @@ export function cloudClient() {
       },
     });
   return client;
+}
+// Minimum-version metadata is public. This client never loads saved Auth sessions.
+export function publicReleaseClient() {
+  const backend = backendConfiguration();
+  releaseClient ??= createClient(backend.url, backend.key, { auth: { ...publicReleaseAuth } });
+  return releaseClient;
 }
 export const authRedirect = 'pocketbook://cloud/callback';

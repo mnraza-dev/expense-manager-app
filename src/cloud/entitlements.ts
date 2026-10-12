@@ -3,6 +3,7 @@ import type { PurchasesPackage } from 'react-native-purchases';
 import { isRunningInExpoGo } from 'expo';
 import { cloudClient, cloudConfigured } from './client';
 import { verifiedOwner } from './auth';
+import { storePurchasesAvailable } from '../release/features';
 export type Feature =
   | 'cloud_backup'
   | 'multi_device_sync'
@@ -16,8 +17,7 @@ let configured = false,
   currentOwner: string | null = null;
 export function billingConfigured() {
   return (
-    cloudConfigured() &&
-    !!publicKey &&
+    storePurchasesAvailable(cloudConfigured(), publicKey) &&
     !isRunningInExpoGo() &&
     (Platform.OS === 'ios' || Platform.OS === 'android')
   );

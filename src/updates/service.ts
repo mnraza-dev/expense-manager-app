@@ -3,7 +3,7 @@ import { AppState, Linking, Platform } from 'react-native';
 import { isRunningInExpoGo } from 'expo';
 import NetInfo from '@react-native-community/netinfo';
 import { create } from 'zustand';
-import { cloudClient, cloudConfigured } from '../cloud/client';
+import { publicReleaseClient, updateBackendConfigured } from '../cloud/client';
 import { digest } from '../security/crypto';
 import {
   UpdateController,
@@ -23,7 +23,7 @@ let controller: UpdateController | undefined;
 let starting: Promise<void> | undefined;
 async function initialize() {
   if (controller) return;
-  if (__DEV__ || isRunningInExpoGo() || Platform.OS === 'web' || !cloudConfigured()) {
+  if (__DEV__ || isRunningInExpoGo() || Platform.OS === 'web' || !updateBackendConfigured()) {
     useRequiredUpdate.setState({ ready: true, checking: false, required: false, error: null });
     return;
   }
@@ -48,7 +48,7 @@ async function initialize() {
       writeCache: (value) => AsyncStorage.setItem(key, value),
       fetchPolicy: async () => {
         const abort = new AbortController();
-        const request = cloudClient()
+        const request = publicReleaseClient()
           .from('app_release_policy')
           .select('platform,enabled,minimum_version,minimum_build,store_url,message')
           .eq('platform', platform)

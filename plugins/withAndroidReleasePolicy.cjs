@@ -52,6 +52,11 @@ function secureManifest(manifest) {
     'firebase_messaging_auto_init_enabled',
     'false'
   );
+  AndroidConfig.Manifest.addMetaDataItemToMainApplication(
+    application,
+    'firebase_analytics_collection_enabled',
+    'false'
+  );
   return manifest;
 }
 function secureGradle(contents) {

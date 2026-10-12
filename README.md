@@ -286,3 +286,5 @@ For a signed Android App Bundle, keep `release.keystore` locally and set `ANDROI
 ## Google Play release readiness
 
 [PLAY_POLICY_AUDIT.md](PLAY_POLICY_AUDIT.md) records the October 12, 2026 audit, policy sources, code fixes, build evidence, Data safety worksheet and unresolved release gates. Release remains blocked pending declaration verification and testing of a newly signed binary containing the fixes. The existing AAB is unchanged. [The Settler privacy notice draft](docs/play/settler-privacy-notice.html) is ready for review and hosting beside the public developer policy.
+
+This release is explicitly local-only: `src/release/profile.json` disables Auth and purchases, and Android excludes the unused native billing SDK. Run `npm run play:guard` to check these engineering controls. A public update backend can be configured independently of Auth; final native testing and Play declaration review are still required.

@@ -14,7 +14,7 @@ export const useCloudAuth = create<{
   error: null,
   initialize: async () => {
     if (!cloudConfigured()) {
-      set({ ready: true });
+      set({ session: null, ready: true, error: null });
       return;
     }
     try {
@@ -31,6 +31,10 @@ export const useCloudAuth = create<{
     }
   },
   signOut: async () => {
+    if (!cloudConfigured()) {
+      set({ session: null });
+      return;
+    }
     const result = await cloudClient().auth.signOut({ scope: 'local' });
     if (result.error) throw result.error;
     set({ session: null });
@@ -67,6 +71,7 @@ export function startCloudAuth() {
   return cleanup;
 }
 export async function verifiedOwner() {
+  if (!cloudConfigured()) throw new Error('Online accounts are disabled in this local release.');
   const { data, error } = await cloudClient().auth.getUser();
   if (error || !data.user)
     throw new Error('Sign in again to access cloud services. Local data has not been removed.');

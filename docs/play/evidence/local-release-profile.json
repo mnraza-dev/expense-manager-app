@@ -1,0 +1,97 @@
+{
+  "originalAuditDate": "2026-10-12",
+  "scope": "Local-only release prevention controls; release verdict remains BLOCKED",
+  "baseCommit": "649fb78cb2b8b5e8810fd34ed288159e69137c62",
+  "sourceTreeSha256": "5c47e9e66ce0de3df1621b8a19baa6faed13a6236dfc9f90e7fe4d7d8f92e9ea",
+  "sourceFiles": 212,
+  "profile": {
+    "profile": "local",
+    "cloudAccounts": false,
+    "storePurchases": false
+  },
+  "checks": {
+    "unitAndIntegrationTests": 156,
+    "testFailures": 0,
+    "typescript": "PASS",
+    "eslint": "PASS",
+    "localReleaseGuard": "PASS",
+    "anonymousUpdateAndNoAccountActivation": "PASS with synthetic credentials, mocked SDK/storage",
+    "androidAutolinkingBillingExcluded": true,
+    "nativeResourceCompilation": "PASS before final permission-only removal; resource definitions unchanged",
+    "finalMergedManifest": "PASS",
+    "reducedNativeDependencyGraph": "PASS",
+    "androidAndIosHermesExports": "PASS",
+    "newSignedAab": "NOT BUILT",
+    "nativePhoneNetworkUpgradeQA": "NOT RUN",
+    "releaseApproval": "BLOCKED"
+  },
+  "mergedManifest": {
+    "sha256": "9c6919f013e4ba2df7717cfc4a8ff397d9729ac9089dcae2c00b10bbaf7a4958",
+    "package": "com.razatechlabs.settler",
+    "versionCode": "5",
+    "sdk": {
+      "android:minSdkVersion": "24",
+      "android:targetSdkVersion": "36"
+    },
+    "permissionCount": 14,
+    "permissions": [
+      "android.permission.ACCESS_NETWORK_STATE",
+      "android.permission.ACCESS_WIFI_STATE",
+      "android.permission.CAMERA",
+      "android.permission.DETECT_SCREEN_CAPTURE",
+      "android.permission.INTERNET",
+      "android.permission.POST_NOTIFICATIONS",
+      "android.permission.RECEIVE_BOOT_COMPLETED",
+      "android.permission.RECORD_AUDIO",
+      "android.permission.USE_BIOMETRIC",
+      "android.permission.USE_FINGERPRINT",
+      "android.permission.VIBRATE",
+      "android.permission.WAKE_LOCK",
+      "com.google.android.c2dm.permission.RECEIVE",
+      "com.razatechlabs.settler.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+    ],
+    "application": {
+      "android:name": "com.razatechlabs.settler.MainApplication",
+      "android:allowBackup": "false",
+      "android:appComponentFactory": "androidx.core.app.CoreComponentFactory",
+      "android:dataExtractionRules": "@xml/settler_data_extraction_rules",
+      "android:enableOnBackInvokedCallback": "false",
+      "android:extractNativeLibs": "false",
+      "android:fullBackupContent": "@xml/settler_backup_rules",
+      "android:icon": "@mipmap/ic_launcher",
+      "android:label": "@string/app_name",
+      "android:roundIcon": "@mipmap/ic_launcher_round",
+      "android:supportsRtl": "true",
+      "android:theme": "@style/AppTheme",
+      "android:usesCleartextTraffic": "false"
+    },
+    "firebaseMetadata": [
+      {
+        "android:name": "firebase_analytics_collection_enabled",
+        "android:value": "false"
+      },
+      {
+        "android:name": "firebase_messaging_auto_init_enabled",
+        "android:value": "false"
+      }
+    ]
+  },
+  "nativeBillingSdkPresent": false,
+  "nativeBillingAmazonAdsIdentifierLocationPathsPresent": false,
+  "hermesBundles": [
+    {
+      "file": "_expo/static/js/android/entry-29b0cab02c29dda7cebef2a2f32fa836.hbc",
+      "sha256": "abebec8c60245549cdd6f4d836b5aba7636830a19127a73a3441c625ce499a65"
+    },
+    {
+      "file": "_expo/static/js/ios/entry-3cded1acd723eede0816a1a458546a54.hbc",
+      "sha256": "a5e7d1870e803381e7ccc35a91526fb69a39a47930821ca72fd2eaafb5687002"
+    }
+  ],
+  "limitations": [
+    "Old AAB unchanged; no new candidate installed",
+    "Play Console declarations and SDK network behavior unverified",
+    "ML Kit metrics remain possible; local-only does not mean no data collection",
+    "Public notice draft not deployed"
+  ]
+}

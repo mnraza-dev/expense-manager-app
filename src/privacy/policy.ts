@@ -33,6 +33,10 @@ export const privacySections = [
     text: 'Settler contains no advertising UI and does not request an advertising identifier. Receipt recognition uses Google ML Kit as described above; local processing does not mean the SDK sends no diagnostics. Opening a privacy, support or store link lets that external service receive ordinary connection information under its own privacy policy. The developer receives information you choose to include in a support email. Do not send passwords or complete financial exports unless necessary for a support request.',
   },
   {
+    title: 'Required app updates',
+    text: 'When an update service is configured, Settler requests public minimum-version information over HTTPS at startup and while active. This check does not sign you in, load a saved login session or upload your financial records. The service receives ordinary connection information such as an IP address and client headers. Android update actions open Settler’s Google Play listing. Contact privacy support with questions about update-service connection logs.',
+  },
+  {
     title: 'Optional cloud and purchases',
     text: 'Cloud accounts, sync and purchases are unavailable in the current configuration. If enabled in a future release, the app must disclose the change before you use those features. Cloud authentication would send email and account credentials to Supabase; backup/sync would send selected financial records and audit history over HTTPS to private, authenticated storage. The backend operator could read cloud records; this would not be end-to-end encryption. Configured purchases would send an account identifier and store transaction information to RevenueCat and the app store. Cloud account deletion and an external deletion-request resource must be provided before account creation is enabled.',
   },
