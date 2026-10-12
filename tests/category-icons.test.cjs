@@ -20,6 +20,9 @@ test('legacy default category icons resolve by meaning, including native categor
   ])
     assert.equal(categoryIconName(name, 'basket'), icon, name);
   assert.equal(categoryIconName('Business', 'briefcase'), 'business');
+  assert.equal(categoryIconName('Current salary', 'briefcase'), 'salary');
+  assert.equal(categoryIconName('Bus fares', 'basket'), 'transport');
+  assert.equal(categoryIconName('Home rent', 'basket'), 'home');
 });
 test('saved specific icons take precedence, aliases stay compatible and transfers use a transfer glyph', () => {
   assert.equal(categoryIconName('Food', 'gift'), 'gift');
