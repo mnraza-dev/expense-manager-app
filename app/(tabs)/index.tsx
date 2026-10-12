@@ -46,7 +46,7 @@ export default function Home() {
         <View style={home.actions}>
           {(
             [
-              { label: 'Reports', Icon: ChartNoAxesColumn, route: '/(tabs)/reports' },
+              { label: 'Insights', Icon: ChartNoAxesColumn, route: '/(tabs)/reports' },
               { label: 'Settings', Icon: Settings, route: '/(tabs)/settings' },
             ] as const
           ).map(({ label, Icon, route }) => (

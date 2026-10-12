@@ -6,6 +6,10 @@ import { money } from '../utils/finance';
 import { Card, useTheme } from './ui';
 import { useFinance } from '../store/useFinance';
 import { FinanceArt } from './Depth';
+import { useMemo } from 'react';
+import { budgetRingSegments } from '../utils/chartData';
+import { ThreeRingChart } from './charting/ThreeRingChart';
+import { AnimatedAmount } from './charting/AnimatedCharts';
 export function BudgetProgressBar({
   limit,
   spent,
@@ -49,6 +53,7 @@ export function BudgetProgressCard({
   art = false,
   period,
   animate = true,
+  threeDimensional = false,
 }: {
   name: string;
   limit: number;
@@ -56,6 +61,7 @@ export function BudgetProgressCard({
   art?: boolean;
   period?: string;
   animate?: boolean;
+  threeDimensional?: boolean;
 }) {
   const configuredWarning = Number(
     useFinance((s) => s.settings.budget_warning_percent) ?? DEFAULT_WARNING_PERCENT
@@ -76,6 +82,10 @@ export function BudgetProgressCard({
         : state.status === 'normal'
           ? 'On track'
           : 'No limit';
+  const segments = useMemo(
+    () => budgetRingSegments(limit, spent, statusColor, c.border),
+    [limit, spent, statusColor, c.border]
+  );
   return (
     <Card animate={animate}>
       <View style={cardStyles.header}>
@@ -89,23 +99,44 @@ export function BudgetProgressCard({
         </View>
         {art && <FinanceArt kind="chart" colors={c} size={56} />}
       </View>
+      {threeDimensional && limit > 0 && (
+        <ThreeRingChart
+          segments={segments}
+          center={
+            <>
+              <Text style={{ color: c.muted, fontSize: 11, textAlign: 'center' }}>
+                {spent < 0 ? 'REFUND CREDIT' : 'BUDGET USED'}
+              </Text>
+              {spent < 0 ? (
+                <AnimatedAmount amount={-spent} size={21} color={c.positive} />
+              ) : (
+                <Text
+                  style={{
+                    color: statusColor,
+                    fontSize: 30,
+                    fontWeight: '700',
+                    fontVariant: ['tabular-nums'],
+                  }}>
+                  {state.percent.toFixed(0)}%
+                </Text>
+              )}
+            </>
+          }
+        />
+      )}
       <Text style={{ color: c.muted, fontSize: 13, marginTop: 8 }}>
         {period ? `Spent in ${period}` : 'Spent this month'}
       </Text>
-      <Text
-        numberOfLines={1}
-        adjustsFontSizeToFit
-        minimumFontScale={0.6}
-        style={[cardStyles.amount, { color: c.text }]}>
-        {money(spent)}
-      </Text>
+      <AnimatedAmount amount={spent} size={30} />
       <Text style={{ color: c.muted, fontSize: 13 }}>Monthly limit {money(limit)}</Text>
       <BudgetProgressBar limit={limit} spent={spent} warning={warning} />
       <View style={cardStyles.footer}>
         <Text style={{ color: c.muted, fontSize: 13 }}>
           {state.status === 'unbudgeted'
             ? 'No limit configured'
-            : `${state.percent.toFixed(1)}% used`}
+            : spent < 0
+              ? 'Net refunds credited'
+              : `${state.percent.toFixed(1)}% used`}
         </Text>
         <Text style={{ color: statusColor, fontSize: 13, fontWeight: '600', flexShrink: 1 }}>
           {state.status === 'unbudgeted'

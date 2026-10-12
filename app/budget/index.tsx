@@ -129,6 +129,7 @@ export default function Budgets() {
               <View style={budgetStyles.section}>
                 <BudgetProgressCard
                   art
+                  threeDimensional
                   animate={false}
                   period={monthLabel(displayedMonth)}
                   name={p.budget.name}

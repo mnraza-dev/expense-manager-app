@@ -1,12 +1,13 @@
-import { useCallback } from 'react';
-import { ActivityIndicator, Text, View } from 'react-native';
+import { useCallback, useMemo, useState } from 'react';
+import { Text, View } from 'react-native';
 import type { TransactionFilters } from '../types';
 import { repo } from '../db/database';
 import { useDatabaseQuery } from '../hooks/useDatabaseQuery';
-import { money } from '../utils/finance';
-import { DepthSurface, FinanceArt } from './Depth';
-import { Button, useTheme } from './ui';
-
+import { cashFlowSegments } from '../utils/chartData';
+import { useTheme } from './ui';
+import { QueryState } from './QueryState';
+import { AnimatedAmount, ChartSurface } from './charting/AnimatedCharts';
+import { ThreeRingChart } from './charting/ThreeRingChart';
 export function DailyTransactionSummary({
   date,
   filters,
@@ -14,56 +15,75 @@ export function DailyTransactionSummary({
   date: string;
   filters: TransactionFilters;
 }) {
-  const c = useTheme();
+  const c = useTheme(),
+    [selected, setSelected] = useState<string | null>(null);
   const load = useCallback(
-    () => repo().transactionCalendar(date.slice(0, 7), { ...filters, start: date, end: date }),
+    async () => ({
+      date,
+      rows: await repo().transactionCalendar(date.slice(0, 7), {
+        ...filters,
+        start: date,
+        end: date,
+      }),
+    }),
     [date, filters]
   );
-  const query = useDatabaseQuery(load, 'ledger');
-  const totals = query.data?.[0] ?? { income: 0, expense: 0, transfers: 0 };
+  const query = useDatabaseQuery(load, 'ledger', { keepPreviousData: true });
+  const totals = query.data
+    ? (query.data.rows[0] ?? { income: 0, expense: 0, transfers: 0 })
+    : undefined;
+  const income = totals?.income ?? 0,
+    expense = totals?.expense ?? 0;
+  const segments = useMemo(() => cashFlowSegments(income, expense), [income, expense]);
+  const chosen = segments.find((row) => row.key === selected);
   return (
-    <DepthSurface
-      edgeColor={c.border}
-      faceStyle={{ backgroundColor: c.card, padding: 16, gap: 12 }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-        <FinanceArt kind="coins" colors={c} size={44} />
-        <Text style={{ color: c.text, fontWeight: '600', flex: 1 }}>Matching daily totals</Text>
-      </View>
-      {query.loading ? (
-        <ActivityIndicator accessibilityLabel="Loading daily totals" color={c.accent} />
-      ) : query.error ? (
+    <ChartSurface
+      title="Daily cash flow"
+      subtitle={`${query.data?.date ?? date} · ${query.isPreviousData ? 'Previous selection' : 'matching your filters'}`}
+      badge="DAILY">
+      <QueryState {...query} />
+      {totals && (
         <>
-          <Text accessibilityLiveRegion="polite" style={{ color: c.negative }}>
-            {query.error}
-          </Text>
-          <Button secondary title="Retry daily totals" onPress={query.retry} />
-        </>
-      ) : (
-        <>
+          <ThreeRingChart
+            segments={segments}
+            selected={selected}
+            onSelect={setSelected}
+            height={210}
+            center={
+              <>
+                <Text style={{ color: c.muted, fontSize: 11, textAlign: 'center' }}>
+                  {chosen?.label ?? 'NET FLOW'}
+                </Text>
+                <AnimatedAmount
+                  amount={chosen?.value ?? income - expense}
+                  size={21}
+                  color={chosen ? c.text : income - expense >= 0 ? c.positive : c.negative}
+                />
+              </>
+            }
+          />
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
             {[
-              { label: 'Income', amount: totals.income, color: c.positive },
-              { label: 'Spent', amount: totals.expense, color: c.negative },
-              { label: 'Net', amount: totals.income - totals.expense, color: c.text },
-            ].map(({ label, amount, color }) => (
-              <View key={label} style={{ flex: 1, minWidth: 90, gap: 4 }}>
-                <Text style={{ color: c.muted, fontSize: 12 }}>{label}</Text>
-                <Text
-                  numberOfLines={1}
-                  adjustsFontSizeToFit
-                  minimumFontScale={0.65}
-                  style={{ color, fontWeight: '600', fontVariant: ['tabular-nums'] }}>
-                  {money(amount)}
-                </Text>
+              { label: 'Income', amount: income, color: c.positive },
+              {
+                label: expense < 0 ? 'Net refunds' : 'Spent',
+                amount: expense,
+                color: expense < 0 ? c.positive : c.warning,
+              },
+              { label: 'Net flow', amount: income - expense, color: c.text },
+            ].map((row) => (
+              <View key={row.label} style={{ flex: 1, minWidth: 80, gap: 6 }}>
+                <Text style={{ color: c.muted, fontSize: 11 }}>{row.label}</Text>
+                <AnimatedAmount amount={row.amount} color={row.color} size={16} />
               </View>
             ))}
           </View>
-          <Text style={{ color: c.muted, fontSize: 12 }}>
-            {totals.transfers} {totals.transfers === 1 ? 'transfer' : 'transfers'} · excluded from
-            income and spending
+          <Text style={{ color: c.muted, fontSize: 11, lineHeight: 17 }}>
+            Ring segments show cash movement; the center shows net flow. {totals.transfers}{' '}
+            {totals.transfers === 1 ? 'transfer' : 'transfers'} excluded from cash flow.
           </Text>
         </>
       )}
-    </DepthSurface>
+    </ChartSurface>
   );
 }

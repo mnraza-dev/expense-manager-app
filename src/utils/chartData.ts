@@ -1,18 +1,30 @@
 import type { CategoryTotal, PeriodTotal } from '../types';
-export const chartColors = ['#28B69C', '#6487E8', '#EDA85A', '#B58CDD', '#EB7F92', '#8EA6B1'];
+import { palette } from '../design/tokens';
+export const themeChartColors = (theme: typeof palette.light) => [theme.accent, theme.negative, theme.warning, theme.muted, theme.positive, theme.heroEnd];
+export const chartColors = themeChartColors(palette.light);
 export interface RingSegment {
   key: string;
   label: string;
   value: number;
   color: string;
 }
-export function cashFlowSegments(income: number, expense: number): RingSegment[] {
+export function cashFlowSegments(income: number, expense: number, colors = chartColors): RingSegment[] {
   return [
-    { key: 'income', label: 'Income', value: income, color: chartColors[0] },
-    { key: expense < 0 ? 'refund' : 'expense', label: expense < 0 ? 'Refund credit' : 'Spending', value: Math.abs(expense), color: expense < 0 ? chartColors[3] : chartColors[2] },
+    { key: 'income', label: 'Income', value: income, color: colors[0] },
+    {
+      key: expense < 0 ? 'refund' : 'expense',
+      label: expense < 0 ? 'Refund credit' : 'Spending',
+      value: Math.abs(expense),
+      color: expense < 0 ? colors[4] : colors[2],
+    },
   ].filter((row) => row.value > 0);
 }
-export function budgetRingSegments(limit: number, spent: number, color: string, track: string): RingSegment[] {
+export function budgetRingSegments(
+  limit: number,
+  spent: number,
+  color: string,
+  track: string
+): RingSegment[] {
   if (limit <= 0) return [];
   const used = Math.max(0, Math.min(limit, spent));
   return [
@@ -20,21 +32,21 @@ export function budgetRingSegments(limit: number, spent: number, color: string, 
     { key: 'remaining', label: 'Unused limit', value: limit - used, color: track },
   ].filter((row) => row.value > 0);
 }
-export function categoryRingSegments(categories: CategoryTotal[]): RingSegment[] {
+export function categoryRingSegments(categories: CategoryTotal[], colors = chartColors): RingSegment[] {
   const positive = categories.filter((row) => row.amount > 0).sort((a, b) => b.amount - a.amount);
   const visible = positive.length > 6 ? positive.slice(0, 5) : positive;
   const segments = visible.map((row, index) => ({
     key: String(row.id),
     label: row.name,
     value: row.amount,
-    color: chartColors[index],
+    color: colors[index],
   }));
   if (positive.length > 6)
     segments.push({
       key: 'other',
       label: 'Other categories',
       value: positive.slice(5).reduce((sum, row) => sum + row.amount, 0),
-      color: chartColors[5],
+      color: colors[5],
     });
   return segments;
 }

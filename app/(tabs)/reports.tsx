@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { useRouter } from 'expo-router';
-import { Button, Card, Choices, Empty, Label, Screen } from '../../src/components/ui';
+import { Button, Card, Choices, Empty, Label, Screen, useTheme } from '../../src/components/ui';
 import { DateRangeSelector } from '../../src/components/DateRangeSelector';
 import {
   IncomeExpenseChart,
@@ -14,13 +14,16 @@ import { useDatabaseQuery } from '../../src/hooks/useDatabaseQuery';
 import { repo } from '../../src/db/database';
 import { fillPeriods, presetRange } from '../../src/utils/periods';
 import { money } from '../../src/utils/finance';
+import { AnimatedAmount, ChartSurface } from '../../src/components/charting/AnimatedCharts';
+import { Text, View } from 'react-native';
 export default function Reports() {
   const router = useRouter();
+  const c = useTheme();
   const [range, setRange] = useState(() => presetRange('this-month'));
   const [category, setCategory] = useState(0);
   const [details, setDetails] = useState(false);
   const load = useCallback(() => repo().report(range), [range]);
-  const query = useDatabaseQuery(load);
+  const query = useDatabaseQuery(load, 'both', { keepPreviousData: true });
   const report = query.data;
   const expense = report?.categories.filter((c) => c.type === 'expense') ?? [];
   const income = report?.categories.filter((c) => c.type === 'income') ?? [];
@@ -28,42 +31,35 @@ export default function Reports() {
   const categoryPeriods =
     report && selected
       ? fillPeriods(
-          range,
+          report.range,
           report.categoryMonths
             .filter((row) => row.category_id === selected.id)
             .map((row) => ({ period: row.period, income: 0, expense: row.amount, count: 0 })),
           false
         )
       : [];
-  const chartKey = `${range.start}-${range.end}`;
   return (
-    <Screen title="Reports" back>
-      <Button
-        secondary
-        title="Daily, weekly & monthly PDF / Excel exports →"
-        onPress={() => router.push('/data')}
-      />
-      <Button
-        secondary
-        title="Monthly budgets & progress →"
-        onPress={() => router.push('/budget')}
-      />
-      <Button
-        secondary
-        title="Assets, liabilities & net worth →"
-        onPress={() => router.push('/net-worth')}
-      />
+    <Screen title="Insights" subtitle="Find the pattern in your money" back>
       <DateRangeSelector value={range} onChange={setRange} />
       <QueryState {...query} />
       {report && (
         <>
-          <Card>
-            <Label>Income {money(report.income)}</Label>
-            <Label>Expenses {money(report.expense)}</Label>
-            <Label small>
-              Refunds reduce spending on the refund date and do not count as income.
-            </Label>
-            <Label>Net cash flow {money(report.net)}</Label>
+          <ChartSurface
+            title="Your money, at a glance"
+            subtitle={`${report.range.start} – ${report.range.end}${query.isPreviousData ? ' · Previous selection' : ''}`}
+            amount={report.net}
+            badge="NET FLOW">
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
+              {[
+                { label: 'Income', amount: report.income, color: c.positive },
+                { label: 'Net spending', amount: report.expense, color: c.warning },
+              ].map((row) => (
+                <View key={row.label} style={{ flex: 1, minWidth: 100, gap: 5 }}>
+                  <Text style={{ color: c.muted, fontSize: 12 }}>{row.label}</Text>
+                  <AnimatedAmount amount={row.amount} color={row.color} size={22} />
+                </View>
+              ))}
+            </View>
             <Label small>{report.count} transactions · Transfers excluded from cash flow</Label>
             <Label small>Average daily expenses {money(report.dailyAverage)}</Label>
             <Label small>
@@ -73,7 +69,10 @@ export default function Reports() {
               Highest spending category:{' '}
               {expense[0] ? `${expense[0].name} · ${money(expense[0].amount)}` : 'None'}
             </Label>
-          </Card>
+            <Label small>
+              Refunds reduce spending on their recorded date and do not count as income.
+            </Label>
+          </ChartSurface>
           {report.count === 0 ? (
             <Empty
               title="Nothing to report yet"
@@ -81,9 +80,9 @@ export default function Reports() {
             />
           ) : (
             <>
-              <IncomeExpenseChart key={`bars-${chartKey}`} periods={report.periods} />
+              <IncomeExpenseChart periods={report.periods} />
+              <SpendingTrendChart periods={report.periods} />
               <ExpenseBreakdownChart
-                key={`expense-${chartKey}`}
                 categories={expense}
                 onSelect={(id) => {
                   setCategory(id);
@@ -100,12 +99,7 @@ export default function Reports() {
               />
               {details && (
                 <>
-                  <SpendingTrendChart key={`trend-${chartKey}`} periods={report.periods} />
-                  <ExpenseBreakdownChart
-                    key={`income-${chartKey}`}
-                    title="Income by category"
-                    categories={income}
-                  />
+                  <ExpenseBreakdownChart title="Income by category" categories={income} />
                   {expense.length > 0 && (
                     <>
                       <Choices
@@ -115,7 +109,6 @@ export default function Reports() {
                         options={expense.map((c) => ({ value: c.id, label: c.name }))}
                       />
                       <SpendingTrendChart
-                        key={`category-${chartKey}-${selected?.id}`}
                         title={`${selected?.name} · Monthly changes`}
                         periods={categoryPeriods}
                         expensesOnly
@@ -146,10 +139,7 @@ export default function Reports() {
                     Budget comparisons use full-month category allocations and only the expenses
                     inside this selected report dates. Partial months are not prorated.
                   </Label>
-                  <BudgetComparisonChart
-                    key={`budget-${chartKey}`}
-                    rows={report.budgetComparisons}
-                  />
+                  <BudgetComparisonChart rows={report.budgetComparisons} />
                 </>
               )}
               <Card>
@@ -162,6 +152,21 @@ export default function Reports() {
           )}
         </>
       )}
+      <Button
+        secondary
+        title="Daily, weekly & monthly PDF / Excel exports →"
+        onPress={() => router.push('/data')}
+      />
+      <Button
+        secondary
+        title="Monthly budgets & progress →"
+        onPress={() => router.push('/budget')}
+      />
+      <Button
+        secondary
+        title="Assets, liabilities & net worth →"
+        onPress={() => router.push('/net-worth')}
+      />
     </Screen>
   );
 }

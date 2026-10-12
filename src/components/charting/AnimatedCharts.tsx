@@ -16,6 +16,7 @@ import { DepthSurface } from '../Depth';
 import { money } from '../../utils/finance';
 import { tokens } from '../../design/tokens';
 import { useChartActivity } from './useChartActivity';
+import { ringArcs } from '../../utils/chartData';
 const AnimatedRect = Animated.createAnimatedComponent(Rect);
 const AnimatedPath = Animated.createAnimatedComponent(Path);
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
@@ -236,10 +237,9 @@ export function FlatRing({
 }) {
   const c = useTheme(),
     id = useId().replace(/:/g, '');
-  const total = segments.reduce((sum, row) => sum + Math.max(0, row.value), 0);
   const radius = 76,
     circumference = 2 * Math.PI * radius;
-  let offset = 0;
+  const arcs = ringArcs(segments.map((row, index) => ({ ...row, key: String(index), label: '' })));
   return (
     <Svg width="100%" height={size} viewBox="0 0 230 230" accessibilityElementsHidden>
       <Defs>
@@ -249,10 +249,9 @@ export function FlatRing({
         </LinearGradient>
       </Defs>
       <Circle cx={115} cy={119} r={radius} fill="none" stroke={`url(#${id})`} strokeWidth={31} />
-      {segments.map((row, index) => {
-        const length = total ? (Math.max(0, row.value) / total) * circumference : 0;
-        const start = offset;
-        offset += length;
+      {arcs.map((row, index) => {
+        const length = row.fraction * circumference;
+        const start = ((row.start + Math.PI / 2) / (Math.PI * 2)) * circumference;
         return length > 0 ? (
           <RingArc
             key={index}

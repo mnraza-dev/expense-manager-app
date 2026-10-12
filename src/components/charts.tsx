@@ -85,7 +85,7 @@ function usePlot(periods: PeriodTotal[]) {
   const rows = useMemo(() => chartPeriods(periods), [periods]);
   const available = Math.max(180, Math.min(640, width - 84));
   const chartWidth = Math.max(available, left + rows.length * pitch + 16);
-  const step = rows.length > 1 ? (chartWidth - left - 24) / rows.length : pitch;
+  const step = (chartWidth - left - 24) / Math.max(1, rows.length);
   const x = (index: number) => left + step * index + step / 2;
   return { rows, chartWidth, x };
 }
@@ -302,6 +302,7 @@ export function ExpenseBreakdownChart({
       {categories.map((row, index) => {
         const color =
           segments.find((segment) => segment.key === String(row.id))?.color ??
+          segments.find((segment) => segment.key === 'other')?.color ??
           chartColors[index % chartColors.length];
         return (
           <MotionPressable
@@ -387,13 +388,15 @@ export function SpendingTrendChart({
   const area = points.length
     ? `${path} L ${points[points.length - 1].x} ${top + domain.zero} L ${points[0].x} ${top + domain.zero} Z`
     : '';
-  const length = points.reduce(
-    (sum, point, index) =>
-      index
-        ? sum + Math.hypot(point.x - points[index - 1].x, point.y - points[index - 1].y) * 1.3
-        : sum,
-    1
-  );
+  const pathLength = (values: typeof points) =>
+    values.reduce(
+      (sum, point, index) =>
+        index
+          ? sum + Math.abs(point.x - values[index - 1].x) + Math.abs(point.y - values[index - 1].y)
+          : sum,
+      1
+    );
+  const length = pathLength(points);
   if (!periods.some((row) => row.expense || (!expensesOnly && row.income)))
     return <Empty animate={false} title={title} detail="No activity to plot for this period." />;
   return (
@@ -419,7 +422,11 @@ export function SpendingTrendChart({
             gradient={`url(#${id})`}
           />
           {!expensesOnly && (
-            <AnimatedLine path={incomePath} color={chartColors[0]} length={Math.max(length, 300)} />
+            <AnimatedLine
+              path={incomePath}
+              color={chartColors[0]}
+              length={pathLength(incomePoints)}
+            />
           )}
           {plot.rows.map((row, index) => (
             <PlotPoint
@@ -496,12 +503,7 @@ function PlotPoint({
     </>
   );
 }
-export function BudgetComparisonChart({
-  rows,
-}: {
-  rows: BudgetComparison[];
-  animate?: boolean;
-}) {
+export function BudgetComparisonChart({ rows }: { rows: BudgetComparison[]; animate?: boolean }) {
   const c = useTheme(),
     [selectedKey, setSelectedKey] = useState<string | null>(null);
   const maximum = Math.max(1, ...rows.flatMap((row) => [row.allocated, Math.abs(row.spent)]));
