@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { AppState, View, ActivityIndicator, Platform, StyleSheet } from 'react-native';
+import { AppState, View, ActivityIndicator, Platform, StyleSheet, Keyboard } from 'react-native';
 import * as ScreenCapture from 'expo-screen-capture';
 import { Button, Field, Label, showError, useTheme } from './ui';
 import { lockCore, useLock } from '../security/lock';
@@ -62,6 +62,9 @@ export function LockGate({ children }: { children: ReactNode }) {
     }
   };
   const hidden = !ready || locked || privateScreen || Boolean(error);
+  useEffect(() => {
+    if (hidden) Keyboard.dismiss();
+  }, [hidden]);
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
       {ready && !error && (

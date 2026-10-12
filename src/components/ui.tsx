@@ -1,4 +1,4 @@
-import React, { useCallback, useRef } from 'react';
+import React, { useImperativeHandle, useRef } from 'react';
 import { KeyboardRegion, KeyboardScrollView, useKeyboardInputFocus } from './KeyboardLayout';
 import { Reveal, MotionPressable } from './Motion';
 import { DepthSurface, FinanceArt, type FinanceArtKind } from './Depth';
@@ -248,19 +248,12 @@ export function Field({
   const c = useTheme();
   const input = useRef<TextInput>(null);
   const reveal = useKeyboardInputFocus();
-  const setRef = useCallback(
-    (node: TextInput | null) => {
-      input.current = node;
-      if (typeof inputRef === 'function') inputRef(node);
-      else if (inputRef) inputRef.current = node;
-    },
-    [inputRef]
-  );
+  useImperativeHandle(inputRef, () => input.current as TextInput, []);
   return (
     <View style={{ marginVertical: 6 }}>
       <Label small>{label}</Label>
       <TextInput
-        ref={setRef}
+        ref={input}
         accessibilityLabel={label}
         placeholderTextColor={c.muted}
         {...props}

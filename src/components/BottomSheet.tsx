@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Modal, Pressable, View } from 'react-native';
+import { Keyboard, Modal, Pressable, View } from 'react-native';
 import Animated, {
   ReduceMotion,
   useSharedValue,
@@ -11,7 +11,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from './ui';
 import { tokens } from '../design/tokens';
 import { KeyboardRegion } from './KeyboardLayout';
-import { Keyboard } from 'react-native';
 export function BottomSheet({
   visible,
   onClose,

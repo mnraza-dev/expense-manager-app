@@ -1,6 +1,8 @@
 import { requireOptionalNativeModule } from 'expo';
 import { useEffect, useRef, useState, type ComponentType, type ReactNode } from 'react';
-import { Platform, View } from 'react-native';
+import { AppState, Platform, View } from 'react-native';
+import { useLock } from '../../security/lock';
+import { useRequiredUpdate } from '../../updates/service';
 import type { GLViewProps } from 'expo-gl';
 import Animated, {
   cancelAnimation,
@@ -36,6 +38,7 @@ export function ThreeRingChart({
     [ready, setReady] = useState(false);
   const runtime = useRef<RingRuntime | null>(null),
     mounted = useRef(false);
+  const activeRef = useRef(active);
   const latest = useRef({ segments, selected, track: c.card, onSelect });
   const width = useRef(230),
     dragged = useRef(false),
@@ -72,13 +75,14 @@ export function ThreeRingChart({
       runtime.current = null;
     };
   }, []);
-  useEffect(
-    () => () => {
+  useEffect(() => {
+    activeRef.current = active;
+    return () => {
+      activeRef.current = false;
       runtime.current?.dispose();
       runtime.current = null;
-    },
-    [active]
-  );
+    };
+  }, [active]);
   const fail = () => {
     runtime.current?.dispose();
     runtime.current = null;
@@ -140,7 +144,14 @@ export function ThreeRingChart({
           style={{ position: 'absolute', inset: 0, opacity: ready ? 1 : 0 }}
           msaaSamples={2}
           onContextCreate={(gl) => {
-            if (!mounted.current) return;
+            if (
+              !mounted.current ||
+              !activeRef.current ||
+              AppState.currentState !== 'active' ||
+              useLock.getState().locked ||
+              useRequiredUpdate.getState().required
+            )
+              return;
             try {
               runtime.current?.dispose();
               runtime.current = createRingRuntime(gl, reduced, fail);
