@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { ScrollView } from 'react-native';
+import { KeyboardScrollView } from './KeyboardLayout';
 import { BottomSheet } from './BottomSheet';
 import type { TransactionFilters, TransactionSort, TransactionType } from '../types';
 import { useFinance } from '../store/useFinance';
@@ -51,10 +52,7 @@ export function TransactionFilterSheet({
   return (
     <BottomSheet visible={visible} onClose={onClose}>
       {(dismiss) => (
-        <KeyboardAvoidingView
-          style={{ flex: 1 }}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.page}>
+          <KeyboardScrollView contentContainerStyle={[styles.page, { flexGrow: 1 }]}>
             <Label>Filter & sort transactions</Label>
             <Label small>Combine any filters. Amount and date boundaries are inclusive.</Label>
             <Choices
@@ -151,8 +149,7 @@ export function TransactionFilterSheet({
               }}
             />
             <Button secondary title="Cancel" onPress={dismiss} />
-          </ScrollView>
-        </KeyboardAvoidingView>
+          </KeyboardScrollView>
       )}
     </BottomSheet>
   );

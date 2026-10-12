@@ -10,6 +10,8 @@ import Animated, {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from './ui';
 import { tokens } from '../design/tokens';
+import { KeyboardRegion } from './KeyboardLayout';
+import { Keyboard } from 'react-native';
 export function BottomSheet({
   visible,
   onClose,
@@ -35,6 +37,7 @@ export function BottomSheet({
   const dismiss = () => {
     if (closing) return;
     setClosing(true);
+    Keyboard.dismiss();
     progress.set(
       withTiming(
         0,
@@ -48,6 +51,7 @@ export function BottomSheet({
   return (
     <Modal transparent visible={visible} animationType="none" onRequestClose={dismiss}>
       <View style={{ flex: 1, justifyContent: 'flex-end' }}>
+        <KeyboardRegion offset={0} style={{ justifyContent: 'flex-end' }}>
         <Animated.View
           style={[
             { position: 'absolute', inset: 0, backgroundColor: 'rgba(0,0,0,0.35)' },
@@ -74,6 +78,7 @@ export function BottomSheet({
             {children(dismiss)}
           </SafeAreaView>
         </Animated.View>
+        </KeyboardRegion>
       </View>
     </Modal>
   );

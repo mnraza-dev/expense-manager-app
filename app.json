@@ -89,6 +89,7 @@
       },
       "package": "com.razatechlabs.settler",
       "versionCode": 5,
+      "softwareKeyboardLayoutMode": "resize",
       "blockedPermissions": [
         "android.permission.READ_MEDIA_IMAGES",
         "android.permission.READ_MEDIA_VIDEO",

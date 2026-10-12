@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useCallback, useRef } from 'react';
+import { KeyboardRegion, KeyboardScrollView, useKeyboardInputFocus } from './KeyboardLayout';
 import { Reveal, MotionPressable } from './Motion';
 import { DepthSurface, FinanceArt, type FinanceArtKind } from './Depth';
 import Animated, {
@@ -12,10 +13,8 @@ import { tokens, palette } from '../design/tokens';
 import {
   ActivityIndicator,
   Alert,
-  KeyboardAvoidingView,
   Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -125,25 +124,23 @@ export function Screen({
     );
   return (
     <SafeAreaView edges={['top', 'left', 'right']} style={{ flex: 1, backgroundColor: c.bg }}>
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardRegion>
         {scroll ? (
-          <ScrollView
+          <KeyboardScrollView
             showsVerticalScrollIndicator={false}
             showsHorizontalScrollIndicator={false}
             automaticallyAdjustContentInsets={false}
             contentInsetAdjustmentBehavior="never"
             keyboardShouldPersistTaps="handled"
-            contentContainerStyle={[styles.page, { paddingTop: topPadding }]}>
+            contentContainerStyle={[styles.page, { paddingTop: topPadding, flexGrow: 1 }]}>
             {content}
-          </ScrollView>
+          </KeyboardScrollView>
         ) : (
           <View style={[styles.page, { flex: 1, paddingBottom: 0, paddingTop: topPadding }]}>
             {content}
           </View>
         )}
-      </KeyboardAvoidingView>
+      </KeyboardRegion>
     </SafeAreaView>
   );
 }
@@ -245,17 +242,28 @@ export function Field({
   label,
   error,
   inputRef,
+  onFocus,
+  onBlur,
   ...props
 }: TextInputProps & { label: string; error?: string; inputRef?: React.Ref<TextInput> }) {
   const c = useTheme();
+  const input = useRef<TextInput>(null);
+  const reveal = useKeyboardInputFocus();
+  const setRef = useCallback((node: TextInput | null) => {
+    input.current = node;
+    if (typeof inputRef === 'function') inputRef(node);
+    else if (inputRef) inputRef.current = node;
+  }, [inputRef]);
   return (
     <View style={{ marginVertical: 6 }}>
       <Label small>{label}</Label>
       <TextInput
-        ref={inputRef}
+        ref={setRef}
         accessibilityLabel={label}
         placeholderTextColor={c.muted}
         {...props}
+        onFocus={(event) => { reveal(input.current); onFocus?.(event); }}
+        onBlur={(event) => { reveal(null); onBlur?.(event); }}
         style={[
           styles.input,
           { color: c.text, backgroundColor: c.card, borderColor: error ? c.negative : c.border },

@@ -4,6 +4,7 @@ import * as ScreenCapture from 'expo-screen-capture';
 import { Button, Field, Label, showError, useTheme } from './ui';
 import { lockCore, useLock } from '../security/lock';
 import { shouldRelock } from '../security/lockCore';
+import { KeyboardRegion, KeyboardScrollView } from './KeyboardLayout';
 export function LockGate({ children }: { children: ReactNode }) {
   const { ready, locked, enabled, error, load, unlock, biometric, lock } = useLock();
   const [privateScreen, setPrivateScreen] = useState(AppState.currentState !== 'active');
@@ -73,11 +74,9 @@ export function LockGate({ children }: { children: ReactNode }) {
         </View>
       )}
       {hidden && (
-        <View
-          style={[
-            StyleSheet.absoluteFill,
-            { backgroundColor: c.bg, justifyContent: 'center', padding: 30, gap: 16 },
-          ]}>
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: c.bg }]}>
+          <KeyboardRegion>
+            <KeyboardScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 30, gap: 16 }}>
           <Label>Settler</Label>
           {error ? (
             <>
@@ -115,6 +114,8 @@ export function LockGate({ children }: { children: ReactNode }) {
               </Label>
             </>
           )}
+            </KeyboardScrollView>
+          </KeyboardRegion>
         </View>
       )}
     </View>

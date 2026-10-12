@@ -23,6 +23,7 @@ import { notify } from '../../src/store/useFeedback';
 import { repo } from '../../src/db/database';
 import { VoiceEntryButton } from '../../src/components/VoiceEntryButton';
 import { ReceiptScanButton } from '../../src/components/ReceiptScanButton';
+import { KeyboardFocusProvider } from '../../src/components/KeyboardLayout';
 export default function Transactions() {
   const params = useLocalSearchParams<{ account?: string }>();
   const value = Number(params.account);
@@ -31,6 +32,8 @@ export default function Transactions() {
 }
 function TransactionList({ accountId }: { accountId?: number }) {
   const router = useRouter();
+  const list = useRef<FlatList<Transaction>>(null);
+  const getScrollHandle = useCallback(() => list.current?.getScrollResponder(), []);
   const c = useTheme();
   const revision = useFinance((s) => s.revision);
   const [search, setSearch] = useState(''),
@@ -162,7 +165,9 @@ function TransactionList({ accountId }: { accountId?: number }) {
       headerActions={<VoiceEntryButton compact />}>
       {(header) => (
         <>
+          <KeyboardFocusProvider getScrollHandle={getScrollHandle}>
           <FlatList
+            ref={list}
             style={{ flex: 1, marginBottom: 16 }}
             contentContainerStyle={{ paddingBottom: 24 }}
             showsVerticalScrollIndicator={false}
@@ -170,6 +175,7 @@ function TransactionList({ accountId }: { accountId?: number }) {
             automaticallyAdjustContentInsets={false}
             contentInsetAdjustmentBehavior="never"
             keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
             data={rows}
             keyExtractor={(item) => String(item.id)}
             ListHeaderComponent={
@@ -345,6 +351,7 @@ function TransactionList({ accountId }: { accountId?: number }) {
               ) : null
             }
           />
+          </KeyboardFocusProvider>
           {sheet && (
             <TransactionFilterSheet
               fixedDate={view === 'daily' ? day : undefined}
