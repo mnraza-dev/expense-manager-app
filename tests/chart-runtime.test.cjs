@@ -64,7 +64,12 @@ test('3D updates reuse geometry for selection, stop finite animations, coalesce 
   const h = harness();
   let runtime;
   try {
-    runtime = createRingRuntime(h.gl, false, () => assert.fail('Unexpected renderer failure'), h.rendererFactory);
+    runtime = createRingRuntime(
+      h.gl,
+      false,
+      () => assert.fail('Unexpected renderer failure'),
+      h.rendererFactory
+    );
     runtime.update(segments, null, '#FFFFFF');
     const group = h.scene.children.find((object) => object.isGroup);
     runtime.update(segments, 'food', '#FFFFFF');
@@ -102,10 +107,15 @@ test('failed GL presentation disposes resources and schedules no more frames; re
     let runtime,
       failures = 0;
     try {
-      runtime = createRingRuntime(h.gl, !failFrame, () => {
-        failures++;
-        runtime.dispose();
-      }, h.rendererFactory);
+      runtime = createRingRuntime(
+        h.gl,
+        !failFrame,
+        () => {
+          failures++;
+          runtime.dispose();
+        },
+        h.rendererFactory
+      );
       runtime.update(segments, null, '#FFFFFF');
       assert.equal(h.frames.size, 0);
       assert.equal(failures, failFrame ? 1 : 0);

@@ -10,6 +10,7 @@ import { useMemo } from 'react';
 import { budgetRingSegments } from '../utils/chartData';
 import { ThreeRingChart } from './charting/ThreeRingChart';
 import { AnimatedAmount } from './charting/AnimatedCharts';
+import { CategoryIcon } from './CategoryIcon';
 export function BudgetProgressBar({
   limit,
   spent,
@@ -54,6 +55,7 @@ export function BudgetProgressCard({
   period,
   animate = true,
   threeDimensional = false,
+  categoryIcon,
 }: {
   name: string;
   limit: number;
@@ -62,6 +64,7 @@ export function BudgetProgressCard({
   period?: string;
   animate?: boolean;
   threeDimensional?: boolean;
+  categoryIcon?: string;
 }) {
   const configuredWarning = Number(
     useFinance((s) => s.settings.budget_warning_percent) ?? DEFAULT_WARNING_PERCENT
@@ -89,6 +92,11 @@ export function BudgetProgressCard({
   return (
     <Card animate={animate}>
       <View style={cardStyles.header}>
+        {!art && (
+          <View style={{ padding: 9, borderRadius: 11, backgroundColor: c.soft }}>
+            <CategoryIcon name={name} icon={categoryIcon} />
+          </View>
+        )}
         <View style={cardStyles.heading}>
           <Text style={[cardStyles.name, { color: c.text }]}>{name}</Text>
           <View style={[cardStyles.badge, { backgroundColor: c.soft }]}>
@@ -97,7 +105,7 @@ export function BudgetProgressCard({
             </Text>
           </View>
         </View>
-        {art && <FinanceArt kind="chart" colors={c} size={56} />}
+        {art && !threeDimensional && <FinanceArt kind="chart" colors={c} size={56} />}
       </View>
       {threeDimensional && limit > 0 && (
         <ThreeRingChart

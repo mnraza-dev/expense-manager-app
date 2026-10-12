@@ -13,7 +13,8 @@ export function createRingRuntime(
   gl: ExpoWebGLRenderingContext,
   reduced: boolean,
   onFailure: () => void,
-  rendererFactory: (options: THREE.WebGLRendererParameters) => THREE.WebGLRenderer = (options) => new THREE.WebGLRenderer(options)
+  rendererFactory: (options: THREE.WebGLRendererParameters) => THREE.WebGLRenderer = (options) =>
+    new THREE.WebGLRenderer(options)
 ): RingRuntime {
   const canvas = gl.canvas ?? {
     width: gl.drawingBufferWidth,
@@ -42,7 +43,7 @@ export function createRingRuntime(
   camera.position.set(0, 0, 5);
   const key = new THREE.DirectionalLight('#FFFFFF', 2.2);
   key.position.set(-2, 3, 5);
-  const rim = new THREE.DirectionalLight('#BEEFE6', 0.9);
+  const rim = new THREE.DirectionalLight('#FFFFFF', 0.9);
   rim.position.set(3, -1, 2);
   scene.add(key, rim, new THREE.AmbientLight('#FFFFFF', 1.2));
   let signature = '';

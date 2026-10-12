@@ -39,6 +39,7 @@ export default function Budgets() {
   const [manage, setManage] = useState(false);
   const [comparison, setComparison] = useState(false);
   const mutate = useFinance((s) => s.mutateBudget);
+  const categories = useFinance((s) => s.categories);
   const load = useCallback(
     async () => ({
       month,
@@ -206,6 +207,9 @@ export default function Budgets() {
                         animate={false}
                         period={monthLabel(displayedMonth)}
                         name={row.name + (row.archived ? ' (archived)' : '')}
+                        categoryIcon={
+                          categories.find((category) => category.id === row.category_id)?.icon
+                        }
                         limit={row.allocated}
                         spent={row.spent}
                       />

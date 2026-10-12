@@ -30,6 +30,8 @@ import {
   useChartColors,
 } from './charting/AnimatedCharts';
 import { ThreeRingChart } from './charting/ThreeRingChart';
+import { CategoryIcon } from './CategoryIcon';
+import { useFinance } from '../store/useFinance';
 const plotHeight = 168,
   left = 52,
   top = 12,
@@ -258,6 +260,7 @@ export function ExpenseBreakdownChart({
   onSelect?: (id: number) => void;
 }) {
   const chartColors = useChartColors();
+  const referenceCategories = useFinance((state) => state.categories);
   const c = useTheme(),
     [selected, setSelected] = useState<string | null>(null);
   const segments = useMemo(
@@ -323,7 +326,12 @@ export function ExpenseBreakdownChart({
               backgroundColor: selected === String(row.id) ? c.soft : 'transparent',
             }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-              <View style={{ width: 9, height: 9, borderRadius: 3, backgroundColor: color }} />
+              <CategoryIcon
+                name={row.name}
+                icon={referenceCategories.find((category) => category.id === row.id)?.icon}
+                color={color}
+                size={19}
+              />
               <Text style={{ color: c.text, fontSize: 13, fontWeight: '600', flex: 1 }}>
                 {row.name}
               </Text>
@@ -339,7 +347,7 @@ export function ExpenseBreakdownChart({
             </View>
             <AnimatedTrack
               fraction={signed ? Math.abs(row.amount) / scale : row.amount / Math.max(1, total)}
-              color={row.amount < 0 ? chartColors[3] : color}
+              color={row.amount < 0 ? c.positive : color}
               height={5}
             />
             <Text style={{ color: c.muted, fontSize: 11 }}>

@@ -29,7 +29,7 @@ export function createRingGroup(segments: RingSegment[], trackColor: string) {
     geometry.translate(0, 0, -0.11);
     const mesh = new THREE.Mesh(
       geometry,
-      new THREE.MeshPhongMaterial({ color: arc.color, shininess: 65, specular: '#C2E6DD' })
+      new THREE.MeshPhongMaterial({ color: arc.color, shininess: 65, specular: '#FFFFFF' })
     );
     mesh.userData = { key: arc.key, fraction: arc.fraction };
     group.add(mesh);

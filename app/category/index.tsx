@@ -3,15 +3,8 @@ import { Pressable, View } from 'react-native';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import {
-  ShoppingBasket,
-  BriefcaseBusiness,
-  Heart,
-  House,
-  Car,
-  Gift,
-  Tag,
-} from 'lucide-react-native';
+import { CategoryIcon } from '../../src/components/CategoryIcon';
+import { categoryIconOptions, categoryIconName } from '../../src/utils/categoryIcons';
 import {
   Button,
   Card,
@@ -21,19 +14,11 @@ import {
   Screen,
   confirm,
   showError,
+  useTheme,
 } from '../../src/components/ui';
 import { useFinance } from '../../src/store/useFinance';
 import { repo } from '../../src/db/database';
 import type { Category } from '../../src/types';
-const icons = {
-  basket: ShoppingBasket,
-  briefcase: BriefcaseBusiness,
-  heart: Heart,
-  home: House,
-  car: Car,
-  gift: Gift,
-  tag: Tag,
-};
 const schema = z.object({
   name: z.string().trim().min(1, 'Category name is required.').max(80),
   type: z.enum(['expense', 'income']),
@@ -43,6 +28,7 @@ const schema = z.object({
 type Values = z.infer<typeof schema>;
 export default function Categories() {
   const { categories, mutate } = useFinance();
+  const c = useTheme();
   const [editing, setEditing] = useState<Category | null | undefined>(undefined);
   const [busy, setBusy] = useState(false);
   const saving = useRef(false);
@@ -53,11 +39,20 @@ export default function Categories() {
     formState: { errors },
   } = useForm<Values>({
     resolver: zodResolver(schema),
-    defaultValues: { name: '', type: 'expense', icon: 'basket', color: '#E29B52' },
+    defaultValues: { name: '', type: 'expense', icon: 'auto', color: c.accent },
   });
   function open(category: Category | null) {
     setEditing(category);
-    reset(category ?? { name: '', type: 'expense', icon: 'basket', color: '#E29B52' });
+    reset(
+      category
+        ? {
+            ...category,
+            icon: ['basket', 'briefcase'].includes(category.icon)
+              ? 'auto'
+              : categoryIconName(category.name, category.icon),
+          }
+        : { name: '', type: 'expense', icon: 'auto', color: c.accent }
+    );
   }
   const submit = async (v: Values) => {
     if (saving.current) return;
@@ -116,12 +111,38 @@ export default function Categories() {
             name="icon"
             control={control}
             render={({ field }) => (
-              <Choices
-                label="Icon"
-                value={field.value}
-                onChange={field.onChange}
-                options={Object.keys(icons).map((v) => ({ value: v, label: v }))}
-              />
+              <View>
+                <Label small>Category icon</Label>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                  {categoryIconOptions.map((option) => (
+                    <Pressable
+                      key={option.value}
+                      accessibilityRole="button"
+                      accessibilityLabel={option.label}
+                      accessibilityState={{ selected: field.value === option.value }}
+                      onPress={() => field.onChange(option.value)}
+                      style={{
+                        width: '30%',
+                        flexGrow: 1,
+                        minHeight: 68,
+                        padding: 10,
+                        gap: 6,
+                        borderRadius: 12,
+                        borderWidth: 1,
+                        borderColor: field.value === option.value ? c.accent : c.border,
+                        backgroundColor: field.value === option.value ? c.soft : c.card,
+                        alignItems: 'center',
+                      }}>
+                      <CategoryIcon
+                        name=""
+                        icon={option.value}
+                        color={field.value === option.value ? c.accent : c.muted}
+                      />
+                      <Label small>{option.label}</Label>
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
             )}
           />
           <Controller
@@ -133,7 +154,7 @@ export default function Categories() {
                   label="Color"
                   value={field.value}
                   onChange={field.onChange}
-                  options={['#E29B52', '#35A78C', '#6C78CF', '#CE7651', '#C66099'].map((v) => ({
+                  options={[c.accent, c.positive, c.warning, c.negative, c.muted].map((v) => ({
                     value: v,
                     label: v,
                   }))}
@@ -173,12 +194,11 @@ export default function Categories() {
           {categories
             .filter((c) => c.type === type)
             .map((cat) => {
-              const Icon = icons[cat.icon as keyof typeof icons] ?? Tag;
               return (
                 <Pressable key={cat.id} onPress={() => open(cat)} style={{ marginVertical: 5 }}>
                   <Card>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                      <Icon color={cat.color} size={22} />
+                      <CategoryIcon name={cat.name} icon={cat.icon} size={22} />
                       <View>
                         <Label>{cat.name}</Label>
                         {!!cat.archived && <Label small>Archived · preserved in history</Label>}

@@ -48,6 +48,7 @@ const matches: [RegExp, CategoryIconName][] = [
   [/refund|cashback|reimburse/iu, 'refund'],
   [/gift|donation|charity|उपहार|تحفہ/iu, 'gift'],
   [/bill|payment|insurance/iu, 'bills'],
+  [/other|misc|अन्य|دیگر/iu, 'tag'],
 ];
 export function categoryIconName(name: string, icon?: string, transfer = false): CategoryIconName {
   if (transfer) return 'transfer';

@@ -1,6 +1,13 @@
 import type { CategoryTotal, PeriodTotal } from '../types';
 import { palette } from '../design/tokens';
-export const themeChartColors = (theme: typeof palette.light) => [theme.accent, theme.negative, theme.warning, theme.muted, theme.positive, theme.heroEnd];
+export const themeChartColors = (theme: typeof palette.light) => [
+  theme.accent,
+  theme.negative,
+  theme.warning,
+  theme.muted,
+  theme.positive,
+  theme.heroEnd,
+];
 export const chartColors = themeChartColors(palette.light);
 export interface RingSegment {
   key: string;
@@ -8,7 +15,11 @@ export interface RingSegment {
   value: number;
   color: string;
 }
-export function cashFlowSegments(income: number, expense: number, colors = chartColors): RingSegment[] {
+export function cashFlowSegments(
+  income: number,
+  expense: number,
+  colors = chartColors
+): RingSegment[] {
   return [
     { key: 'income', label: 'Income', value: income, color: colors[0] },
     {
@@ -32,7 +43,10 @@ export function budgetRingSegments(
     { key: 'remaining', label: 'Unused limit', value: limit - used, color: track },
   ].filter((row) => row.value > 0);
 }
-export function categoryRingSegments(categories: CategoryTotal[], colors = chartColors): RingSegment[] {
+export function categoryRingSegments(
+  categories: CategoryTotal[],
+  colors = chartColors
+): RingSegment[] {
   const positive = categories.filter((row) => row.amount > 0).sort((a, b) => b.amount - a.amount);
   const visible = positive.length > 6 ? positive.slice(0, 5) : positive;
   const segments = visible.map((row, index) => ({

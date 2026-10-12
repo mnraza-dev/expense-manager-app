@@ -37,7 +37,7 @@ export function KeyboardFocusProvider({
   getScrollHandle,
 }: {
   children: ReactNode;
-  getScrollHandle: () => ScrollHandle | null | undefined;
+  getScrollHandle: () => unknown;
 }) {
   const focused = useRef<TextInput | null>(null),
     frame = useRef<number | null>(null);
@@ -48,7 +48,14 @@ export function KeyboardFocusProvider({
       frame.current = requestAnimationFrame(() => {
         frame.current = null;
         if (!input?.isFocused()) return;
-        getScrollHandle()?.scrollResponderScrollNativeHandleToKeyboard(input, 24, true);
+        const handle = getScrollHandle();
+        if (
+          handle &&
+          typeof handle === 'object' &&
+          'scrollResponderScrollNativeHandleToKeyboard' in handle &&
+          typeof handle.scrollResponderScrollNativeHandleToKeyboard === 'function'
+        )
+          (handle as ScrollHandle).scrollResponderScrollNativeHandleToKeyboard(input, 24, true);
       });
     },
     [getScrollHandle]

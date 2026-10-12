@@ -4,15 +4,22 @@ import { FinanceArt } from '../../src/components/Depth';
 import { useFinance } from '../../src/store/useFinance';
 import { repo } from '../../src/db/database';
 import { migrations } from '../../src/db/migrations';
+import { requireOptionalNativeModule } from 'expo';
+import Constants from 'expo-constants';
 export default function Settings() {
   const router = useRouter();
   const c = useTheme();
+  const application = requireOptionalNativeModule<{
+    nativeApplicationVersion?: string;
+    nativeBuildVersion?: string;
+  }>('ExpoApplication');
+  const version = application?.nativeApplicationVersion ?? Constants.expoConfig?.version;
   const { settings, accounts, transactionCount, mutatePreference } = useFinance();
   return (
     <Screen
       back
       title="Settings"
-      subtitle="Make Settler your own"
+      subtitle="Appearance, categories and app settings"
       headerActions={<FinanceArt kind="shield" colors={c} size={48} />}>
       <Choices
         label="Appearance"
@@ -76,7 +83,10 @@ export default function Settings() {
           device compromise.
         </Label>
       </Card>
-      <Label small>Settler 1.0 · Personal finance, thoughtfully simple.</Label>
+      <Label small>
+        Settler{version ? ` ${version}` : ''}
+        {application?.nativeBuildVersion ? ` · Build ${application.nativeBuildVersion}` : ''}
+      </Label>
     </Screen>
   );
 }

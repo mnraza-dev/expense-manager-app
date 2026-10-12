@@ -137,7 +137,7 @@ export function ThreeRingChart({
       </View>
       {GL && !failed && active && (
         <GL
-          style={{ position: 'absolute', inset: 0 }}
+          style={{ position: 'absolute', inset: 0, opacity: ready ? 1 : 0 }}
           msaaSamples={2}
           onContextCreate={(gl) => {
             if (!mounted.current) return;
